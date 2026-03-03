@@ -17,10 +17,10 @@ const Screens2 = (() => {
   let _expenseMainCategories = [];
 
   async function loadLookups() {
-    // Load vendors
+    // Load vendors (now filtered by store visibility)
     try {
       const vData = await API.getVendors();
-      _vendors = (vData.vendors || []).map(v => v.vendor_name).sort();
+      _vendors = (vData.vendors || []).map(v => ({ id: v.id, name: v.vendor_name }));
     } catch { _vendors = []; }
 
     // Load categories (Expense type only)
@@ -32,21 +32,67 @@ const Screens2 = (() => {
   }
 
   function renderVendorDropdown(id, value) {
-    const opts = _vendors.map(v =>
-      `<option value="${App.esc(v)}" ${v === value ? 'selected' : ''}>${App.esc(v)}</option>`
-    ).join('');
     return `
-      <select class="form-select" id="${id}" onchange="Screens2.onVendorChange('${id}')">
-        <option value="">— เลือก Vendor —</option>
-        ${opts}
-      </select>
-      <div style="margin-top:4px">
-        <button class="btn btn-sm btn-outline" onclick="Screens2.showNewVendorModal('${id}')">+ สร้างใหม่</button>
+      <div class="vendor-search-wrap" style="position:relative">
+        <div style="display:flex;gap:6px;align-items:center">
+          <div style="flex:1;position:relative">
+            <input type="text" class="form-input" id="${id}" value="${App.esc(value || '')}"
+                   placeholder="🔍 พิมพ์ค้นหา Vendor..."
+                   autocomplete="off"
+                   onfocus="Screens2.showVendorList('${id}')"
+                   oninput="Screens2.filterVendorList('${id}')">
+            <div id="${id}-list" class="vendor-dropdown-list" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:100;background:var(--bg);border:1px solid var(--border);border-radius:0 0 8px 8px;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.1)"></div>
+          </div>
+          <button class="btn btn-sm btn-outline" onclick="App.go('settings')" title="จัดการ Vendor" style="padding:8px;min-width:36px">⚙</button>
+        </div>
+        <div style="margin-top:4px">
+          <button class="btn btn-sm btn-outline" onclick="Screens2.showNewVendorModal('${id}')">+ เพิ่ม Vendor ใหม่</button>
+        </div>
       </div>`;
   }
 
+  function showVendorList(id) {
+    filterVendorList(id);
+    document.getElementById(id + '-list').style.display = 'block';
+    // Close on outside click
+    setTimeout(() => {
+      document.addEventListener('click', function _close(e) {
+        if (!e.target.closest('.vendor-search-wrap')) {
+          const el = document.getElementById(id + '-list');
+          if (el) el.style.display = 'none';
+          document.removeEventListener('click', _close);
+        }
+      });
+    }, 50);
+  }
+
+  function filterVendorList(id) {
+    const input = document.getElementById(id);
+    const q = (input?.value || '').toLowerCase();
+    const listEl = document.getElementById(id + '-list');
+    if (!listEl) return;
+
+    const filtered = _vendors.filter(v => v.name.toLowerCase().includes(q));
+    if (filtered.length === 0) {
+      listEl.innerHTML = '<div style="padding:10px;color:var(--tm);font-size:12px;text-align:center">ไม่พบ — ลองกด "+ เพิ่ม"</div>';
+    } else {
+      listEl.innerHTML = filtered.map(v =>
+        `<div class="vendor-opt" style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border)"
+              onmousedown="Screens2.pickVendor('${id}', '${App.esc(v.name)}')">${App.esc(v.name)}</div>`
+      ).join('');
+    }
+    listEl.style.display = 'block';
+  }
+
+  function pickVendor(id, name) {
+    const input = document.getElementById(id);
+    if (input) input.value = name;
+    const listEl = document.getElementById(id + '-list');
+    if (listEl) listEl.style.display = 'none';
+  }
+
   function onVendorChange(id) {
-    // no-op for now, just for event consistency
+    // no-op for now
   }
 
   function renderMainCategoryDropdown(id, value, onchangeFn) {
@@ -108,26 +154,39 @@ const Screens2 = (() => {
 
     try {
       App.showLoader();
-      await API.createVendor(name);
+      const result = await API.createVendor(name);
+
+      // Success — add to local list
       App.toast(`สร้าง "${name}" สำเร็จ ✓`, 'success');
+      _vendors.push({ id: result.vendor?.id, name: name });
+      _vendors.sort((a, b) => a.name.localeCompare(b.name));
 
-      // Add to local list and update dropdown
-      _vendors.push(name);
-      _vendors.sort();
-
-      const dd = document.getElementById(dropdownId);
-      if (dd) {
-        const opt = document.createElement('option');
-        opt.value = name;
-        opt.textContent = name;
-        opt.selected = true;
-        dd.appendChild(opt);
-        dd.value = name;
-      }
+      const input = document.getElementById(dropdownId);
+      if (input) input.value = name;
 
       document.getElementById('vendor-modal')?.remove();
     } catch (err) {
-      App.toast('สร้าง Vendor ไม่สำเร็จ: ' + err.message, 'error');
+      if (err.code === 'DUPLICATE_VISIBLE') {
+        App.toast(`"${err.vendor_name || name}" มีในรายการแล้ว`, 'error');
+        const input = document.getElementById(dropdownId);
+        if (input) input.value = err.vendor_name || name;
+        document.getElementById('vendor-modal')?.remove();
+      } else if (err.code === 'DUPLICATE_HIDDEN') {
+        // Offer to enable
+        if (confirm(`"${err.vendor_name || name}" มีในระบบแต่ปิดอยู่\nต้องการเปิดการมองเห็นไหม?`)) {
+          try {
+            await API.toggleVendorVisibility(err.vendor_id, API.getSelectedStore(), true);
+            App.toast(`เปิด "${err.vendor_name}" สำเร็จ ✓`, 'success');
+            _vendors.push({ id: err.vendor_id, name: err.vendor_name });
+            _vendors.sort((a, b) => a.name.localeCompare(b.name));
+            const input = document.getElementById(dropdownId);
+            if (input) input.value = err.vendor_name;
+          } catch (e2) { App.toast(e2.message, 'error'); }
+        }
+        document.getElementById('vendor-modal')?.remove();
+      } else {
+        App.toast('สร้าง Vendor ไม่สำเร็จ: ' + err.message, 'error');
+      }
     } finally {
       App.hideLoader();
     }
@@ -868,6 +927,7 @@ const Screens2 = (() => {
     // Shared
     onMainCategoryChange, onVendorChange,
     showNewVendorModal, doCreateVendor,
+    showVendorList, filterVendorList, pickVendor,
 
     // S2 Expense
     renderExpense, loadExpense,

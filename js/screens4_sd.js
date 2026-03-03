@@ -35,7 +35,7 @@ const Screens4 = (() => {
           <!-- Admin Tabs -->
           <div class="nav-tabs" style="flex-wrap:wrap">
             <button class="nav-tab active" id="s7-tab-channels" onclick="Screens4.setTab('channels')">📡 Channels</button>
-            <button class="nav-tab" id="s7-tab-suppliers" onclick="Screens4.setTab('suppliers')">🏪 Suppliers</button>
+            <button class="nav-tab" id="s7-tab-suppliers" onclick="Screens4.setTab('suppliers')">🏪 Vendor</button>
             <button class="nav-tab" id="s7-tab-settings" onclick="Screens4.setTab('settings')">⚙️ Settings</button>
             <button class="nav-tab" id="s7-tab-permissions" onclick="Screens4.setTab('permissions')">🔐 Permissions</button>
             <button class="nav-tab" id="s7-tab-audit" onclick="Screens4.setTab('audit')">📋 Audit</button>
@@ -192,54 +192,100 @@ const Screens4 = (() => {
 
 
   // ════════════════════════════════════════
-  // TAB 2: SUPPLIERS
+  // TAB 2: VENDOR VISIBILITY
   // ════════════════════════════════════════
 
   let _vendors = [];
+  let _vendorMatrix = null;
 
   async function renderSuppliersTab(el) {
-    const data = await API.adminGetSuppliers();
-    _vendors = data.vendors || [];
+    const session = API.getSession();
+    const isAdmin = session?.tier_level <= 2;
 
-    const active = _vendors.filter(v => v.is_active !== false);
-    const inactive = _vendors.filter(v => v.is_active === false);
-
-    el.innerHTML = `
-      <div class="section-label">🏪 Vendor Master — ${data.vendor_count} vendors</div>
-
-      <!-- Search -->
-      <div class="form-group" style="margin-bottom:12px">
-        <input type="text" class="form-input" id="s7-vendor-search" placeholder="🔍 ค้นหา vendor..."
-               oninput="Screens4.filterVendors()">
-      </div>
-
-      <div id="s7-vendor-list">
-        ${renderVendorList(active)}
-      </div>
-
-      ${inactive.length > 0 ? `
-        <details style="margin-top:12px">
-          <summary style="font-size:12px;color:var(--tm);cursor:pointer">ปิดใช้งาน (${inactive.length})</summary>
-          <div style="margin-top:8px">${renderVendorList(inactive)}</div>
-        </details>` : ''}
-    `;
+    if (isAdmin) {
+      await renderVendorMatrixView(el);
+    } else {
+      await renderVendorStoreView(el);
+    }
   }
 
-  function renderVendorList(vendors) {
-    if (vendors.length === 0) return '<div style="text-align:center;padding:12px;color:var(--tm)">ไม่มีข้อมูล</div>';
-    return vendors.map(v => `
-      <div class="card-flat vendor-row" style="display:flex;align-items:center;gap:10px" data-name="${(v.vendor_name || '').toLowerCase()}">
-        <div style="flex:1">
-          <div style="font-weight:600;font-size:13px">${App.esc(v.vendor_name)}</div>
-          <div style="font-size:10px;color:var(--td)">${App.esc(v.vendor_group || '—')}</div>
+  // ── Staff View: Toggle list for own store ──
+  async function renderVendorStoreView(el) {
+    try {
+      const data = await API.getVendors();
+      const allVendors = data.vendors || [];
+
+      el.innerHTML = `
+        <div class="section-label">🏪 Vendor ของร้าน — ${allVendors.length} รายการ</div>
+        <div class="form-group" style="margin-bottom:12px">
+          <input type="text" class="form-input" id="s7-vendor-search" placeholder="🔍 ค้นหา vendor..."
+                 oninput="Screens4.filterVendors()">
         </div>
-        <button class="btn btn-sm ${v.is_active !== false ? 'btn-gold' : 'btn-outline'}"
-                onclick="Screens4.toggleVendor('${v.id}', ${v.is_active === false})"
-                style="min-width:48px">
-          ${v.is_active !== false ? '✅' : '—'}
-        </button>
-      </div>
-    `).join('');
+        <div id="s7-vendor-list">
+          ${allVendors.length === 0 ? '<div style="text-align:center;padding:12px;color:var(--tm)">ไม่มี vendor</div>' :
+            allVendors.map(v => `
+              <div class="card-flat vendor-row" style="display:flex;align-items:center;gap:10px" data-name="${(v.vendor_name || '').toLowerCase()}">
+                <div style="flex:1">
+                  <div style="font-weight:600;font-size:13px">${App.esc(v.vendor_name)}</div>
+                  <div style="font-size:10px;color:var(--td)">${App.esc(v.vendor_group || '—')}</div>
+                </div>
+                <div style="font-size:11px;color:var(--green)">✅ แสดง</div>
+              </div>
+            `).join('')}
+        </div>
+        <div style="margin-top:8px;font-size:11px;color:var(--tm);text-align:center">
+          ต้องการซ่อน vendor? ติดต่อ Admin (T1-T2)
+        </div>
+      `;
+    } catch (err) {
+      el.innerHTML = `<div style="color:var(--red);padding:16px">${err.message}</div>`;
+    }
+  }
+
+  // ── Admin View: Vendor × Store matrix ──
+  async function renderVendorMatrixView(el) {
+    try {
+      const data = await API.adminGetVendorMatrix();
+      _vendorMatrix = data;
+      const { stores: matStores, vendors: matVendors } = data;
+
+      el.innerHTML = `
+        <div class="section-label">🏪 Vendor Visibility — ${matVendors.length} vendors × ${matStores.length} stores</div>
+
+        <div class="form-group" style="margin-bottom:12px">
+          <input type="text" class="form-input" id="s7-vendor-search" placeholder="🔍 ค้นหา vendor..."
+                 oninput="Screens4.filterVendors()">
+        </div>
+
+        <!-- Header row -->
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:12px" id="s7-vendor-matrix">
+            <thead>
+              <tr style="background:var(--surface)">
+                <th style="text-align:left;padding:8px;position:sticky;left:0;background:var(--surface);min-width:140px">Vendor</th>
+                ${matStores.map(s => `<th style="text-align:center;padding:8px;min-width:50px">${App.esc(s.store_id)}</th>`).join('')}
+              </tr>
+            </thead>
+            <tbody>
+              ${matVendors.map(v => `
+                <tr class="vendor-row" data-name="${(v.vendor_name || '').toLowerCase()}" style="border-bottom:1px solid var(--border)">
+                  <td style="padding:8px;font-weight:500;position:sticky;left:0;background:var(--bg)">${App.esc(v.vendor_name)}</td>
+                  ${matStores.map(s => {
+                    const vis = v.stores[s.store_id] !== false;
+                    return `<td style="text-align:center;padding:6px">
+                      <button class="btn btn-sm ${vis ? 'btn-gold' : 'btn-outline'}" style="min-width:36px;padding:4px 8px"
+                              onclick="Screens4.toggleVisibility('${v.vendor_id}', '${s.store_id}', ${!vis})">${vis ? '✅' : '—'}</button>
+                    </td>`;
+                  }).join('')}
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    } catch (err) {
+      el.innerHTML = `<div style="color:var(--red);padding:16px">${err.message}</div>`;
+    }
   }
 
   function filterVendors() {
@@ -248,6 +294,14 @@ const Screens4 = (() => {
       const name = row.getAttribute('data-name') || '';
       row.style.display = name.includes(q) ? '' : 'none';
     });
+  }
+
+  async function toggleVisibility(vendorId, storeId, newVisible) {
+    try {
+      await API.toggleVendorVisibility(vendorId, storeId, newVisible);
+      App.toast(`${newVisible ? 'เปิด' : 'ปิด'}การมองเห็น สำเร็จ`, 'success');
+      await loadTabContent('suppliers');
+    } catch (err) { App.toast(err.message, 'error'); }
   }
 
   async function toggleVendor(vendorId, newActive) {
@@ -384,7 +438,7 @@ const Screens4 = (() => {
     for (const [groupKey, fns] of Object.entries(groups)) {
       html += `<tr><td colspan="${tiers.length + 1}" style="padding:8px 8px 4px;font-weight:700;color:var(--gold-dim);font-size:12px;border-top:1px solid var(--s2)">${groupLabels[groupKey] || groupKey}</td></tr>`;
 
-      fns.forEach(fn => {
+      (fns as any[]).forEach((fn: any) => {
         html += `<tr>
           <td style="padding:4px 8px;font-size:11px">${App.esc(fn.function_name)}</td>
           ${tiers.map(t => {
@@ -456,8 +510,8 @@ const Screens4 = (() => {
     renderSettings, loadSettings, setTab,
     // Channels
     toggleChannel, editChannel, saveChannelEdit,
-    // Suppliers
-    filterVendors, toggleVendor,
+    // Suppliers / Vendor Visibility
+    filterVendors, toggleVendor, toggleVisibility,
     // Settings
     setSettingToggle, saveSettings,
     // Permissions

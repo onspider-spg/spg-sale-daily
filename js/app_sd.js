@@ -29,9 +29,9 @@ const App = (() => {
     { store_id: 'MNG', label: 'Mango Coco', short: 'MNG' },
     { store_id: 'ISH', label: 'Issho Cafe', short: 'ISH' },
     { store_id: 'GB',  label: 'Golden Brown', short: 'GB' },
-    { store_id: 'RW',  label: 'Red Wok', short: 'RW' },
+    { store_id: 'RW',  label: 'Red Wok', short: 'RW', branches: [] },
     { store_id: 'TMC', label: 'Melting Cheese', short: 'TMC' },
-    { store_id: 'BC',  label: 'Bakery Centre', short: 'BC' },
+    { store_id: 'SPG', label: 'Siam Palette Group', short: 'SPG' },
   ];
 
   // ─── ROUTES ───
@@ -68,6 +68,20 @@ const App = (() => {
       showLoader();
       const data = await API.validateSession();
       API.saveSession({ token: session.token, ...data });
+
+      // Populate store branches from API data
+      if (data.accessible_stores && data.accessible_stores.length > 0) {
+        data.accessible_stores.forEach(as => {
+          const s = stores.find(st => st.store_id === as.store_id);
+          if (s && as.branches && as.branches.length > 0) {
+            s.branches = as.branches;
+          }
+        });
+      } else if (data.branches && data.branches.length > 0) {
+        // For non-admin: attach own branches
+        const own = stores.find(st => st.store_id === data.store_id);
+        if (own) own.branches = data.branches;
+      }
 
       // Set default store
       if (!API.isHQ()) {
@@ -191,19 +205,46 @@ const App = (() => {
   function renderStoreSelector() {
     if (!API.isHQ()) return '';
     const selected = API.getSelectedStore();
+    const selectedBranch = API.getSelectedBranch();
+
     return `
       <div class="store-selector">
-        ${stores.map(s => `
-          <button class="store-pill ${s.store_id === selected ? 'active' : ''}"
-                  onclick="App.selectStore('${s.store_id}')">${s.short}</button>
-        `).join('')}
+        ${stores.map(s => {
+          const isActive = s.store_id === selected;
+          // If store has branches, show a dropdown pill
+          if (s.branches && s.branches.length > 0) {
+            return `
+              <div class="store-pill-wrap" style="position:relative;display:inline-block">
+                <button class="store-pill ${isActive ? 'active' : ''}"
+                        onclick="App.selectStore('${s.store_id}')">${s.short} ▾</button>
+                ${isActive ? `
+                  <div class="branch-dropdown" style="position:absolute;top:100%;left:0;z-index:50;background:var(--bg);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.1);margin-top:4px;min-width:140px;overflow:hidden">
+                    <button class="branch-opt ${!selectedBranch ? 'active' : ''}" style="display:block;width:100%;text-align:left;padding:8px 12px;border:0;background:${!selectedBranch ? 'var(--gold-bg)' : 'transparent'};font-size:12px;cursor:pointer"
+                            onclick="App.selectBranch(null)">📊 ${s.short} (รวม)</button>
+                    ${s.branches.map(b => `
+                      <button class="branch-opt ${selectedBranch === b.branch_id ? 'active' : ''}" style="display:block;width:100%;text-align:left;padding:8px 12px;border:0;background:${selectedBranch === b.branch_id ? 'var(--gold-bg)' : 'transparent'};font-size:12px;cursor:pointer"
+                              onclick="App.selectBranch('${b.branch_id}')">${App.esc(b.branch_name)}</button>
+                    `).join('')}
+                  </div>
+                ` : ''}
+              </div>`;
+          }
+          return `
+            <button class="store-pill ${isActive ? 'active' : ''}"
+                    onclick="App.selectStore('${s.store_id}')">${s.short}</button>`;
+        }).join('')}
       </div>
     `;
   }
 
   function selectStore(store_id) {
     API.setSelectedStore(store_id);
-    // Re-render current screen
+    API.setSelectedBranch(null);
+    go(currentRoute, currentParams);
+  }
+
+  function selectBranch(branch_id) {
+    API.setSelectedBranch(branch_id);
     go(currentRoute, currentParams);
   }
 
@@ -225,7 +266,7 @@ const App = (() => {
     init, go, toast, showLoader, hideLoader,
     esc, formatMoney, formatMoneyShort, formatDate, formatDateShort,
     todayStr, addDays,
-    renderStoreSelector, selectStore,
+    renderStoreSelector, selectStore, selectBranch,
     goHome,
     getStores: () => stores,
     getCurrentRoute: () => currentRoute,

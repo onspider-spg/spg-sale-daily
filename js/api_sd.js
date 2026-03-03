@@ -96,9 +96,11 @@ const API = (() => {
       store_id: data.store_id,
       dept_id: data.dept_id,
       store_name: data.store_name,
-      brand_name: data.brand_name,
+      brand: data.brand || data.brand_name || '',
       access_level: data.access_level,
       permissions: data.permissions || {},
+      branches: data.branches || [],
+      accessible_stores: data.accessible_stores || [],
     };
     localStorage.setItem(SD_SESSION_KEY, JSON.stringify(sessionData));
     return sessionData;
@@ -135,9 +137,11 @@ const API = (() => {
 
   // ─── Store selector state ───
   let _selectedStore = null;
+  let _selectedBranch = null;
 
   function setSelectedStore(store_id) {
     _selectedStore = store_id;
+    _selectedBranch = null; // reset branch when store changes
   }
 
   function getSelectedStore() {
@@ -146,12 +150,21 @@ const API = (() => {
     return s?.store_id || null;
   }
 
+  function setSelectedBranch(branch_id) {
+    _selectedBranch = branch_id;
+  }
+
+  function getSelectedBranch() {
+    return _selectedBranch;
+  }
+
   // ─── PUBLIC API ───
   return {
     setBaseUrl, getBaseUrl,
     initFromUrl, saveSession, getSession, clearSession,
     hasPermission, isHQ,
     setSelectedStore, getSelectedStore,
+    setSelectedBranch, getSelectedBranch,
     uploadPhoto,
 
     // EP-01: Validate Session
@@ -334,5 +347,15 @@ const API = (() => {
     // EP-31: Admin Get Audit Log
     adminGetAuditLog: (filters) =>
       post('sd_admin_get_audit_log', tokenBody(filters || {})),
+
+    // ─── Phase 1: Vendor Visibility ───
+
+    // EP-32: Toggle Vendor Visibility
+    toggleVendorVisibility: (vendor_id, store_id, is_visible) =>
+      post('sd_toggle_vendor_visibility', tokenBody({ vendor_id, store_id, is_visible })),
+
+    // EP-33: Admin Get Vendor Matrix
+    adminGetVendorMatrix: () =>
+      post('sd_admin_get_vendor_matrix', tokenBody()),
   };
 })();
