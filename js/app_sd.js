@@ -210,7 +210,7 @@ const App = (() => {
   // ─── BACK TO HOME ───
   function goHome() {
     // Navigate back to Home module
-    const homeUrl = localStorage.getItem('spg_home_url') || '../home/';
+    const homeUrl = localStorage.getItem('spg_home_url') || 'https://onspider-spg.github.io/spg-home/';
     window.location.href = homeUrl;
   }
 
