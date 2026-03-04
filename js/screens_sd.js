@@ -73,28 +73,9 @@ const Screens = (() => {
 
     return `
       <div class="screen">
-        <!-- Sidebar Overlay -->
-        <div class="sidebar-overlay" id="sidebar-overlay" onclick="Screens.toggleSidebar()"></div>
-        <div class="sidebar" id="sidebar">
-          <div class="sidebar-profile">
-            <div class="sidebar-avatar">${App.esc((s.display_name || 'U').charAt(0))}</div>
-            <div>
-              <div class="sidebar-name">${App.esc(s.display_name)}</div>
-              <div class="sidebar-info">${App.esc(s.store_name || s.store_id)} · ${App.esc(s.dept_id || '')}</div>
-              <span class="tag gray" style="margin-top:4px;display:inline-block">${App.esc(s.tier_id)}</span>
-            </div>
-          </div>
-          <div class="sidebar-menu">
-            <div class="sidebar-item" onclick="App.goHome()">🏠 กลับหน้า Home</div>
-            <div class="sidebar-item" onclick="App.go('settings')">⚙️ ตั้งค่า</div>
-            <div class="sidebar-item sidebar-logout" onclick="Screens.doLogout()">🚪 ออกจากระบบ</div>
-          </div>
-          <div class="sidebar-footer">Sale Daily v1.1 · SPG © 2026</div>
-        </div>
-
         <!-- Header -->
         <div class="header-bar">
-          <button class="back-btn" onclick="Screens.toggleSidebar()">☰</button>
+          <button class="back-btn" onclick="App.goHome()">←</button>
           <div>
             <div class="header-title">💰 Sale Daily</div>
             <div class="header-sub">${App.esc(s.display_name)} · ${App.esc(s.store_name)}</div>
@@ -200,13 +181,13 @@ const Screens = (() => {
             </div>
           </div>
 
-          ${API.hasPermission('manage_config') ? `
+          ${(API.isHQ() || API.hasPermission('manage_config')) ? `
             <div class="quick-grid" style="grid-template-columns:1fr">
               <div class="quick-btn" onclick="App.go('settings')">
                 <div class="q-icon" style="background:var(--s2);color:var(--td)">⚙️</div>
                 <div>
                   <div class="q-label">ตั้งค่า & จัดการ</div>
-                  <div class="q-sub">S7 Admin — Channel, Supplier, Permissions</div>
+                  <div class="q-sub">S7 Admin — Channel, Vendor, Permissions</div>
                 </div>
               </div>
             </div>
@@ -746,22 +727,7 @@ const Screens = (() => {
   // EXPORTS
   // ════════════════════════════════════════
 
-  function toggleSidebar() {
-    var sidebar = document.getElementById("sidebar");
-    var overlay = document.getElementById("sidebar-overlay");
-    if (!sidebar || !overlay) return;
-    var isOpen = sidebar.classList.contains("open");
-    sidebar.classList.toggle("open", !isOpen);
-    overlay.classList.toggle("open", !isOpen);
-  }
-
-  function doLogout() {
-    API.clearSession();
-    App.goHome();
-  }
-
   return {
-    toggleSidebar, doLogout,
     // Init screens
     renderLoading, renderNoAccess, renderComingSoon,
 
