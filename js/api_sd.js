@@ -408,5 +408,8 @@ const API = (() => {
 
     saveDailyReport: (data) =>
       post('sd_save_daily_report', tokenBody(data)),
+
+    getS8Summary: (store_id, report_date) =>
+      post('sd_get_s8_summary', tokenBody({ store_id, report_date })),
   };
 })();

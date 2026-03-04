@@ -305,7 +305,7 @@ const App = (() => {
           <div style="height:1px;background:var(--s2);margin:8px 20px"></div>
           <div class="sidebar-item sidebar-logout" onclick="App.logout()">🚪 ออกจากระบบ</div>
         </div>
-        <div class="sidebar-footer">SPG Sale Daily v1.5</div>
+        <div class="sidebar-footer">SPG Sale Daily v1.5.2</div>
       </div>`;
 
     document.body.insertAdjacentHTML('beforeend', html);

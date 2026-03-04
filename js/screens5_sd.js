@@ -1,14 +1,15 @@
 /**
  * ═══════════════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
- * screens5_sd.js — v1.5: Tasks + S8 Daily Report
+ * screens5_sd.js — v1.5.2
+ * Tasks + S8 Daily Report (3 tabs) + Admin Dashboard
  * ═══════════════════════════════════════════════════
  */
 
 const Screens5 = (() => {
 
   // ════════════════════════════════════════
-  // TASKS SCREEN (Phase 1)
+  // TASKS SCREEN (standalone + embedded tab)
   // ════════════════════════════════════════
 
   let _tasks = [];
@@ -64,7 +65,6 @@ const Screens5 = (() => {
       el.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--tm)"><div style="font-size:36px;margin-bottom:8px">📋</div><div>ไม่มีรายการ</div></div>';
       return;
     }
-
     const session = API.getSession();
     const canEdit = session && session.tier_level <= 4;
 
@@ -84,11 +84,35 @@ const Screens5 = (() => {
               ${t.note ? `<div style="font-size:12px;color:var(--td);margin-top:2px">${App.esc(t.note)}</div>` : ''}
               <div style="font-size:10px;color:var(--tm);margin-top:4px;display:flex;gap:8px;flex-wrap:wrap">
                 ${t.assigned_to ? `<span>👤 ${App.esc(t.assigned_to)}</span>` : ''}
-                ${isSuggestion ? '<span class="tag" style="background:var(--purple-bg);color:var(--purple);font-size:9px;padding:1px 6px;border-radius:4px">💡 Suggestion</span>' : ''}
+                ${isSuggestion ? '<span style="background:var(--purple-bg);color:var(--purple);font-size:9px;padding:1px 6px;border-radius:4px">💡 Suggestion</span>' : ''}
                 <span>${new Date(t.created_at).toLocaleDateString('th-TH')}</span>
                 ${isDone && t.completed_at ? `<span style="color:var(--green)">เสร็จ ${new Date(t.completed_at).toLocaleDateString('th-TH')}</span>` : ''}
               </div>
             </div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function renderTaskListEmbedded(el, tasks) {
+    // Compact task list for S8 tab 3
+    if (!tasks || tasks.length === 0) {
+      el.innerHTML = '<div style="text-align:center;padding:30px 0;color:var(--tm)"><div style="font-size:28px;margin-bottom:6px">📋</div><div style="font-size:12px">ไม่มีรายการ</div></div>';
+      return;
+    }
+    const session = API.getSession();
+    const canEdit = session && session.tier_level <= 4;
+
+    el.innerHTML = tasks.map(t => {
+      const isDone = t.status === 'done';
+      const isUrgent = t.priority === 'urgent';
+      const icon = isDone ? '✅' : (isUrgent ? '🚨' : '⏳');
+      return `
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--s2)">
+          ${canEdit ? `<span style="font-size:16px;cursor:pointer" onclick="Screens5.toggleTaskFromS8('${t.id}','${isDone ? 'pending' : 'done'}')">${icon}</span>` : `<span style="font-size:16px">${icon}</span>`}
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:500;${isDone ? 'text-decoration:line-through;opacity:0.5' : ''}">${App.esc(t.title)}</div>
+            ${t.assigned_to ? `<div style="font-size:10px;color:var(--tm)">👤 ${App.esc(t.assigned_to)}</div>` : ''}
           </div>
         </div>`;
     }).join('');
@@ -104,6 +128,21 @@ const Screens5 = (() => {
       await API.updateTask({ task_id: taskId, status: newStatus });
       App.toast(newStatus === 'done' ? '✅ เสร็จแล้ว' : '⏳ เปิดใหม่', 'success');
       await loadTasks();
+      await App.refreshTaskBadge();
+    } catch (err) { App.toast(err.message, 'error'); }
+  }
+
+  async function toggleTaskFromS8(taskId, newStatus) {
+    try {
+      await API.updateTask({ task_id: taskId, status: newStatus });
+      App.toast(newStatus === 'done' ? '✅ เสร็จแล้ว' : '⏳ เปิดใหม่', 'success');
+      // Reload tasks tab
+      const el = document.getElementById('s8-content');
+      if (el && _activeTab === 'tasks') {
+        const data = await API.getTasks(null);
+        _s8Tasks = data.tasks || [];
+        renderTasksTab(el);
+      }
       await App.refreshTaskBadge();
     } catch (err) { App.toast(err.message, 'error'); }
   }
@@ -164,6 +203,15 @@ const Screens5 = (() => {
       });
       document.getElementById('edit-modal')?.remove();
       App.toast('เพิ่มงานสำเร็จ ✓', 'success');
+      // Refresh if on tasks screen or s8 tasks tab
+      if (_activeTab === 'tasks') {
+        const el = document.getElementById('s8-content');
+        if (el) {
+          const data = await API.getTasks(null);
+          _s8Tasks = data.tasks || [];
+          renderTasksTab(el);
+        }
+      }
       await loadTasks();
       await App.refreshTaskBadge();
     } catch (err) { App.toast(err.message, 'error'); }
@@ -172,13 +220,18 @@ const Screens5 = (() => {
 
 
   // ════════════════════════════════════════
-  // S8 DAILY REPORT SCREEN (Phase 2+3)
+  // S8 DAILY REPORT — 3 TABS
+  // Tab 1: ภาพรวม (S1/S2 + weather + customers)
+  // Tab 2: เหตุการณ์ + Waste/Leftover
+  // Tab 3: ติดตาม (tasks embedded)
   // ════════════════════════════════════════
 
   let _reportDate = null;
   let _reportData = null;
   let _incidentState = {};
   let _leftoverItems = [];
+  let _s8Summary = null;
+  let _s8Tasks = [];
   let _activeTab = 'overview';
 
   const INCIDENT_CATS = [
@@ -192,9 +245,24 @@ const Screens5 = (() => {
     { key: 'staff', icon: '👤', name: 'Staff Issue', desc: 'ขาดคน, ไม่แจ้งออก, พฤติกรรม' },
   ];
 
+  const LEVEL_OPTS = [
+    { key: 'little', label: '🟢 นิดหน่อย' },
+    { key: 'half', label: '🟡 ครึ่งนึง' },
+    { key: 'almost_full', label: '🔴 เกือบหมด' },
+    { key: 'full', label: '⚫ ทั้งจาน' },
+  ];
+
+  // ─── MAIN RENDER ───
+
   function renderDailyReport() {
     const session = API.getSession();
     if (!session) return Screens.renderNoAccess();
+
+    // Admin (T1-T2) → dashboard view
+    const isAdmin = session.tier_level <= 2 || session.store_id === 'HQ';
+    if (isAdmin) return renderAdminDashboard(session);
+
+    // Store staff → form view
     _reportDate = _reportDate || App.todayStr();
 
     return `
@@ -205,54 +273,199 @@ const Screens5 = (() => {
             <div class="header-title">📝 Daily Report</div>
             <div class="header-sub">S8 สรุปรายงาน · ${App.esc(session.store_name)}</div>
           </div>
+          <button class="back-btn" onclick="App.toggleSidebar()" style="font-size:16px">☰</button>
         </div>
         <div class="screen-body">
-          ${API.isHQ() ? App.renderStoreSelector() : ''}
 
-          <!-- Date -->
-          <div style="display:flex;align-items:center;justify-content:center;gap:12px;padding:8px 0;font-size:14px;font-weight:600">
-            <span style="cursor:pointer;font-size:18px" onclick="Screens5.s8ChangeDate(-1)">‹</span>
+          <!-- Date picker -->
+          <div style="display:flex;align-items:center;justify-content:center;gap:12px;padding:8px 0 12px;font-size:14px;font-weight:600">
+            <span style="cursor:pointer;font-size:20px;padding:4px 8px;border-radius:8px;background:var(--s1)" onclick="Screens5.s8ChangeDate(-1)">‹</span>
             <span>📅 ${App.formatDate(_reportDate)}</span>
-            <span style="cursor:pointer;font-size:18px" onclick="Screens5.s8ChangeDate(1)">›</span>
+            <span style="cursor:pointer;font-size:20px;padding:4px 8px;border-radius:8px;background:var(--s1)" onclick="Screens5.s8ChangeDate(1)">›</span>
           </div>
 
-          <!-- Tabs -->
-          <div style="display:flex;gap:0;background:var(--s1);border-radius:12px;padding:3px;margin-bottom:12px">
-            <button class="tab-pill ${_activeTab === 'overview' ? 'active' : ''}" onclick="Screens5.s8Tab('overview')">📊 ภาพรวม</button>
-            <button class="tab-pill ${_activeTab === 'incidents' ? 'active' : ''}" onclick="Screens5.s8Tab('incidents')">⚠️ เหตุการณ์</button>
+          <!-- 3 Tabs -->
+          <div id="s8-tabs" style="display:flex;gap:0;background:var(--s1);border-radius:12px;padding:3px;margin-bottom:12px">
+            <button class="tab-pill ${_activeTab === 'overview' ? 'active' : ''}" data-tab="overview" onclick="Screens5.s8Tab('overview')">📊 ภาพรวม</button>
+            <button class="tab-pill ${_activeTab === 'incidents' ? 'active' : ''}" data-tab="incidents" onclick="Screens5.s8Tab('incidents')">⚠️ เหตุการณ์</button>
+            <button class="tab-pill ${_activeTab === 'tasks' ? 'active' : ''}" data-tab="tasks" onclick="Screens5.s8Tab('tasks')">📋 ติดตาม</button>
           </div>
 
           <div id="s8-content">
             <div style="text-align:center;padding:20px;color:var(--tm)">กำลังโหลด...</div>
           </div>
 
-          <!-- Bottom buttons -->
+          <!-- Bottom: single save button -->
           <div style="display:flex;gap:8px;margin-top:16px;padding-bottom:20px">
-            <button class="btn btn-outline" style="flex:1" onclick="Screens5.s8Save(false)">💾 บันทึกร่าง</button>
-            <button class="btn btn-gold" style="flex:2" onclick="Screens5.s8CopyReport()">📋 Copy Report</button>
+            <button class="btn btn-gold" style="flex:1" onclick="Screens5.s8Save(false)">บันทึก</button>
+            <button class="btn btn-outline" style="flex:1" onclick="Screens5.s8CopyReport()">📋 Copy Report</button>
           </div>
         </div>
       </div>`;
   }
 
+  // ─── ADMIN DASHBOARD VIEW ───
+
+  function renderAdminDashboard(session) {
+    _reportDate = _reportDate || App.todayStr();
+    return `
+      <div class="screen">
+        <div class="header-bar">
+          <button class="back-btn" onclick="App.go('dashboard')">←</button>
+          <div style="flex:1;min-width:0">
+            <div class="header-title">📊 S8 Report Dashboard</div>
+            <div class="header-sub">ภาพรวมเหตุการณ์ · ${App.esc(session.store_name)}</div>
+          </div>
+          <button class="back-btn" onclick="App.toggleSidebar()" style="font-size:16px">☰</button>
+        </div>
+        <div class="screen-body">
+          ${App.renderStoreSelector ? App.renderStoreSelector() : ''}
+
+          <!-- Date range -->
+          <div style="display:flex;align-items:center;justify-content:center;gap:12px;padding:8px 0 12px;font-size:14px;font-weight:600">
+            <span style="cursor:pointer;font-size:20px;padding:4px 8px;border-radius:8px;background:var(--s1)" onclick="Screens5.s8ChangeDate(-1)">‹</span>
+            <span>📅 ${App.formatDate(_reportDate)}</span>
+            <span style="cursor:pointer;font-size:20px;padding:4px 8px;border-radius:8px;background:var(--s1)" onclick="Screens5.s8ChangeDate(1)">›</span>
+          </div>
+
+          <div id="admin-dashboard-content">
+            <div style="text-align:center;padding:20px;color:var(--tm)">กำลังโหลด...</div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  async function loadAdminDashboard() {
+    const el = document.getElementById('admin-dashboard-content');
+    if (!el) return;
+    try {
+      App.showLoader();
+      const storeId = API.isHQ() ? API.getSelectedStore() : null;
+      const [reportData, summaryData, taskData] = await Promise.all([
+        API.getDailyReport(storeId, _reportDate),
+        API.getS8Summary(storeId, _reportDate),
+        API.getTasks(storeId),
+      ]);
+
+      const r = reportData.report;
+      const s = summaryData;
+      const incidents = reportData.incidents || [];
+      const leftovers = reportData.leftovers || [];
+      const tasks = taskData.tasks || [];
+      const pendingTasks = tasks.filter(t => t.status === 'pending');
+
+      const wMap = { sunny: '☀️ แดด', cloudy: '🌤️ ครึ้ม', rain: '🌧️ ฝน', heavy_rain: '⛈️ ฝนหนัก' };
+      const tMap = { above: '📈 ดี', normal: '➡️ ปกติ', below: '📉 ต่ำ' };
+
+      // KPI Cards
+      const totalInc = incidents.reduce((s, i) => s + (i.count || 0), 0);
+      const saleTotal = s.sale ? (s.sale.total_sales || 0) : 0;
+      const expTotal = s.expense_total || 0;
+
+      // Incident breakdown
+      const incHtml = incidents.filter(i => i.count > 0).map(i => {
+        const cat = INCIDENT_CATS.find(c => c.key === i.category) || {};
+        return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--s2)">
+          <span style="font-size:16px">${cat.icon || '⚠️'}</span>
+          <span style="flex:1;font-size:13px;font-weight:500">${cat.name || i.category}</span>
+          <span style="font-weight:700;font-size:14px;color:var(--gold-dim)">×${i.count}</span>
+        </div>`;
+      }).join('') || '<div style="text-align:center;color:var(--tm);padding:12px;font-size:12px">ไม่มีเหตุการณ์</div>';
+
+      // Leftover summary
+      const lvMap = { little: '🟢', half: '🟡', almost_full: '🔴', full: '⚫' };
+      const lftHtml = leftovers.map(l =>
+        `<span style="background:var(--s1);padding:3px 8px;border-radius:6px;font-size:11px">${lvMap[l.level] || '🟡'} ${App.esc(l.item_name)} ×${l.quantity}</span>`
+      ).join(' ') || '<span style="font-size:12px;color:var(--tm)">ไม่มีรายการ</span>';
+
+      el.innerHTML = `
+        <!-- KPI -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">
+          <div class="card" style="text-align:center;padding:14px 8px">
+            <div style="font-size:10px;color:var(--td)">💰 ยอดขาย</div>
+            <div style="font-size:18px;font-weight:700;color:var(--gold-dim)">${saleTotal > 0 ? '$' + saleTotal.toLocaleString() : '—'}</div>
+          </div>
+          <div class="card" style="text-align:center;padding:14px 8px">
+            <div style="font-size:10px;color:var(--td)">🧾 ค่าใช้จ่าย</div>
+            <div style="font-size:18px;font-weight:700;color:var(--red)">${expTotal > 0 ? '$' + expTotal.toLocaleString() : '—'}</div>
+          </div>
+          <div class="card" style="text-align:center;padding:14px 8px">
+            <div style="font-size:10px;color:var(--td)">⚠️ เหตุการณ์</div>
+            <div style="font-size:18px;font-weight:700;color:${totalInc > 0 ? 'var(--orange)' : 'var(--green)'}">${totalInc}</div>
+          </div>
+        </div>
+
+        <!-- Store Context -->
+        ${r ? `<div class="card" style="margin-bottom:12px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:12px">
+            <span style="background:var(--s1);padding:4px 10px;border-radius:6px">${wMap[r.weather] || '—'}</span>
+            <span style="background:var(--s1);padding:4px 10px;border-radius:6px">Traffic: ${tMap[r.traffic] || '—'}</span>
+            <span style="background:var(--s1);padding:4px 10px;border-radius:6px">POS: ${r.pos_status === 'ok' ? '✅' : '⚠️'}</span>
+          </div>
+          ${r.overview_note ? `<div style="font-size:12px;color:var(--td);margin-top:8px">📝 ${App.esc(r.overview_note)}</div>` : ''}
+        </div>` : '<div style="padding:16px;text-align:center;color:var(--tm);font-size:12px;background:var(--s1);border-radius:10px;margin-bottom:12px">ยังไม่มีรีพอร์ตวันนี้</div>'}
+
+        <!-- Incidents -->
+        <div class="section-label">⚠️ เหตุการณ์</div>
+        <div class="card" style="margin-bottom:12px">${incHtml}</div>
+
+        <!-- Leftovers -->
+        <div class="section-label">🍞 ของเหลือ</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">${lftHtml}</div>
+
+        <!-- Tasks -->
+        <div class="section-label">📋 งานค้าง (${pendingTasks.length})</div>
+        <div class="card">
+          <div id="admin-task-list"></div>
+        </div>
+      `;
+
+      // Render embedded task list
+      const taskEl = document.getElementById('admin-task-list');
+      if (taskEl) renderTaskListEmbedded(taskEl, pendingTasks.slice(0, 10));
+
+    } catch (err) {
+      el.innerHTML = '<div style="color:var(--red);padding:16px">' + App.esc(err.message) + '</div>';
+    } finally { App.hideLoader(); }
+  }
+
+
+  // ─── LOAD DATA ───
+
   async function loadDailyReport() {
+    // Check admin → load dashboard
+    const session = API.getSession();
+    if (session && (session.tier_level <= 2 || session.store_id === 'HQ')) {
+      await loadAdminDashboard();
+      return;
+    }
+
     const el = document.getElementById('s8-content');
     if (!el) return;
     try {
       App.showLoader();
       const storeId = API.isHQ() ? API.getSelectedStore() : null;
-      const data = await API.getDailyReport(storeId, _reportDate);
-      _reportData = data.report;
 
-      // Init incident state from loaded data
+      // Parallel: report + summary + tasks
+      const [reportData, summaryData, taskData] = await Promise.all([
+        API.getDailyReport(storeId, _reportDate),
+        API.getS8Summary(storeId, _reportDate),
+        API.getTasks(storeId),
+      ]);
+
+      _reportData = reportData.report;
+      _s8Summary = summaryData;
+      _s8Tasks = taskData.tasks || [];
+
+      // Init incidents
       _incidentState = {};
       INCIDENT_CATS.forEach(c => { _incidentState[c.key] = { count: 0, note: '' }; });
-      (data.incidents || []).forEach(i => {
+      (reportData.incidents || []).forEach(i => {
         _incidentState[i.category] = { count: i.count || 0, note: i.note || '' };
       });
 
-      // Init leftover items
-      _leftoverItems = (data.leftovers || []).map(l => ({
+      // Init leftovers
+      _leftoverItems = (reportData.leftovers || []).map(l => ({
         item_name: l.item_name || '',
         quantity: l.quantity || 1,
         level: l.level || 'half',
@@ -264,16 +477,33 @@ const Screens5 = (() => {
     } finally { App.hideLoader(); }
   }
 
+
+  // ─── TAB ROUTING ───
+
   function renderS8Tab(el) {
-    if (_activeTab === 'overview') {
-      renderOverviewTab(el);
-      renderLeftoverList();
-    }
-    else renderIncidentsTab(el);
+    // Update tab highlight
+    document.querySelectorAll('#s8-tabs .tab-pill').forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('data-tab') === _activeTab);
+    });
+
+    if (_activeTab === 'overview') renderOverviewTab(el);
+    else if (_activeTab === 'incidents') renderIncidentsTab(el);
+    else if (_activeTab === 'tasks') renderTasksTab(el);
   }
+
+
+  // ═══ TAB 1: ภาพรวม ═══
 
   function renderOverviewTab(el) {
     const r = _reportData || {};
+    const s = _s8Summary || {};
+
+    // S1/S2 summary
+    const sale = s.sale;
+    const saleTotal = sale ? (sale.total_sales || 0) : 0;
+    const expTotal = s.expense_total || 0;
+    const expCount = (s.expenses || []).length;
+
     const weathers = [
       { key: 'sunny', label: '☀️ แดด' }, { key: 'cloudy', label: '🌤️ ครึ้ม' },
       { key: 'rain', label: '🌧️ ฝน' }, { key: 'heavy_rain', label: '⛈️ ฝนหนัก' },
@@ -287,7 +517,23 @@ const Screens5 = (() => {
     ];
 
     el.innerHTML = `
-      <div class="section-label" style="margin-top:0">🌤️ สภาพร้านวันนี้</div>
+      <!-- S1/S2 Auto-pull -->
+      <div class="section-label" style="margin-top:0">💰 ยอดขาย / ค่าใช้จ่ายวันนี้</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
+        <div class="card" style="text-align:center;padding:14px;border-left:3px solid var(--gold)">
+          <div style="font-size:11px;color:var(--td)">💰 S1 ยอดขาย</div>
+          <div style="font-size:20px;font-weight:700;color:var(--gold-dim);margin:4px 0">${saleTotal > 0 ? '$' + saleTotal.toLocaleString() : '—'}</div>
+          <div style="font-size:10px;color:var(--tm)">${sale ? (sale.fin_synced ? '✅ synced' : '📝 draft') : 'ยังไม่ได้กรอก'}</div>
+        </div>
+        <div class="card" style="text-align:center;padding:14px;border-left:3px solid var(--red)">
+          <div style="font-size:11px;color:var(--td)">🧾 S2 ค่าใช้จ่าย</div>
+          <div style="font-size:20px;font-weight:700;color:var(--red);margin:4px 0">${expTotal > 0 ? '$' + expTotal.toLocaleString() : '—'}</div>
+          <div style="font-size:10px;color:var(--tm)">${expCount > 0 ? expCount + ' รายการ' : 'ยังไม่มี'}</div>
+        </div>
+      </div>
+
+      <!-- Store Context -->
+      <div class="section-label">🌤️ สภาพร้านวันนี้</div>
       <div class="card">
         <div class="form-group" style="margin-bottom:10px">
           <div class="form-label">อากาศ</div>
@@ -313,6 +559,7 @@ const Screens5 = (() => {
         </div>
       </div>
 
+      <!-- Customer Insights -->
       <div class="section-label">🧑‍🤝‍🧑 กลุ่มลูกค้าตามช่วงเวลา</div>
       <div class="card">
         <div class="form-group" style="margin-bottom:10px">
@@ -336,16 +583,11 @@ const Screens5 = (() => {
           <input class="form-input" id="s8-cust-night" placeholder="เช่น วัยรุ่นเอเชีย, Take away..." value="${App.esc(r.customer_night || '')}">
         </div>
       </div>
-
-      <!-- Food Leftover -->
-      <div class="section-label">🍞 อาหาร / ขนมปังที่เหลือ</div>
-      <div style="font-size:11px;color:var(--tm);margin-bottom:8px">พิมพ์ชื่อ → เลือกจำนวนที่เหลือ (ไม่จำเป็นต้องกรอก)</div>
-      <div id="s8-leftover-list"></div>
-      <div style="display:flex;align-items:center;gap:8px;padding:10px 0;cursor:pointer;color:var(--gold);font-size:13px;font-weight:600" onclick="Screens5.addLeftoverRow()">
-        ➕ เพิ่มรายการ
-      </div>
     `;
   }
+
+
+  // ═══ TAB 2: เหตุการณ์ + Waste/Leftover ═══
 
   function renderIncidentsTab(el) {
     let totalCount = 0;
@@ -369,7 +611,7 @@ const Screens5 = (() => {
           </div>
           <div style="margin-top:8px;${isActive ? '' : 'display:none'}" id="inc-note-wrap-${c.key}">
             <input class="form-input" style="font-size:12px;padding:6px 10px" id="inc-note-${c.key}"
-                   placeholder="note: เช่น รายละเอียด..." value="${App.esc(st.note)}"
+                   placeholder="note: รายละเอียด..." value="${App.esc(st.note)}"
                    oninput="Screens5.incNote('${c.key}',this.value)">
           </div>
         </div>`;
@@ -383,24 +625,66 @@ const Screens5 = (() => {
 
     el.innerHTML = `
       <div class="section-label" style="margin-top:0">⚠️ เหตุการณ์ — กดจำนวน + ใส่ note</div>
-      <div style="font-size:11px;color:var(--tm);margin-bottom:12px">จำนวน > 0 = มีเหตุการณ์ · ข้อมูลจะถูกเก็บและ aggregate</div>
       ${catHtml}
-      <div style="margin-top:12px;padding:12px;background:var(--s1);border-radius:10px">
+      <div style="margin-top:12px;padding:12px;background:var(--s1);border-radius:10px;margin-bottom:16px">
         <div style="font-size:12px;font-weight:600;margin-bottom:6px">📊 สรุปเหตุการณ์วันนี้</div>
         <div style="display:flex;flex-wrap:wrap;gap:6px" id="inc-summary">${badges || '<span style="font-size:11px;color:var(--tm)">ไม่มีเหตุการณ์</span>'}</div>
         <div style="font-size:11px;color:var(--tm);margin-top:6px">รวม <strong id="inc-total">${totalCount}</strong> เหตุการณ์</div>
       </div>
+
+      <!-- Waste / Leftover (moved here from tab 1) -->
+      <div class="section-label">🍞 Waste List — ขนมปัง / เค้กที่เหลือ</div>
+      <div style="font-size:11px;color:var(--tm);margin-bottom:8px">กรอกรายการที่เหลือ → save เก็บเข้า waste database</div>
+      <div id="s8-leftover-list"></div>
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 0;cursor:pointer;color:var(--gold);font-size:13px;font-weight:600" onclick="Screens5.addLeftoverRow()">
+        ➕ เพิ่มรายการ
+      </div>
     `;
+
+    // Render leftover rows
+    renderLeftoverList();
   }
 
-  // ─── LEFTOVER FUNCTIONS ───
 
-  const LEVEL_OPTS = [
-    { key: 'little', label: '🟢 นิดหน่อย' },
-    { key: 'half', label: '🟡 ครึ่งนึง' },
-    { key: 'almost_full', label: '🔴 เกือบหมด' },
-    { key: 'full', label: '⚫ ทั้งจาน' },
-  ];
+  // ═══ TAB 3: ติดตาม ═══
+
+  function renderTasksTab(el) {
+    const session = API.getSession();
+    const canCreate = session && session.tier_level <= 4;
+    const pending = _s8Tasks.filter(t => t.status === 'pending');
+    const done = _s8Tasks.filter(t => t.status === 'done');
+
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div class="section-label" style="margin:0">📋 งานติดตาม</div>
+        ${canCreate ? `<button class="btn btn-gold" style="font-size:11px;padding:5px 12px" onclick="Screens5.showCreateTask()">+ เพิ่ม</button>` : ''}
+      </div>
+
+      <!-- Pending -->
+      <div style="margin-bottom:16px">
+        <div style="font-size:12px;font-weight:600;color:var(--td);margin-bottom:6px">⏳ ค้าง (${pending.length})</div>
+        <div class="card" id="s8-tasks-pending">
+          <div style="text-align:center;padding:12px;color:var(--tm);font-size:12px">กำลังโหลด...</div>
+        </div>
+      </div>
+
+      <!-- Done -->
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--td);margin-bottom:6px">✅ เสร็จ (${done.length})</div>
+        <div class="card" id="s8-tasks-done">
+          <div style="text-align:center;padding:12px;color:var(--tm);font-size:12px">กำลังโหลด...</div>
+        </div>
+      </div>
+    `;
+
+    const pendEl = document.getElementById('s8-tasks-pending');
+    const doneEl = document.getElementById('s8-tasks-done');
+    if (pendEl) renderTaskListEmbedded(pendEl, pending);
+    if (doneEl) renderTaskListEmbedded(doneEl, done.slice(0, 10));
+  }
+
+
+  // ─── LEFTOVER FUNCTIONS ───
 
   function renderLeftoverList() {
     const el = document.getElementById('s8-leftover-list');
@@ -414,7 +698,7 @@ const Screens5 = (() => {
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
           <span style="font-size:16px">🍞</span>
           <input class="form-input" style="flex:1;padding:6px 10px;font-size:13px"
-                 value="${App.esc(item.item_name)}" placeholder="ชื่ออาหาร..."
+                 value="${App.esc(item.item_name)}" placeholder="ชื่อขนมปัง/เค้ก..."
                  oninput="Screens5.leftoverName(${idx},this.value)">
           <input type="number" class="form-input" style="width:50px;padding:6px 8px;font-size:13px;text-align:center"
                  value="${item.quantity}" min="0"
@@ -431,42 +715,30 @@ const Screens5 = (() => {
   function addLeftoverRow() {
     _leftoverItems.push({ item_name: '', quantity: 1, level: 'half' });
     renderLeftoverList();
-    // Focus the new input
     setTimeout(() => {
       const inputs = document.querySelectorAll('#s8-leftover-list input[type="text"]');
       if (inputs.length > 0) inputs[inputs.length - 1].focus();
     }, 50);
   }
 
-  function removeLeftoverRow(idx) {
-    _leftoverItems.splice(idx, 1);
-    renderLeftoverList();
-  }
-
-  function leftoverName(idx, val) {
-    if (_leftoverItems[idx]) _leftoverItems[idx].item_name = val;
-  }
-
-  function leftoverQty(idx, val) {
-    if (_leftoverItems[idx]) _leftoverItems[idx].quantity = parseInt(val) || 0;
-  }
-
+  function removeLeftoverRow(idx) { _leftoverItems.splice(idx, 1); renderLeftoverList(); }
+  function leftoverName(idx, val) { if (_leftoverItems[idx]) _leftoverItems[idx].item_name = val; }
+  function leftoverQty(idx, val) { if (_leftoverItems[idx]) _leftoverItems[idx].quantity = parseInt(val) || 0; }
   function leftoverLevel(idx, level, el) {
     if (_leftoverItems[idx]) _leftoverItems[idx].level = level;
     el.parentElement.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
     el.classList.add('active');
   }
 
+
   // ─── S8 Helpers ───
 
   function s8ChangeDate(delta) {
     _reportDate = App.addDays(_reportDate, delta);
-    _activeTab = _activeTab; // keep tab
     App.go('daily-report');
   }
 
   function s8Tab(tab) {
-    // Save current form state before switching
     collectFormState();
     _activeTab = tab;
     const el = document.getElementById('s8-content');
@@ -487,7 +759,6 @@ const Screens5 = (() => {
     if (cntEl) cntEl.textContent = _incidentState[key].count;
     const noteWrap = document.getElementById('inc-note-wrap-' + key);
     if (noteWrap) noteWrap.style.display = _incidentState[key].count > 0 ? '' : 'none';
-    // Update summary
     updateIncSummary();
   }
 
@@ -511,7 +782,6 @@ const Screens5 = (() => {
 
   function collectFormState() {
     if (!_reportData) _reportData = {};
-    // Collect text fields from overview tab
     const ov = document.getElementById('s8-overview');
     if (ov) _reportData.overview_note = ov.value;
     const fields = ['morning','midday','afternoon','evening','night'];
@@ -519,12 +789,10 @@ const Screens5 = (() => {
       const el = document.getElementById('s8-cust-' + f);
       if (el) _reportData['customer_' + f] = el.value;
     });
-    // Collect incident notes
     INCIDENT_CATS.forEach(c => {
       const noteEl = document.getElementById('inc-note-' + c.key);
       if (noteEl && _incidentState[c.key]) _incidentState[c.key].note = noteEl.value;
     });
-    // Leftover items are updated inline via oninput, no extra collection needed
   }
 
   async function s8Save(isSubmit) {
@@ -554,7 +822,7 @@ const Screens5 = (() => {
         incidents,
         leftovers: _leftoverItems.filter(l => (l.item_name || '').trim()),
       });
-      App.toast(isSubmit ? 'ส่งรีพอร์ตสำเร็จ ✓' : '💾 บันทึกร่างแล้ว', 'success');
+      App.toast('✅ บันทึกแล้ว', 'success');
     } catch (err) { App.toast(err.message, 'error'); }
     finally { App.hideLoader(); }
   }
@@ -565,8 +833,10 @@ const Screens5 = (() => {
     const session = API.getSession();
     const storeName = session?.store_name || '';
     const displayName = session?.display_name || '';
+    const s = _s8Summary || {};
+    const saleTotal = s.sale ? (s.sale.total_sales || 0) : 0;
+    const expTotal = s.expense_total || 0;
 
-    // Build weather label
     const wMap = { sunny: '☀️ แดด', cloudy: '🌤️ ครึ้ม', rain: '🌧️ ฝน', heavy_rain: '⛈️ ฝนหนัก' };
     const tMap = { above: '📈 ดีกว่าปกติ', normal: '➡️ ปกติ', below: '📉 ต่ำกว่าปกติ' };
     const pMap = { ok: '✅ ปกติ', issue: '⚠️ มีปัญหา' };
@@ -574,6 +844,11 @@ const Screens5 = (() => {
     let text = `🗓️ Daily Report — ${storeName}\n`;
     text += `📅 ${App.formatDate(_reportDate)}\n`;
     text += `🧑 คนเขียน: ${displayName}\n\n`;
+
+    // S1/S2
+    if (saleTotal > 0 || expTotal > 0) {
+      text += `💰 ยอดขาย: $${saleTotal.toLocaleString()} | 🧾 ค่าใช้จ่าย: $${expTotal.toLocaleString()}\n\n`;
+    }
 
     text += `🌤️ อากาศ: ${wMap[r.weather] || '—'} | Traffic: ${tMap[r.traffic] || '—'} | POS: ${pMap[r.pos_status] || '—'}\n\n`;
 
@@ -611,26 +886,37 @@ const Screens5 = (() => {
     const activeLft = _leftoverItems.filter(l => (l.item_name || '').trim());
     if (activeLft.length > 0) {
       const lvMap = { little: '🟢 นิดหน่อย', half: '🟡 ครึ่งนึง', almost_full: '🔴 เกือบหมด', full: '⚫ ทั้งจาน' };
-      text += '🍞 อาหารที่เหลือ\n';
+      text += '🍞 Waste List:\n';
       activeLft.forEach(l => {
-        text += `${l.item_name}=${l.quantity} (${lvMap[l.level] || l.level})\n`;
+        text += `${l.item_name} ×${l.quantity} (${lvMap[l.level] || l.level})\n`;
+      });
+      text += '\n';
+    }
+
+    // Pending tasks
+    const pendingTasks = _s8Tasks.filter(t => t.status === 'pending');
+    if (pendingTasks.length > 0) {
+      text += `📋 งานค้าง (${pendingTasks.length})\n`;
+      pendingTasks.slice(0, 5).forEach(t => {
+        text += `${t.priority === 'urgent' ? '🚨' : '⏳'} ${t.title}`;
+        if (t.assigned_to) text += ` → ${t.assigned_to}`;
+        text += '\n';
       });
     }
 
-    // Copy to clipboard
+    // Copy
     if (navigator.clipboard) {
       navigator.clipboard.writeText(text).then(() => {
         App.toast('📋 Copy แล้ว! วางใน LINE ได้เลย', 'success');
       });
     } else {
-      // Fallback
       const ta = document.createElement('textarea');
       ta.value = text; document.body.appendChild(ta); ta.select();
       document.execCommand('copy'); document.body.removeChild(ta);
       App.toast('📋 Copy แล้ว!', 'success');
     }
 
-    // Also save as draft
+    // Also save
     s8Save(false);
   }
 
@@ -640,7 +926,7 @@ const Screens5 = (() => {
   // ════════════════════════════════════════
   return {
     // Tasks
-    renderTasks, loadTasks, filterTasks, toggleTask,
+    renderTasks, loadTasks, filterTasks, toggleTask, toggleTaskFromS8,
     showCreateTask, saveNewTask,
     // S8 Daily Report
     renderDailyReport, loadDailyReport,
