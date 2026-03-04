@@ -122,11 +122,21 @@ const App = (() => {
       }
     }
 
-    currentRoute = route;
-    currentParams = params;
-
     const container = appEl();
-    container.innerHTML = def.render(params);
+    try {
+      const html = def.render(params);
+      // ★ v1.3: set currentRoute AFTER render succeeds (prevent cascade crash)
+      currentRoute = route;
+      currentParams = params;
+      container.innerHTML = html;
+    } catch (err) {
+      console.error(`[go] render failed for "${route}":`, err);
+      // ถ้า render พัง → กลับ dashboard (ไม่ให้ route ติดค้าง)
+      if (route !== 'dashboard') {
+        return go('dashboard');
+      }
+      return;
+    }
 
     if (def.onLoad) {
       setTimeout(() => def.onLoad(params), 50);

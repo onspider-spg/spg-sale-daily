@@ -438,7 +438,7 @@ const Screens4 = (() => {
     for (const [groupKey, fns] of Object.entries(groups)) {
       html += `<tr><td colspan="${tiers.length + 1}" style="padding:8px 8px 4px;font-weight:700;color:var(--gold-dim);font-size:12px;border-top:1px solid var(--s2)">${groupLabels[groupKey] || groupKey}</td></tr>`;
 
-      (fns as any[]).forEach((fn: any) => {
+      fns.forEach((fn) => {
         html += `<tr>
           <td style="padding:4px 8px;font-size:11px">${App.esc(fn.function_name)}</td>
           ${tiers.map(t => {
