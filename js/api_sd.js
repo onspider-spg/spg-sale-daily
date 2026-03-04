@@ -391,5 +391,22 @@ const API = (() => {
 
     dismissAnnouncement: (announcement_id) =>
       post('sd_dismiss_announcement', tokenBody({ announcement_id })),
+
+    // ─── v1.5: Tasks + Daily Report ───
+
+    getTasks: (store_id, status) =>
+      post('sd_get_tasks', tokenBody({ store_id, status })),
+
+    createTask: (data) =>
+      post('sd_create_task', tokenBody(data)),
+
+    updateTask: (data) =>
+      post('sd_update_task', tokenBody(data)),
+
+    getDailyReport: (store_id, report_date) =>
+      post('sd_get_daily_report', tokenBody({ store_id, report_date })),
+
+    saveDailyReport: (data) =>
+      post('sd_save_daily_report', tokenBody(data)),
   };
 })();

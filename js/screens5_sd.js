@@ -1,0 +1,570 @@
+/**
+ * ═══════════════════════════════════════════════════
+ * SPG Sale Daily Module — Frontend
+ * screens5_sd.js — v1.5: Tasks + S8 Daily Report
+ * ═══════════════════════════════════════════════════
+ */
+
+const Screens5 = (() => {
+
+  // ════════════════════════════════════════
+  // TASKS SCREEN (Phase 1)
+  // ════════════════════════════════════════
+
+  let _tasks = [];
+  let _taskFilter = 'pending';
+
+  function renderTasks() {
+    const session = API.getSession();
+    if (!session) return Screens.renderNoAccess();
+    const canCreate = session.tier_level <= 4;
+
+    return `
+      <div class="screen">
+        <div class="header-bar">
+          <button class="back-btn" onclick="App.go('dashboard')">←</button>
+          <div style="flex:1;min-width:0">
+            <div class="header-title">📋 งานติดตาม</div>
+            <div class="header-sub">Tasks & Follow-up · ${App.esc(session.store_name)}</div>
+          </div>
+          ${canCreate ? `<div class="header-right">
+            <button class="btn btn-gold" style="font-size:12px;padding:6px 14px" onclick="Screens5.showCreateTask()">+ เพิ่ม</button>
+          </div>` : ''}
+        </div>
+        <div class="screen-body">
+          ${API.isHQ() ? App.renderStoreSelector() : ''}
+          <div style="display:flex;gap:0;background:var(--s1);border-radius:12px;padding:3px;margin-bottom:12px">
+            <button class="tab-pill ${_taskFilter === 'pending' ? 'active' : ''}" onclick="Screens5.filterTasks('pending')">⏳ ค้าง</button>
+            <button class="tab-pill ${_taskFilter === 'done' ? 'active' : ''}" onclick="Screens5.filterTasks('done')">✅ เสร็จ</button>
+            <button class="tab-pill ${_taskFilter === 'all' ? 'active' : ''}" onclick="Screens5.filterTasks('all')">📋 ทั้งหมด</button>
+          </div>
+          <div id="task-list">
+            <div style="text-align:center;padding:20px;color:var(--tm)">กำลังโหลด...</div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  async function loadTasks() {
+    const el = document.getElementById('task-list');
+    if (!el) return;
+    try {
+      App.showLoader();
+      const status = _taskFilter === 'all' ? undefined : _taskFilter;
+      const data = await API.getTasks(API.isHQ() ? API.getSelectedStore() : null, status);
+      _tasks = data.tasks || [];
+      renderTaskList(el);
+    } catch (err) {
+      el.innerHTML = '<div style="color:var(--red);padding:16px">' + App.esc(err.message) + '</div>';
+    } finally { App.hideLoader(); }
+  }
+
+  function renderTaskList(el) {
+    if (_tasks.length === 0) {
+      el.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--tm)"><div style="font-size:36px;margin-bottom:8px">📋</div><div>ไม่มีรายการ</div></div>';
+      return;
+    }
+
+    const session = API.getSession();
+    const canEdit = session && session.tier_level <= 4;
+
+    el.innerHTML = _tasks.map(t => {
+      const isDone = t.status === 'done';
+      const isUrgent = t.priority === 'urgent';
+      const isSuggestion = t.type === 'suggestion';
+      const icon = isSuggestion ? '💡' : (isDone ? '✅' : (isUrgent ? '🚨' : '⏳'));
+      const borderColor = isDone ? 'var(--green)' : (isUrgent ? 'var(--red)' : (isSuggestion ? 'var(--purple)' : 'var(--gold)'));
+
+      return `
+        <div class="card" style="margin-bottom:8px;border-left:3px solid ${borderColor};${isDone ? 'opacity:0.6' : ''}">
+          <div style="display:flex;align-items:flex-start;gap:10px">
+            ${canEdit ? `<div style="font-size:18px;cursor:pointer;padding-top:2px" onclick="Screens5.toggleTask('${t.id}', '${isDone ? 'pending' : 'done'}')">${icon}</div>` : `<div style="font-size:18px;padding-top:2px">${icon}</div>`}
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:600;font-size:13px;${isDone ? 'text-decoration:line-through' : ''}">${App.esc(t.title)}</div>
+              ${t.note ? `<div style="font-size:12px;color:var(--td);margin-top:2px">${App.esc(t.note)}</div>` : ''}
+              <div style="font-size:10px;color:var(--tm);margin-top:4px;display:flex;gap:8px;flex-wrap:wrap">
+                ${t.assigned_to ? `<span>👤 ${App.esc(t.assigned_to)}</span>` : ''}
+                ${isSuggestion ? '<span class="tag" style="background:var(--purple-bg);color:var(--purple);font-size:9px;padding:1px 6px;border-radius:4px">💡 Suggestion</span>' : ''}
+                <span>${new Date(t.created_at).toLocaleDateString('th-TH')}</span>
+                ${isDone && t.completed_at ? `<span style="color:var(--green)">เสร็จ ${new Date(t.completed_at).toLocaleDateString('th-TH')}</span>` : ''}
+              </div>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function filterTasks(status) {
+    _taskFilter = status;
+    App.go('tasks');
+  }
+
+  async function toggleTask(taskId, newStatus) {
+    try {
+      await API.updateTask({ task_id: taskId, status: newStatus });
+      App.toast(newStatus === 'done' ? '✅ เสร็จแล้ว' : '⏳ เปิดใหม่', 'success');
+      await loadTasks();
+      await App.refreshTaskBadge();
+    } catch (err) { App.toast(err.message, 'error'); }
+  }
+
+  function showCreateTask() {
+    const overlay = document.createElement('div');
+    overlay.id = 'edit-modal';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px;';
+    overlay.innerHTML = `
+      <div style="background:var(--bg);border-radius:var(--radius);padding:24px;width:100%;max-width:440px;max-height:85vh;overflow-y:auto">
+        <div style="font-size:16px;font-weight:600;margin-bottom:16px">📋 เพิ่มงานติดตาม</div>
+        <div class="form-group">
+          <label class="form-label">หัวข้อ *</label>
+          <input type="text" class="form-input" id="task-title" placeholder="เช่น ช่างซ่อมเครื่องน้ำแข็ง">
+        </div>
+        <div class="form-group">
+          <label class="form-label">ประเภท</label>
+          <select class="form-select" id="task-type">
+            <option value="follow_up">📋 Follow-up</option>
+            <option value="suggestion">💡 Suggestion</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">มอบหมายให้</label>
+          <input type="text" class="form-input" id="task-assign" placeholder="เช่น พี่ชวัญ, ทีม QC">
+        </div>
+        <div class="form-group">
+          <label class="form-label">ระดับ</label>
+          <select class="form-select" id="task-priority">
+            <option value="normal">📋 Normal</option>
+            <option value="urgent">🚨 Urgent</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">หมายเหตุ</label>
+          <textarea class="form-input" id="task-note" rows="2" placeholder="รายละเอียดเพิ่มเติม..." style="resize:vertical"></textarea>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:16px">
+          <button class="btn btn-gold" style="flex:1" onclick="Screens5.saveNewTask()">📋 เพิ่ม</button>
+          <button class="btn btn-outline" style="flex:1" onclick="document.getElementById('edit-modal')?.remove()">ยกเลิก</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+  }
+
+  async function saveNewTask() {
+    const title = (document.getElementById('task-title')?.value || '').trim();
+    if (!title) { App.toast('กรุณากรอกหัวข้อ', 'error'); return; }
+    try {
+      App.showLoader();
+      await API.createTask({
+        title,
+        type: document.getElementById('task-type')?.value || 'follow_up',
+        assigned_to: document.getElementById('task-assign')?.value || '',
+        priority: document.getElementById('task-priority')?.value || 'normal',
+        note: document.getElementById('task-note')?.value || '',
+        report_date: App.todayStr(),
+      });
+      document.getElementById('edit-modal')?.remove();
+      App.toast('เพิ่มงานสำเร็จ ✓', 'success');
+      await loadTasks();
+      await App.refreshTaskBadge();
+    } catch (err) { App.toast(err.message, 'error'); }
+    finally { App.hideLoader(); }
+  }
+
+
+  // ════════════════════════════════════════
+  // S8 DAILY REPORT SCREEN (Phase 2+3)
+  // ════════════════════════════════════════
+
+  let _reportDate = null;
+  let _reportData = null;
+  let _incidentState = {};
+  let _activeTab = 'overview';
+
+  const INCIDENT_CATS = [
+    { key: 'food_quality', icon: '🍽️', name: 'Food Quality', desc: 'รสชาติเปลี่ยน, ไม่อร่อย, texture ผิดปกติ' },
+    { key: 'contamination', icon: '🦠', name: 'Contamination', desc: 'ผมในอาหาร, เศษวัตถุ, แมลง' },
+    { key: 'service_delay', icon: '⏱️', name: 'Service Delay', desc: 'ออเดอร์ช้า, คิวยาว, ลูกค้ารอนาน' },
+    { key: 'wrong_order', icon: '🔄', name: 'Wrong Order', desc: 'เสิร์ฟผิดเมนู, ผิดตัวเลือก' },
+    { key: 'complaint', icon: '💢', name: 'Customer Complaint', desc: 'บ่นโดยตรง, ขอคืนเงิน, Review' },
+    { key: 'waste', icon: '🗑️', name: 'Waste / เหลือผิดปกติ', desc: 'เมนูเหลือเยอะ, ทิ้งบ่อย' },
+    { key: 'equipment', icon: '🔧', name: 'Equipment / อุปกรณ์', desc: 'เครื่องเสีย, printer, เครื่องทำน้ำแข็ง' },
+    { key: 'staff', icon: '👤', name: 'Staff Issue', desc: 'ขาดคน, ไม่แจ้งออก, พฤติกรรม' },
+  ];
+
+  function renderDailyReport() {
+    const session = API.getSession();
+    if (!session) return Screens.renderNoAccess();
+    _reportDate = _reportDate || App.todayStr();
+
+    return `
+      <div class="screen">
+        <div class="header-bar">
+          <button class="back-btn" onclick="App.go('dashboard')">←</button>
+          <div style="flex:1;min-width:0">
+            <div class="header-title">📝 Daily Report</div>
+            <div class="header-sub">S8 สรุปรายงาน · ${App.esc(session.store_name)}</div>
+          </div>
+        </div>
+        <div class="screen-body">
+          ${API.isHQ() ? App.renderStoreSelector() : ''}
+
+          <!-- Date -->
+          <div style="display:flex;align-items:center;justify-content:center;gap:12px;padding:8px 0;font-size:14px;font-weight:600">
+            <span style="cursor:pointer;font-size:18px" onclick="Screens5.s8ChangeDate(-1)">‹</span>
+            <span>📅 ${App.formatDate(_reportDate)}</span>
+            <span style="cursor:pointer;font-size:18px" onclick="Screens5.s8ChangeDate(1)">›</span>
+          </div>
+
+          <!-- Tabs -->
+          <div style="display:flex;gap:0;background:var(--s1);border-radius:12px;padding:3px;margin-bottom:12px">
+            <button class="tab-pill ${_activeTab === 'overview' ? 'active' : ''}" onclick="Screens5.s8Tab('overview')">📊 ภาพรวม</button>
+            <button class="tab-pill ${_activeTab === 'incidents' ? 'active' : ''}" onclick="Screens5.s8Tab('incidents')">⚠️ เหตุการณ์</button>
+          </div>
+
+          <div id="s8-content">
+            <div style="text-align:center;padding:20px;color:var(--tm)">กำลังโหลด...</div>
+          </div>
+
+          <!-- Bottom buttons -->
+          <div style="display:flex;gap:8px;margin-top:16px;padding-bottom:20px">
+            <button class="btn btn-outline" style="flex:1" onclick="Screens5.s8Save(false)">💾 บันทึกร่าง</button>
+            <button class="btn btn-gold" style="flex:2" onclick="Screens5.s8CopyReport()">📋 Copy Report</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  async function loadDailyReport() {
+    const el = document.getElementById('s8-content');
+    if (!el) return;
+    try {
+      App.showLoader();
+      const storeId = API.isHQ() ? API.getSelectedStore() : null;
+      const data = await API.getDailyReport(storeId, _reportDate);
+      _reportData = data.report;
+
+      // Init incident state from loaded data
+      _incidentState = {};
+      INCIDENT_CATS.forEach(c => { _incidentState[c.key] = { count: 0, note: '' }; });
+      (data.incidents || []).forEach(i => {
+        _incidentState[i.category] = { count: i.count || 0, note: i.note || '' };
+      });
+
+      renderS8Tab(el);
+    } catch (err) {
+      el.innerHTML = '<div style="color:var(--red);padding:16px">' + App.esc(err.message) + '</div>';
+    } finally { App.hideLoader(); }
+  }
+
+  function renderS8Tab(el) {
+    if (_activeTab === 'overview') renderOverviewTab(el);
+    else renderIncidentsTab(el);
+  }
+
+  function renderOverviewTab(el) {
+    const r = _reportData || {};
+    const weathers = [
+      { key: 'sunny', label: '☀️ แดด' }, { key: 'cloudy', label: '🌤️ ครึ้ม' },
+      { key: 'rain', label: '🌧️ ฝน' }, { key: 'heavy_rain', label: '⛈️ ฝนหนัก' },
+    ];
+    const traffics = [
+      { key: 'above', label: '📈 ดีกว่าปกติ' }, { key: 'normal', label: '➡️ ปกติ' },
+      { key: 'below', label: '📉 ต่ำกว่าปกติ' },
+    ];
+    const posOpts = [
+      { key: 'ok', label: '✅ ปกติ' }, { key: 'issue', label: '⚠️ มีปัญหา' },
+    ];
+
+    el.innerHTML = `
+      <div class="section-label" style="margin-top:0">🌤️ สภาพร้านวันนี้</div>
+      <div class="card">
+        <div class="form-group" style="margin-bottom:10px">
+          <div class="form-label">อากาศ</div>
+          <div class="pill-group">
+            ${weathers.map(w => `<span class="pill ${r.weather === w.key ? 'active' : ''}" onclick="Screens5.s8Pill(this,'weather','${w.key}')">${w.label}</span>`).join('')}
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:10px">
+          <div class="form-label">Traffic วันนี้</div>
+          <div class="pill-group">
+            ${traffics.map(t => `<span class="pill ${r.traffic === t.key ? 'active' : ''}" onclick="Screens5.s8Pill(this,'traffic','${t.key}')">${t.label}</span>`).join('')}
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:10px">
+          <div class="form-label">ระบบ POS / Printer</div>
+          <div class="pill-group">
+            ${posOpts.map(p => `<span class="pill ${(r.pos_status || 'ok') === p.key ? 'active' : ''}" onclick="Screens5.s8Pill(this,'pos_status','${p.key}')">${p.label}</span>`).join('')}
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <div class="form-label">ภาพรวม / Note</div>
+          <textarea class="form-input" id="s8-overview" rows="3" placeholder="เช่น ฝนตกหนักช่วงเย็น...">${App.esc(r.overview_note || '')}</textarea>
+        </div>
+      </div>
+
+      <div class="section-label">🧑‍🤝‍🧑 กลุ่มลูกค้าตามช่วงเวลา</div>
+      <div class="card">
+        <div class="form-group" style="margin-bottom:10px">
+          <div class="form-label">🌅 เช้า (open–11:00)</div>
+          <input class="form-input" id="s8-cust-morning" placeholder="เช่น คนทำงาน, ลูกค้าประจำ..." value="${App.esc(r.customer_morning || '')}">
+        </div>
+        <div class="form-group" style="margin-bottom:10px">
+          <div class="form-label">☀️ กลางวัน (11:00–14:00)</div>
+          <input class="form-input" id="s8-cust-midday" placeholder="เช่น กลุ่มออฟฟิศ, นักเรียน..." value="${App.esc(r.customer_midday || '')}">
+        </div>
+        <div class="form-group" style="margin-bottom:10px">
+          <div class="form-label">🌤️ บ่าย (14:00–17:00)</div>
+          <input class="form-input" id="s8-cust-afternoon" placeholder="เช่น แม่ลูก, ลูกค้าสั่งหวาน..." value="${App.esc(r.customer_afternoon || '')}">
+        </div>
+        <div class="form-group" style="margin-bottom:10px">
+          <div class="form-label">🌆 เย็น (17:00–20:00)</div>
+          <input class="form-input" id="s8-cust-evening" placeholder="เช่น ฝรั่งมาคู่, after work..." value="${App.esc(r.customer_evening || '')}">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <div class="form-label">🌙 ค่ำ–ปิด (20:00–close)</div>
+          <input class="form-input" id="s8-cust-night" placeholder="เช่น วัยรุ่นเอเชีย, Take away..." value="${App.esc(r.customer_night || '')}">
+        </div>
+      </div>
+
+      <!-- Waste link -->
+      <div class="section-label">🗑️ Waste / ของเสีย</div>
+      <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;border:1px dashed #E0872E;border-radius:12px;background:#FFF4E8;cursor:pointer"
+           onclick="window.open('https://onspider-spg.github.io/spg-bc-order/#waste','_blank')">
+        <span style="font-size:24px">🗑️</span>
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:13px">บันทึก Waste / ของเสีย</div>
+          <div style="font-size:11px;color:#E0872E">เปิด BC Order → Waste ในหน้าต่างใหม่</div>
+        </div>
+        <span style="font-size:14px;color:#E0872E">↗</span>
+      </div>
+    `;
+  }
+
+  function renderIncidentsTab(el) {
+    let totalCount = 0;
+    const catHtml = INCIDENT_CATS.map(c => {
+      const st = _incidentState[c.key] || { count: 0, note: '' };
+      const isActive = st.count > 0;
+      totalCount += st.count;
+      return `
+        <div class="card" style="padding:12px;margin-bottom:8px;border-left:3px solid ${isActive ? 'var(--gold)' : 'var(--b1)'}">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:20px">${c.icon}</span>
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:600;font-size:13px">${c.name}</div>
+              <div style="font-size:11px;color:var(--td)">${c.desc}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <button class="cnt-btn" onclick="Screens5.incAdj('${c.key}',-1)">−</button>
+              <span style="font-size:14px;font-weight:700;min-width:20px;text-align:center" id="inc-cnt-${c.key}">${st.count}</span>
+              <button class="cnt-btn" onclick="Screens5.incAdj('${c.key}',1)">+</button>
+            </div>
+          </div>
+          <div style="margin-top:8px;${isActive ? '' : 'display:none'}" id="inc-note-wrap-${c.key}">
+            <input class="form-input" style="font-size:12px;padding:6px 10px" id="inc-note-${c.key}"
+                   placeholder="note: เช่น รายละเอียด..." value="${App.esc(st.note)}"
+                   oninput="Screens5.incNote('${c.key}',this.value)">
+          </div>
+        </div>`;
+    }).join('');
+
+    // Summary badges
+    const badges = INCIDENT_CATS.filter(c => (_incidentState[c.key]?.count || 0) > 0).map(c => {
+      const st = _incidentState[c.key];
+      return `<span style="background:var(--gold-bg);color:var(--gold-dim);padding:3px 8px;border-radius:6px;font-size:11px">${c.icon} ${c.name.split(' ')[0]} ×${st.count}</span>`;
+    }).join('');
+
+    el.innerHTML = `
+      <div class="section-label" style="margin-top:0">⚠️ เหตุการณ์ — กดจำนวน + ใส่ note</div>
+      <div style="font-size:11px;color:var(--tm);margin-bottom:12px">จำนวน > 0 = มีเหตุการณ์ · ข้อมูลจะถูกเก็บและ aggregate</div>
+      ${catHtml}
+      <div style="margin-top:12px;padding:12px;background:var(--s1);border-radius:10px">
+        <div style="font-size:12px;font-weight:600;margin-bottom:6px">📊 สรุปเหตุการณ์วันนี้</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px" id="inc-summary">${badges || '<span style="font-size:11px;color:var(--tm)">ไม่มีเหตุการณ์</span>'}</div>
+        <div style="font-size:11px;color:var(--tm);margin-top:6px">รวม <strong id="inc-total">${totalCount}</strong> เหตุการณ์</div>
+      </div>
+    `;
+  }
+
+  // ─── S8 Helpers ───
+
+  function s8ChangeDate(delta) {
+    _reportDate = App.addDays(_reportDate, delta);
+    _activeTab = _activeTab; // keep tab
+    App.go('daily-report');
+  }
+
+  function s8Tab(tab) {
+    // Save current form state before switching
+    collectFormState();
+    _activeTab = tab;
+    const el = document.getElementById('s8-content');
+    if (el) renderS8Tab(el);
+  }
+
+  function s8Pill(el, field, value) {
+    el.parentElement.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+    el.classList.add('active');
+    if (!_reportData) _reportData = {};
+    _reportData[field] = value;
+  }
+
+  function incAdj(key, delta) {
+    if (!_incidentState[key]) _incidentState[key] = { count: 0, note: '' };
+    _incidentState[key].count = Math.max(0, _incidentState[key].count + delta);
+    const cntEl = document.getElementById('inc-cnt-' + key);
+    if (cntEl) cntEl.textContent = _incidentState[key].count;
+    const noteWrap = document.getElementById('inc-note-wrap-' + key);
+    if (noteWrap) noteWrap.style.display = _incidentState[key].count > 0 ? '' : 'none';
+    // Update summary
+    updateIncSummary();
+  }
+
+  function incNote(key, val) {
+    if (!_incidentState[key]) _incidentState[key] = { count: 0, note: '' };
+    _incidentState[key].note = val;
+  }
+
+  function updateIncSummary() {
+    let total = 0;
+    const badges = INCIDENT_CATS.filter(c => (_incidentState[c.key]?.count || 0) > 0).map(c => {
+      const st = _incidentState[c.key];
+      total += st.count;
+      return `<span style="background:var(--gold-bg);color:var(--gold-dim);padding:3px 8px;border-radius:6px;font-size:11px">${c.icon} ${c.name.split(' ')[0]} ×${st.count}</span>`;
+    }).join('');
+    const sumEl = document.getElementById('inc-summary');
+    if (sumEl) sumEl.innerHTML = badges || '<span style="font-size:11px;color:var(--tm)">ไม่มีเหตุการณ์</span>';
+    const totalEl = document.getElementById('inc-total');
+    if (totalEl) totalEl.textContent = total;
+  }
+
+  function collectFormState() {
+    if (!_reportData) _reportData = {};
+    // Collect text fields from overview tab
+    const ov = document.getElementById('s8-overview');
+    if (ov) _reportData.overview_note = ov.value;
+    const fields = ['morning','midday','afternoon','evening','night'];
+    fields.forEach(f => {
+      const el = document.getElementById('s8-cust-' + f);
+      if (el) _reportData['customer_' + f] = el.value;
+    });
+    // Collect incident notes
+    INCIDENT_CATS.forEach(c => {
+      const noteEl = document.getElementById('inc-note-' + c.key);
+      if (noteEl && _incidentState[c.key]) _incidentState[c.key].note = noteEl.value;
+    });
+  }
+
+  async function s8Save(isSubmit) {
+    collectFormState();
+    const r = _reportData || {};
+    const incidents = INCIDENT_CATS.map(c => ({
+      category: c.key,
+      count: _incidentState[c.key]?.count || 0,
+      note: _incidentState[c.key]?.note || '',
+    })).filter(i => i.count > 0);
+
+    try {
+      App.showLoader();
+      await API.saveDailyReport({
+        store_id: API.isHQ() ? API.getSelectedStore() : undefined,
+        report_date: _reportDate,
+        weather: r.weather,
+        traffic: r.traffic,
+        pos_status: r.pos_status || 'ok',
+        overview_note: r.overview_note,
+        customer_morning: r.customer_morning,
+        customer_midday: r.customer_midday,
+        customer_afternoon: r.customer_afternoon,
+        customer_evening: r.customer_evening,
+        customer_night: r.customer_night,
+        is_submitted: isSubmit,
+        incidents,
+      });
+      App.toast(isSubmit ? 'ส่งรีพอร์ตสำเร็จ ✓' : '💾 บันทึกร่างแล้ว', 'success');
+    } catch (err) { App.toast(err.message, 'error'); }
+    finally { App.hideLoader(); }
+  }
+
+  function s8CopyReport() {
+    collectFormState();
+    const r = _reportData || {};
+    const session = API.getSession();
+    const storeName = session?.store_name || '';
+    const displayName = session?.display_name || '';
+
+    // Build weather label
+    const wMap = { sunny: '☀️ แดด', cloudy: '🌤️ ครึ้ม', rain: '🌧️ ฝน', heavy_rain: '⛈️ ฝนหนัก' };
+    const tMap = { above: '📈 ดีกว่าปกติ', normal: '➡️ ปกติ', below: '📉 ต่ำกว่าปกติ' };
+    const pMap = { ok: '✅ ปกติ', issue: '⚠️ มีปัญหา' };
+
+    let text = `🗓️ Daily Report — ${storeName}\n`;
+    text += `📅 ${App.formatDate(_reportDate)}\n`;
+    text += `🧑 คนเขียน: ${displayName}\n\n`;
+
+    text += `🌤️ อากาศ: ${wMap[r.weather] || '—'} | Traffic: ${tMap[r.traffic] || '—'} | POS: ${pMap[r.pos_status] || '—'}\n\n`;
+
+    if (r.overview_note) text += `📝 ภาพรวม: ${r.overview_note}\n\n`;
+
+    // Customer insights
+    const custs = [
+      ['🌅 เช้า', r.customer_morning],
+      ['☀️ กลางวัน', r.customer_midday],
+      ['🌤️ บ่าย', r.customer_afternoon],
+      ['🌆 เย็น', r.customer_evening],
+      ['🌙 ค่ำ', r.customer_night],
+    ].filter(c => c[1]);
+    if (custs.length > 0) {
+      text += '🧑‍🤝‍🧑 กลุ่มลูกค้า:\n';
+      custs.forEach(c => { text += `${c[0]}: ${c[1]}\n`; });
+      text += '\n';
+    }
+
+    // Incidents
+    const activeInc = INCIDENT_CATS.filter(c => (_incidentState[c.key]?.count || 0) > 0);
+    if (activeInc.length > 0) {
+      const total = activeInc.reduce((s, c) => s + _incidentState[c.key].count, 0);
+      text += `⚠️ เหตุการณ์ (${total} รายการ)\n`;
+      activeInc.forEach(c => {
+        const st = _incidentState[c.key];
+        text += `${c.icon} ${c.name} ×${st.count}`;
+        if (st.note) text += ` — ${st.note}`;
+        text += '\n';
+      });
+      text += '\n';
+    }
+
+    text += `🗑️ Waste: https://onspider-spg.github.io/spg-bc-order/#waste`;
+
+    // Copy to clipboard
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(() => {
+        App.toast('📋 Copy แล้ว! วางใน LINE ได้เลย', 'success');
+      });
+    } else {
+      // Fallback
+      const ta = document.createElement('textarea');
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); document.body.removeChild(ta);
+      App.toast('📋 Copy แล้ว!', 'success');
+    }
+
+    // Also save as draft
+    s8Save(false);
+  }
+
+
+  // ════════════════════════════════════════
+  // EXPORTS
+  // ════════════════════════════════════════
+  return {
+    // Tasks
+    renderTasks, loadTasks, filterTasks, toggleTask,
+    showCreateTask, saveNewTask,
+    // S8 Daily Report
+    renderDailyReport, loadDailyReport,
+    s8ChangeDate, s8Tab, s8Pill,
+    incAdj, incNote,
+    s8Save, s8CopyReport,
+  };
+})();

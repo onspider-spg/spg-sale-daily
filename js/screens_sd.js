@@ -163,7 +163,7 @@ const Screens = (() => {
             </div>
           </div>
 
-          <!-- History & Admin -->
+          <!-- History & Report -->
           <div class="quick-grid">
             <div class="quick-btn" onclick="App.go('sale-history')">
               <div class="q-icon" style="background:var(--s2);color:var(--td)">📊</div>
@@ -177,6 +177,23 @@ const Screens = (() => {
               <div>
                 <div class="q-label">ประวัติจ่าย</div>
                 <div class="q-sub">S6 History</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="quick-grid">
+            <div class="quick-btn" onclick="App.go('daily-report')">
+              <div class="q-icon" style="background:#FFF4E8;color:#E0872E">📝</div>
+              <div>
+                <div class="q-label">สรุปรายงาน</div>
+                <div class="q-sub">S8 Daily Report</div>
+              </div>
+            </div>
+            <div class="quick-btn" onclick="App.go('tasks')">
+              <div class="q-icon" style="background:#F3EEFF;color:#7B4FC8">📋</div>
+              <div>
+                <div class="q-label">งานติดตาม</div>
+                <div class="q-sub">Tasks & Follow-up</div>
               </div>
             </div>
           </div>

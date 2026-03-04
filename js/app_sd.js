@@ -55,6 +55,9 @@ const App = (() => {
     // Phase 5: Notifications & Announcements
     'notifications':    { render: () => Screens4.renderNotifications(), onLoad: () => Screens4.loadNotifications() },
     'announcements':    { render: () => Screens4.renderAnnouncementsAdmin(), onLoad: () => Screens4.loadAnnouncementsAdmin() },
+    // v1.5: Tasks + Daily Report
+    'tasks':            { render: () => Screens5.renderTasks(),       onLoad: () => Screens5.loadTasks() },
+    'daily-report':     { render: () => Screens5.renderDailyReport(), onLoad: () => Screens5.loadDailyReport() },
   };
 
   // ─── INIT ───
@@ -100,10 +103,11 @@ const App = (() => {
       go('dashboard');
       initSidebar(); // ★ v1.4: inject sidebar after session ready
 
-      // ★ v1.4.1: fetch noti count + show announcement popup
+      // ★ v1.5: fetch noti count + task count + show announcement popup
       refreshNotiBadge().then(function(notiData) {
         showAnnouncementPopup(notiData);
       });
+      refreshTaskBadge();
     } catch (err) {
       console.error('Session validation failed:', err);
       if (err.code === 'NO_ACCESS') {
@@ -294,13 +298,14 @@ const App = (() => {
         <div class="sidebar-menu">
           <div class="sidebar-item" onclick="App.goMenu('profile')">👤 โปรไฟล์</div>
           <div class="sidebar-item" onclick="App.goMenu('notifications')">🔔 แจ้งเตือน <span id="sb-noti-badge" style="background:var(--red);color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;display:none"></span></div>
+          <div class="sidebar-item" onclick="App.goMenu('tasks')">📋 งานติดตาม <span id="sb-task-badge" style="background:var(--orange);color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;display:none"></span></div>
           ${(isManager && !isAdmin) ? `<div class="sidebar-item" onclick="App.goMenu('vendor-store')">🏪 Vendor ร้านฉัน</div>` : ''}
           ${isAdmin ? `<div class="sidebar-item" onclick="App.goMenu('announcements')">📢 ประกาศ</div>` : ''}
           ${isAdmin ? `<div class="sidebar-item" onclick="App.goMenu('settings')">⚙️ ตั้งค่า & จัดการ</div>` : ''}
           <div style="height:1px;background:var(--s2);margin:8px 20px"></div>
           <div class="sidebar-item sidebar-logout" onclick="App.logout()">🚪 ออกจากระบบ</div>
         </div>
-        <div class="sidebar-footer">SPG Sale Daily v1.4.1</div>
+        <div class="sidebar-footer">SPG Sale Daily v1.5</div>
       </div>`;
 
     document.body.insertAdjacentHTML('beforeend', html);
@@ -386,6 +391,19 @@ const App = (() => {
     } catch (e) { /* silent */ }
   }
 
+  // ─── TASK BADGE ───
+  async function refreshTaskBadge() {
+    try {
+      const data = await API.getTasks(null, 'pending');
+      const count = data.pending || 0;
+      const badge = document.getElementById('sb-task-badge');
+      if (badge) {
+        badge.textContent = count > 99 ? '99+' : count;
+        badge.style.display = count > 0 ? '' : 'none';
+      }
+    } catch (e) { /* silent */ }
+  }
+
   // ─── BACK TO HOME ───
   function goHome() {
     // Navigate back to Home module
@@ -406,7 +424,7 @@ const App = (() => {
     todayStr, addDays,
     renderStoreSelector, selectStore, selectBranch,
     goHome, toggleSidebar, closeSidebar, goMenu, logout,
-    refreshNotiBadge, dismissPopup,
+    refreshNotiBadge, refreshTaskBadge, dismissPopup,
     getStores: () => stores,
     getCurrentRoute: () => currentRoute,
   };

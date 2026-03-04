@@ -1,8 +1,7 @@
 /* ═══════════════════════════════════════════
    SPG Sale Daily Module
-   styles_sd.css — White Theme, Gold Accent, Responsive
+   styles_sd.css — White Theme, Gold Accent, Mobile-First
    Font: IBM Plex Sans Thai
-   v1.1 — Added desktop responsive layout
    ═══════════════════════════════════════════ */
 
 :root {
@@ -27,6 +26,7 @@
   --orange: #d97706;
   --orange-bg: rgba(217, 119, 6, 0.06);
   --purple: #7c3aed;
+  --purple-bg: rgba(124, 58, 237, 0.06);
   --t: #1e293b;
   --td: #64748b;
   --tm: #94a3b8;
@@ -37,7 +37,6 @@
   --shadow: 0 1px 3px rgba(0,0,0,0.06);
   --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
   --phone-max: 430px;
-  --desktop-max: 960px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
@@ -664,139 +663,38 @@ html, body {
   margin: 16px 0;
 }
 
-
 /* ═══════════════════════════════════════════
-   RESPONSIVE — TABLET & DESKTOP
-   Mobile-first: base = phone, scale up
+   v1.5: Tab Pills, Pills, Counter Buttons
    ═══════════════════════════════════════════ */
 
-/* ─── Tablet (768px+) ─── */
-@media (min-width: 768px) {
-  .screen {
-    max-width: var(--desktop-max);
-  }
-
-  .kpi-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
-
-  .menu-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-
-  .form-group, .form-input, .form-select, textarea {
-    max-width: 100%;
-  }
-
-  .bottom-bar {
-    max-width: var(--desktop-max);
-  }
-
-  .store-pills {
-    justify-content: center;
-    gap: 12px;
-  }
-
-  .chart-bar-wrapper {
-    max-width: 100%;
-  }
-
-  .modal-content {
-    max-width: 600px;
-  }
-
-  .history-list .card {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    align-items: center;
-  }
-
-  .tab-bar {
-    justify-content: center;
-    gap: 8px;
-  }
+.tab-pill {
+  flex: 1; padding: 8px 4px; text-align: center;
+  font-size: 11px; font-weight: 500; border-radius: 10px;
+  cursor: pointer; transition: all 0.15s; font-family: inherit;
+  border: none; background: transparent; color: var(--td);
+}
+.tab-pill.active {
+  background: var(--bg); color: var(--gold-dim);
+  font-weight: 700; box-shadow: 0 1px 4px rgba(0,0,0,0.08);
 }
 
-/* ─── Large Desktop (1200px+) ─── */
-@media (min-width: 1200px) {
-  .screen {
-    max-width: 1100px;
-  }
+.pill-group { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.pill {
+  padding: 6px 14px; border: 1px solid var(--b1);
+  border-radius: 20px; font-size: 12px; cursor: pointer;
+  background: var(--bg); transition: all 0.15s; font-family: inherit;
+  user-select: none;
+}
+.pill.active {
+  background: var(--gold-bg2); border-color: var(--gold);
+  color: var(--gold-dim); font-weight: 600;
+}
+.pill:hover { background: var(--s1); }
 
-  .bottom-bar {
-    max-width: 1100px;
-  }
-
-  .modal-content {
-    max-width: 700px;
-  }
+.cnt-btn {
+  width: 28px; height: 28px; border: 1px solid var(--b1);
+  border-radius: 8px; background: var(--bg); font-size: 16px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-family: inherit; transition: all 0.15s;
 }
-
-/* ═══ SIDEBAR MENU ═══ */
-.sidebar-overlay {
-  display: none;
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.4);
-  z-index: 998;
-}
-.sidebar-overlay.open { display: block; }
-
-.sidebar {
-  position: fixed;
-  top: 0; left: -280px;
-  width: 280px;
-  height: 100%;
-  background: #fff;
-  z-index: 999;
-  transition: left 0.25s ease;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 2px 0 12px rgba(0,0,0,0.1);
-}
-.sidebar.open { left: 0; }
-
-.sidebar-profile {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 24px 20px 16px;
-  border-bottom: 1px solid var(--s2);
-}
-.sidebar-avatar {
-  width: 44px; height: 44px;
-  border-radius: 50%;
-  background: var(--gold);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  font-weight: 700;
-}
-.sidebar-name { font-weight: 600; font-size: 15px; }
-.sidebar-info { font-size: 12px; color: var(--td); }
-
-.sidebar-menu {
-  flex: 1;
-  padding: 12px 0;
-}
-.sidebar-item {
-  padding: 14px 20px;
-  font-size: 15px;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-.sidebar-item:hover, .sidebar-item:active {
-  background: var(--s1);
-}
-.sidebar-logout {
-  color: var(--red);
-}
-.sidebar-footer {
-  padding: 16px 20px;
-  font-size: 11px;
-  color: var(--td);
-  text-align: center;
-  border-top: 1px solid var(--s2);
-}
+.cnt-btn:hover { background: var(--s1); }
