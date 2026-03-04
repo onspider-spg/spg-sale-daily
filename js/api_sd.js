@@ -182,6 +182,9 @@ const API = (() => {
     // EP-04: Get Vendors
     getVendors: (store_id) => post('sd_get_vendors', tokenBody({ store_id: store_id || getSelectedStore() })),
 
+    // EP-25: Get Store Vendor Visibility (all vendors + toggle status)
+    getStoreVendorVisibility: (store_id) => post('sd_get_store_vendor_visibility', tokenBody({ store_id: store_id || getSelectedStore() })),
+
     // EP-05: Create Vendor
     createVendor: (vendor_name, vendor_group, vendor_type) =>
       post('sd_create_vendor', tokenBody({ vendor_name, vendor_group, vendor_type })),

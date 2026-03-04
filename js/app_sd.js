@@ -280,7 +280,7 @@ const App = (() => {
           <div class="sidebar-avatar">${esc(initial)}</div>
           <div>
             <div class="sidebar-name">${esc(s.display_name)}</div>
-            <div class="sidebar-info">${esc(s.store_name)} · ${esc(s.tier_id)}</div>
+            <div class="sidebar-info">${esc(s.store_name)} · <span style="background:var(--gold-bg2);color:var(--gold-dim);padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600">${esc(s.tier_id)}</span></div>
           </div>
         </div>
         <div class="sidebar-menu">

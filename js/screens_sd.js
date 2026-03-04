@@ -81,7 +81,6 @@ const Screens = (() => {
             <div class="header-sub">${App.esc(s.display_name)} · ${App.esc(s.store_name)}</div>
           </div>
           <div class="header-right">
-            <span class="tag gray" style="font-size:10px">${App.esc(s.tier_id)}</span>
             <button class="back-btn" onclick="App.toggleSidebar()" style="font-size:16px">☰</button>
           </div>
         </div>

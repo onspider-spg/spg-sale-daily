@@ -504,9 +504,11 @@ const Screens4 = (() => {
 
   // ════════════════════════════════════════
   // VENDOR STORE (standalone screen from ☰ menu)
+  // Phase 2: T3-T4 toggle, T5+ read-only
   // ════════════════════════════════════════
 
   let _vendorStoreList = [];
+  let _vendorStoreCanToggle = false;
 
   function renderVendorStore() {
     const session = API.getSession();
@@ -541,42 +543,69 @@ const Screens4 = (() => {
     if (!el) return;
     try {
       App.showLoader();
-      const data = await API.getVendors();
+      const data = await API.getStoreVendorVisibility();
       _vendorStoreList = data.vendors || [];
-      renderVendorStoreList(el, _vendorStoreList);
+      _vendorStoreCanToggle = data.can_toggle || false;
+      renderVendorStoreList(el);
     } catch (err) {
-      el.innerHTML = `<div style="color:var(--red);padding:16px">${err.message}</div>`;
+      el.innerHTML = `<div style="color:var(--red);padding:16px">${App.esc(err.message)}</div>`;
     } finally {
       App.hideLoader();
     }
   }
 
-  function renderVendorStoreList(el, vendors) {
-    const session = API.getSession();
-    const isManager = session?.tier_level <= 4;
+  function renderVendorStoreList(el) {
+    const vendors = _vendorStoreList;
+    const canToggle = _vendorStoreCanToggle;
 
     if (vendors.length === 0) {
-      el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--tm)">ไม่มี vendor ในร้านนี้</div>';
+      el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--tm)">ไม่มี vendor ในระบบ</div>';
       return;
     }
 
+    const visible = vendors.filter(v => v.is_visible).length;
+    const hidden = vendors.length - visible;
+
     el.innerHTML = `
-      <div style="font-size:12px;color:var(--tm);margin-bottom:8px">แสดง ${vendors.length} vendors</div>
-      ${vendors.map(v => `
-        <div class="card-flat vs-row" style="display:flex;align-items:center;gap:10px" data-name="${(v.vendor_name || v.name || '').toLowerCase()}">
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--tm);margin-bottom:8px">
+        <span>ทั้งหมด ${vendors.length} vendors</span>
+        <span>✅ แสดง ${visible} · 🚫 ซ่อน ${hidden}</span>
+      </div>
+      ${vendors.map((v, i) => `
+        <div class="card-flat vs-row" style="display:flex;align-items:center;gap:10px" data-name="${(v.vendor_name || '').toLowerCase()}" data-idx="${i}">
           <div style="flex:1">
-            <div style="font-weight:600;font-size:13px">${App.esc(v.vendor_name || v.name)}</div>
-            <div style="font-size:10px;color:var(--td)">${App.esc(v.vendor_group || '—')}</div>
+            <div style="font-weight:600;font-size:13px">${App.esc(v.vendor_name)}</div>
+            <div style="font-size:10px;color:var(--td)">${App.esc(v.vendor_group || '—')} · ${App.esc(v.vendor_type || '')}</div>
           </div>
-          <div style="font-size:12px;color:var(--green)">✅ แสดง</div>
+          ${canToggle ? `
+            <button style="padding:6px 12px;border-radius:8px;border:1px solid ${v.is_visible ? 'var(--green)' : 'var(--b1)'};background:${v.is_visible ? 'var(--green-bg)' : 'var(--s1)'};color:${v.is_visible ? 'var(--green)' : 'var(--tm)'};font-size:11px;cursor:pointer;font-family:inherit;transition:all .15s"
+                    onclick="Screens4.toggleVendorStore(${i})">
+              ${v.is_visible ? '✅ แสดง' : '🚫 ซ่อน'}
+            </button>
+          ` : `
+            <div style="font-size:11px;color:${v.is_visible ? 'var(--green)' : 'var(--tm)'}">
+              ${v.is_visible ? '✅ แสดง' : '🚫 ซ่อน'}
+            </div>
+          `}
         </div>
       `).join('')}
-      ${isManager ? `
-        <div style="margin-top:12px;padding:12px;background:var(--s1);border-radius:8px;font-size:11px;color:var(--td);text-align:center">
-          💡 ฟีเจอร์เปิด/ปิด vendor จะมาใน Phase 2
-        </div>
-      ` : ''}
     `;
+  }
+
+  async function toggleVendorStore(idx) {
+    const v = _vendorStoreList[idx];
+    if (!v) return;
+
+    const newVisible = !v.is_visible;
+    try {
+      await API.toggleVendorVisibility(v.vendor_id, null, newVisible);
+      v.is_visible = newVisible;
+      const el = document.getElementById('vs-list');
+      if (el) renderVendorStoreList(el);
+      App.toast(newVisible ? '✅ เปิด "' + v.vendor_name + '"' : '🚫 ซ่อน "' + v.vendor_name + '"', 'success');
+    } catch (err) {
+      App.toast(err.message, 'error');
+    }
   }
 
   function filterVendorStore() {
@@ -598,7 +627,7 @@ const Screens4 = (() => {
     // Suppliers / Vendor Visibility
     filterVendors, toggleVendor, toggleVisibility,
     // Vendor Store (☰ menu)
-    renderVendorStore, loadVendorStore, filterVendorStore,
+    renderVendorStore, loadVendorStore, filterVendorStore, toggleVendorStore,
     // Settings
     setSettingToggle, saveSettings,
     // Permissions
