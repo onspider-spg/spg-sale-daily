@@ -869,6 +869,257 @@ const Screens4 = (() => {
   }
 
   // ════════════════════════════════════════
+  // NOTIFICATIONS SCREEN (Phase 5)
+  // ════════════════════════════════════════
+
+  let _notiData = null;
+
+  function renderNotifications() {
+    const session = API.getSession();
+    if (!session) return Screens.renderNoAccess();
+
+    return `
+      <div class="screen">
+        <div class="header-bar">
+          <button class="back-btn" onclick="App.go('dashboard')">←</button>
+          <div style="flex:1;min-width:0">
+            <div class="header-title">🔔 แจ้งเตือน</div>
+            <div class="header-sub">Notifications & Announcements</div>
+          </div>
+          <div class="header-right">
+            <button class="btn btn-sm btn-outline" style="font-size:11px;padding:4px 10px" onclick="Screens4.markAllRead()">อ่านทั้งหมด</button>
+          </div>
+        </div>
+        <div class="screen-body">
+          <div id="noti-list">
+            <div style="text-align:center;padding:20px;color:var(--tm)">กำลังโหลด...</div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  async function loadNotifications() {
+    const el = document.getElementById('noti-list');
+    if (!el) return;
+    try {
+      App.showLoader();
+      const data = await API.getNotifications(50);
+      _notiData = data;
+      renderNotiList(el, data);
+    } catch (err) {
+      el.innerHTML = '<div style="color:var(--red);padding:16px">' + App.esc(err.message) + '</div>';
+    } finally { App.hideLoader(); }
+  }
+
+  function renderNotiList(el, data) {
+    const announcements = data.announcements || [];
+    const notifs = data.notifications || [];
+    const unreadAnn = announcements.filter(a => !a.is_read);
+    const readAnn = announcements.filter(a => a.is_read);
+
+    let html = '';
+
+    // Unread announcements first
+    if (unreadAnn.length > 0) {
+      html += '<div class="section-label">📢 ประกาศใหม่</div>';
+      unreadAnn.forEach(a => {
+        html += `
+          <div class="card" style="border-left:3px solid ${a.priority === 'urgent' ? 'var(--red)' : 'var(--gold)'};margin-bottom:8px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
+              <div style="font-weight:600;font-size:14px">${a.priority === 'urgent' ? '🚨' : '📢'} ${App.esc(a.title)}</div>
+              <button class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 8px;flex-shrink:0" onclick="Screens4.dismissAnnouncement('${a.id}')">รับทราบ</button>
+            </div>
+            <div style="font-size:13px;color:var(--t);white-space:pre-wrap;line-height:1.5">${App.esc(a.body)}</div>
+            <div style="font-size:10px;color:var(--tm);margin-top:6px">${new Date(a.created_at).toLocaleString('th-TH')}</div>
+          </div>`;
+      });
+    }
+
+    // Notifications
+    if (notifs.length > 0) {
+      html += '<div class="section-label">🔔 แจ้งเตือน</div>';
+      notifs.forEach(n => {
+        const typeIcons = { info: 'ℹ️', warning: '⚠️', success: '✅', error: '❌' };
+        html += `
+          <div class="card-flat" style="display:flex;gap:10px;align-items:flex-start;opacity:${n.is_read ? '0.6' : '1'};margin-bottom:6px">
+            <div style="font-size:16px">${typeIcons[n.type] || 'ℹ️'}</div>
+            <div style="flex:1">
+              <div style="font-weight:${n.is_read ? '400' : '600'};font-size:13px">${App.esc(n.title)}</div>
+              ${n.body ? '<div style="font-size:12px;color:var(--td);margin-top:2px">' + App.esc(n.body) + '</div>' : ''}
+              <div style="font-size:10px;color:var(--tm);margin-top:4px">${new Date(n.created_at).toLocaleString('th-TH')}</div>
+            </div>
+            ${!n.is_read ? '<div style="width:8px;height:8px;border-radius:50%;background:var(--gold);flex-shrink:0;margin-top:6px"></div>' : ''}
+          </div>`;
+      });
+    }
+
+    // Read announcements
+    if (readAnn.length > 0) {
+      html += '<div class="section-label" style="opacity:0.5">📢 ประกาศที่อ่านแล้ว</div>';
+      readAnn.forEach(a => {
+        html += `
+          <div class="card-flat" style="opacity:0.5;margin-bottom:6px">
+            <div style="font-weight:500;font-size:13px">📢 ${App.esc(a.title)}</div>
+            <div style="font-size:10px;color:var(--tm);margin-top:2px">${new Date(a.created_at).toLocaleString('th-TH')}</div>
+          </div>`;
+      });
+    }
+
+    if (!html) {
+      html = '<div style="text-align:center;padding:40px 0;color:var(--tm)"><div style="font-size:36px;margin-bottom:8px">🔔</div><div>ไม่มีแจ้งเตือน</div></div>';
+    }
+
+    el.innerHTML = html;
+  }
+
+  async function markAllRead() {
+    try {
+      await API.markNotificationRead('all');
+      App.toast('อ่านทั้งหมดแล้ว ✓', 'success');
+      await loadNotifications();
+      await App.refreshNotiBadge();
+    } catch (err) { App.toast(err.message, 'error'); }
+  }
+
+  async function dismissAnnouncement(announcementId) {
+    try {
+      await API.dismissAnnouncement(announcementId);
+      App.toast('รับทราบแล้ว ✓', 'success');
+      await loadNotifications();
+      await App.refreshNotiBadge();
+    } catch (err) { App.toast(err.message, 'error'); }
+  }
+
+
+  // ════════════════════════════════════════
+  // ANNOUNCEMENTS ADMIN SCREEN (Phase 5)
+  // ════════════════════════════════════════
+
+  let _adminAnnouncements = [];
+
+  function renderAnnouncementsAdmin() {
+    const session = API.getSession();
+    if (!session) return Screens.renderNoAccess();
+
+    return `
+      <div class="screen">
+        <div class="header-bar">
+          <button class="back-btn" onclick="App.go('dashboard')">←</button>
+          <div style="flex:1;min-width:0">
+            <div class="header-title">📢 ประกาศ</div>
+            <div class="header-sub">Announcements — Admin</div>
+          </div>
+          <div class="header-right">
+            <button class="btn btn-gold" style="font-size:12px;padding:6px 14px" onclick="Screens4.showCreateAnnouncement()">+ สร้างใหม่</button>
+          </div>
+        </div>
+        <div class="screen-body">
+          <div id="announce-admin-list">
+            <div style="text-align:center;padding:20px;color:var(--tm)">กำลังโหลด...</div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  async function loadAnnouncementsAdmin() {
+    const el = document.getElementById('announce-admin-list');
+    if (!el) return;
+    try {
+      App.showLoader();
+      const data = await API.getAnnouncements(50);
+      _adminAnnouncements = data.announcements || [];
+      renderAnnouncementsList(el);
+    } catch (err) {
+      el.innerHTML = '<div style="color:var(--red);padding:16px">' + App.esc(err.message) + '</div>';
+    } finally { App.hideLoader(); }
+  }
+
+  function renderAnnouncementsList(el) {
+    if (_adminAnnouncements.length === 0) {
+      el.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--tm)"><div style="font-size:36px;margin-bottom:8px">📢</div><div>ยังไม่มีประกาศ</div></div>';
+      return;
+    }
+
+    el.innerHTML = `
+      <div style="font-size:12px;color:var(--tm);margin-bottom:8px">${_adminAnnouncements.length} ประกาศ</div>
+      ${_adminAnnouncements.map(a => `
+        <div class="card" style="margin-bottom:8px;border-left:3px solid ${a.is_active ? (a.priority === 'urgent' ? 'var(--red)' : 'var(--gold)') : 'var(--tm)'}">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div style="font-weight:600;font-size:14px">${a.priority === 'urgent' ? '🚨' : '📢'} ${App.esc(a.title)}</div>
+            <span class="tag ${a.is_active ? 'gold' : 'gray'}" style="flex-shrink:0">${a.is_active ? 'Active' : 'Inactive'}</span>
+          </div>
+          <div style="font-size:13px;color:var(--t);margin-top:4px;white-space:pre-wrap;line-height:1.5">${App.esc(a.body)}</div>
+          <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:10px;color:var(--tm)">
+            <span>🎯 ${App.esc(a.target_scope)} · ${a.expires_at ? 'หมด ' + new Date(a.expires_at).toLocaleDateString('th-TH') : 'ไม่หมดอายุ'}</span>
+            <span>${new Date(a.created_at).toLocaleString('th-TH')}</span>
+          </div>
+        </div>
+      `).join('')}
+    `;
+  }
+
+  function showCreateAnnouncement() {
+    const stores = App.getStores();
+    const overlay = document.createElement('div');
+    overlay.id = 'edit-modal';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px;';
+    overlay.innerHTML = `
+      <div style="background:var(--bg);border-radius:var(--radius);padding:24px;width:100%;max-width:440px;max-height:85vh;overflow-y:auto">
+        <div style="font-size:16px;font-weight:600;margin-bottom:16px">📢 สร้างประกาศใหม่</div>
+        <div class="form-group">
+          <label class="form-label">หัวข้อ *</label>
+          <input type="text" class="form-input" id="ann-title" placeholder="เช่น ปรับเวลาปิดร้าน">
+        </div>
+        <div class="form-group">
+          <label class="form-label">เนื้อหา *</label>
+          <textarea class="form-input" id="ann-body" rows="4" placeholder="รายละเอียดประกาศ..." style="resize:vertical"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">ส่งถึง</label>
+          <select class="form-select" id="ann-scope">
+            <option value="all">🌐 ทุกคน (All)</option>
+            ${stores.map(s => '<option value="store:' + s.store_id + '">🏪 ' + App.esc(s.label) + '</option>').join('')}
+            <option value="tier:T3">👤 T3 Senior Manager</option>
+            <option value="tier:T4">👤 T4 Manager</option>
+            <option value="tier:T5">👤 T5 Senior Staff</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">ระดับ</label>
+          <select class="form-select" id="ann-priority">
+            <option value="normal">📢 Normal</option>
+            <option value="urgent">🚨 Urgent</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:16px">
+          <button class="btn btn-gold" style="flex:1" onclick="Screens4.saveNewAnnouncement()">📢 ประกาศ</button>
+          <button class="btn btn-outline" style="flex:1" onclick="document.getElementById('edit-modal')?.remove()">ยกเลิก</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+  }
+
+  async function saveNewAnnouncement() {
+    const title = (document.getElementById('ann-title')?.value || '').trim();
+    const body = (document.getElementById('ann-body')?.value || '').trim();
+    if (!title || !body) { App.toast('กรุณากรอกหัวข้อและเนื้อหา', 'error'); return; }
+    try {
+      App.showLoader();
+      await API.createAnnouncement({
+        title: title,
+        body: body,
+        target_scope: document.getElementById('ann-scope')?.value || 'all',
+        priority: document.getElementById('ann-priority')?.value || 'normal',
+      });
+      document.getElementById('edit-modal')?.remove();
+      App.toast('สร้างประกาศสำเร็จ ✓', 'success');
+      await loadAnnouncementsAdmin();
+    } catch (err) { App.toast(err.message, 'error'); }
+    finally { App.hideLoader(); }
+  }
+
+
+  // ════════════════════════════════════════
   // EXPORTS
   // ════════════════════════════════════════
 
@@ -885,5 +1136,10 @@ const Screens4 = (() => {
     setSettingToggle, saveSettings,
     // Permissions (batch)
     togglePermission, toggleGroupAll, toggleGroupNone, savePermissions,
+    // Notifications (Phase 5)
+    renderNotifications, loadNotifications, markAllRead, dismissAnnouncement,
+    // Announcements Admin (Phase 5)
+    renderAnnouncementsAdmin, loadAnnouncementsAdmin,
+    showCreateAnnouncement, saveNewAnnouncement,
   };
 })();

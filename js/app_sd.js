@@ -52,6 +52,9 @@ const App = (() => {
     // Phase 1: ☰ Menu screens
     'profile':          { render: () => Screens.renderProfile(),     onLoad: null },
     'vendor-store':     { render: () => Screens4.renderVendorStore(), onLoad: () => Screens4.loadVendorStore() },
+    // Phase 5: Notifications & Announcements
+    'notifications':    { render: () => Screens4.renderNotifications(), onLoad: () => Screens4.loadNotifications() },
+    'announcements':    { render: () => Screens4.renderAnnouncementsAdmin(), onLoad: () => Screens4.loadAnnouncementsAdmin() },
   };
 
   // ─── INIT ───
@@ -96,6 +99,11 @@ const App = (() => {
 
       go('dashboard');
       initSidebar(); // ★ v1.4: inject sidebar after session ready
+
+      // ★ v1.4.1: fetch noti count + show announcement popup
+      refreshNotiBadge().then(function(notiData) {
+        showAnnouncementPopup(notiData);
+      });
     } catch (err) {
       console.error('Session validation failed:', err);
       if (err.code === 'NO_ACCESS') {
@@ -285,13 +293,14 @@ const App = (() => {
         </div>
         <div class="sidebar-menu">
           <div class="sidebar-item" onclick="App.goMenu('profile')">👤 โปรไฟล์</div>
-          <div class="sidebar-item" onclick="App.goMenu('noti')" style="opacity:0.4;pointer-events:none">🔔 แจ้งเตือน <span style="font-size:11px;color:var(--tm)">(เร็วๆ นี้)</span></div>
+          <div class="sidebar-item" onclick="App.goMenu('notifications')">🔔 แจ้งเตือน <span id="sb-noti-badge" style="background:var(--red);color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;display:none"></span></div>
           ${(isManager && !isAdmin) ? `<div class="sidebar-item" onclick="App.goMenu('vendor-store')">🏪 Vendor ร้านฉัน</div>` : ''}
+          ${isAdmin ? `<div class="sidebar-item" onclick="App.goMenu('announcements')">📢 ประกาศ</div>` : ''}
           ${isAdmin ? `<div class="sidebar-item" onclick="App.goMenu('settings')">⚙️ ตั้งค่า & จัดการ</div>` : ''}
           <div style="height:1px;background:var(--s2);margin:8px 20px"></div>
           <div class="sidebar-item sidebar-logout" onclick="App.logout()">🚪 ออกจากระบบ</div>
         </div>
-        <div class="sidebar-footer">SPG Sale Daily v1.4</div>
+        <div class="sidebar-footer">SPG Sale Daily v1.4.1</div>
       </div>`;
 
     document.body.insertAdjacentHTML('beforeend', html);
@@ -325,6 +334,58 @@ const App = (() => {
     goHome();
   }
 
+  // ─── NOTIFICATION BADGE ───
+  async function refreshNotiBadge() {
+    try {
+      const data = await API.getNotifications(1); // minimal fetch just for count
+      const count = data.unread_count || 0;
+      const badge = document.getElementById('sb-noti-badge');
+      if (badge) {
+        badge.textContent = count > 99 ? '99+' : count;
+        badge.style.display = count > 0 ? '' : 'none';
+      }
+      // Also update ☰ button hint (optional dot)
+      return data;
+    } catch (e) { /* silent */ }
+    return null;
+  }
+
+  // ─── ANNOUNCEMENT POPUP ON ENTRY ───
+  async function showAnnouncementPopup(notiData) {
+    try {
+      const data = notiData || await API.getNotifications(50);
+      const unread = (data.announcements || []).filter(a => !a.is_read);
+      if (unread.length === 0) return;
+
+      // Show latest unread announcement as popup
+      const a = unread[0];
+      const overlay = document.createElement('div');
+      overlay.id = 'announce-popup';
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:300;display:flex;align-items:center;justify-content:center;padding:16px;';
+      overlay.innerHTML = `
+        <div style="background:var(--bg);border-radius:var(--radius);padding:24px;width:100%;max-width:400px;max-height:80vh;overflow-y:auto">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+            <span style="font-size:20px">${a.priority === 'urgent' ? '🚨' : '📢'}</span>
+            <span style="font-size:16px;font-weight:700;flex:1">${esc(a.title)}</span>
+            ${unread.length > 1 ? '<span style="font-size:11px;color:var(--tm)">+' + (unread.length - 1) + ' อื่นๆ</span>' : ''}
+          </div>
+          <div style="font-size:14px;line-height:1.6;color:var(--t);white-space:pre-wrap">${esc(a.body)}</div>
+          <div style="font-size:10px;color:var(--tm);margin-top:12px">${new Date(a.created_at).toLocaleString('th-TH')}</div>
+          <button class="btn btn-gold" style="width:100%;margin-top:16px;padding:12px;border-radius:10px;border:none;font-size:14px;cursor:pointer;font-family:inherit"
+                  onclick="App.dismissPopup('${a.id}')">รับทราบ ✓</button>
+        </div>`;
+      document.body.appendChild(overlay);
+    } catch (e) { /* silent */ }
+  }
+
+  async function dismissPopup(announcementId) {
+    document.getElementById('announce-popup')?.remove();
+    try {
+      await API.dismissAnnouncement(announcementId);
+      await refreshNotiBadge();
+    } catch (e) { /* silent */ }
+  }
+
   // ─── BACK TO HOME ───
   function goHome() {
     // Navigate back to Home module
@@ -345,6 +406,7 @@ const App = (() => {
     todayStr, addDays,
     renderStoreSelector, selectStore, selectBranch,
     goHome, toggleSidebar, closeSidebar, goMenu, logout,
+    refreshNotiBadge, dismissPopup,
     getStores: () => stores,
     getCurrentRoute: () => currentRoute,
   };

@@ -374,5 +374,22 @@ const API = (() => {
     // EP-28: Batch Update Permissions
     adminBatchUpdatePermissions: (changes) =>
       post('sd_admin_batch_update_permissions', tokenBody({ changes })),
+
+    // ─── Phase 5: Notifications & Announcements ───
+
+    getNotifications: (limit) =>
+      post('sd_get_notifications', tokenBody({ limit })),
+
+    markNotificationRead: (notification_ids) =>
+      post('sd_mark_notification_read', tokenBody({ notification_ids })),
+
+    getAnnouncements: (limit) =>
+      post('sd_get_announcements', tokenBody({ limit })),
+
+    createAnnouncement: (data) =>
+      post('sd_create_announcement', tokenBody(data)),
+
+    dismissAnnouncement: (announcement_id) =>
+      post('sd_dismiss_announcement', tokenBody({ announcement_id })),
   };
 })();
