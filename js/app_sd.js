@@ -286,7 +286,7 @@ const App = (() => {
         <div class="sidebar-menu">
           <div class="sidebar-item" onclick="App.goMenu('profile')">👤 โปรไฟล์</div>
           <div class="sidebar-item" onclick="App.goMenu('noti')" style="opacity:0.4;pointer-events:none">🔔 แจ้งเตือน <span style="font-size:11px;color:var(--tm)">(เร็วๆ นี้)</span></div>
-          ${isManager ? `<div class="sidebar-item" onclick="App.goMenu('vendor-store')">🏪 Vendor ร้านฉัน</div>` : ''}
+          ${(isManager && !isAdmin) ? `<div class="sidebar-item" onclick="App.goMenu('vendor-store')">🏪 Vendor ร้านฉัน</div>` : ''}
           ${isAdmin ? `<div class="sidebar-item" onclick="App.goMenu('settings')">⚙️ ตั้งค่า & จัดการ</div>` : ''}
           <div style="height:1px;background:var(--s2);margin:8px 20px"></div>
           <div class="sidebar-item sidebar-logout" onclick="App.logout()">🚪 ออกจากระบบ</div>

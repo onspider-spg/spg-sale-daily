@@ -360,5 +360,15 @@ const API = (() => {
     // EP-33: Admin Get Vendor Matrix
     adminGetVendorMatrix: () =>
       post('sd_admin_get_vendor_matrix', tokenBody()),
+
+    // ─── Phase 3: Channel CRUD + Batch Vendor ───
+
+    // EP-26: Admin Create Channel
+    adminCreateChannel: (data) =>
+      post('sd_admin_create_channel', tokenBody(data)),
+
+    // EP-27: Batch Vendor Visibility
+    batchVendorVisibility: (store_id, changes) =>
+      post('sd_batch_vendor_visibility', tokenBody({ store_id, changes })),
   };
 })();

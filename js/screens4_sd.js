@@ -99,7 +99,10 @@ const Screens4 = (() => {
     const groupIcons = { card_sale: '💳', cash_sale: '💵', delivery_sale: '🛵', other: '📦' };
 
     el.innerHTML = `
-      <div class="section-label">📡 Channel Config — ${App.esc(data.store_id)}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div class="section-label" style="margin:0">📡 Channel Config — ${App.esc(data.store_id)}</div>
+        <button class="btn btn-gold" style="font-size:12px;padding:6px 14px" onclick="Screens4.showAddChannel('${App.esc(data.store_id)}')">+ เพิ่ม Channel</button>
+      </div>
       <div style="font-size:11px;color:var(--td);margin-bottom:12px">
         แต่ละ channel map → Finance Sub Category + Dashboard Group
       </div>
@@ -190,6 +193,63 @@ const Screens4 = (() => {
     finally { App.hideLoader(); }
   }
 
+  // ── Phase 3: Add Channel ──
+  function showAddChannel(store_id) {
+    const overlay = document.createElement('div');
+    overlay.id = 'edit-modal';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;display:flex;align-items:center;justify-content:center;';
+    overlay.innerHTML = `
+      <div style="background:var(--bg);border-radius:var(--radius);padding:24px;width:90%;max-width:400px;">
+        <div style="font-size:16px;font-weight:600;margin-bottom:16px">➕ เพิ่ม Channel ใหม่</div>
+        <div class="form-group">
+          <label class="form-label">Channel Key <span style="color:var(--tm);font-size:10px">(ภาษาอังกฤษ ห้ามเว้นวรรค)</span></label>
+          <input type="text" class="form-input" id="add-ch-key" placeholder="เช่น uber_eats">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Label (ชื่อแสดง)</label>
+          <input type="text" class="form-input" id="add-ch-label" placeholder="เช่น Uber Eats">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Dashboard Group</label>
+          <select class="form-select" id="add-ch-group">
+            <option value="card_sale">💳 card_sale</option>
+            <option value="cash_sale">💵 cash_sale</option>
+            <option value="delivery_sale" selected>🛵 delivery_sale</option>
+            <option value="other">📦 other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Finance Sub Category</label>
+          <input type="text" class="form-input" id="add-ch-finsub" placeholder="เช่น Uber Eats">
+        </div>
+        <div style="display:flex;gap:8px;margin-top:16px">
+          <button class="btn btn-gold" style="flex:1" onclick="Screens4.saveNewChannel('${App.esc(store_id)}')">➕ สร้าง</button>
+          <button class="btn btn-outline" style="flex:1" onclick="document.getElementById('edit-modal')?.remove()">ยกเลิก</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+  }
+
+  async function saveNewChannel(store_id) {
+    const key = (document.getElementById('add-ch-key')?.value || '').trim();
+    const label = (document.getElementById('add-ch-label')?.value || '').trim();
+    if (!key || !label) { App.toast('กรุณากรอก Key และ Label', 'error'); return; }
+    try {
+      App.showLoader();
+      await API.adminCreateChannel({
+        store_id: store_id,
+        channel_key: key,
+        channel_label: label,
+        dashboard_group: document.getElementById('add-ch-group')?.value || 'other',
+        finance_sub_category: document.getElementById('add-ch-finsub')?.value || label,
+      });
+      document.getElementById('edit-modal')?.remove();
+      App.toast('สร้าง Channel สำเร็จ ✓', 'success');
+      await loadTabContent('channels');
+    } catch (err) { App.toast(err.message, 'error'); }
+    finally { App.hideLoader(); }
+  }
+
 
   // ════════════════════════════════════════
   // TAB 2: VENDOR VISIBILITY
@@ -242,39 +302,51 @@ const Screens4 = (() => {
     }
   }
 
-  // ── Admin View: Vendor × Store matrix ──
+  // ── Admin View: Vendor × Store matrix (BATCH SAVE) ──
+  let _matrixChanges = {}; // track local changes: { 'vendorId:storeId': newVisible }
+
   async function renderVendorMatrixView(el) {
     try {
       const data = await API.adminGetVendorMatrix();
       _vendorMatrix = data;
+      _matrixChanges = {}; // reset pending changes
       const { stores: matStores, vendors: matVendors } = data;
 
       el.innerHTML = `
-        <div class="section-label">🏪 Vendor Visibility — ${matVendors.length} vendors × ${matStores.length} stores</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div class="section-label" style="margin:0">🏪 Vendor Visibility — ${matVendors.length} vendors × ${matStores.length} stores</div>
+          <button class="btn btn-gold" id="vm-save-btn" style="font-size:12px;padding:6px 14px;display:none"
+                  onclick="Screens4.saveVendorMatrix()">💾 บันทึก (<span id="vm-change-count">0</span>)</button>
+        </div>
 
         <div class="form-group" style="margin-bottom:12px">
           <input type="text" class="form-input" id="s7-vendor-search" placeholder="🔍 ค้นหา vendor..."
                  oninput="Screens4.filterVendors()">
         </div>
 
-        <!-- Header row -->
         <div style="overflow-x:auto">
           <table style="width:100%;border-collapse:collapse;font-size:12px" id="s7-vendor-matrix">
             <thead>
-              <tr style="background:var(--surface)">
-                <th style="text-align:left;padding:8px;position:sticky;left:0;background:var(--surface);min-width:140px">Vendor</th>
+              <tr style="background:var(--s1)">
+                <th style="text-align:left;padding:8px;position:sticky;left:0;background:var(--s1);min-width:140px">Vendor</th>
+                <th style="text-align:center;padding:8px;min-width:50px;color:var(--gold);font-weight:700">ALL</th>
                 ${matStores.map(s => `<th style="text-align:center;padding:8px;min-width:50px">${App.esc(s.store_id)}</th>`).join('')}
               </tr>
             </thead>
             <tbody>
-              ${matVendors.map(v => `
-                <tr class="vendor-row" data-name="${(v.vendor_name || '').toLowerCase()}" style="border-bottom:1px solid var(--border)">
+              ${matVendors.map((v, vi) => `
+                <tr class="vendor-row" data-name="${(v.vendor_name || '').toLowerCase()}" data-vi="${vi}" style="border-bottom:1px solid var(--b1)">
                   <td style="padding:8px;font-weight:500;position:sticky;left:0;background:var(--bg)">${App.esc(v.vendor_name)}</td>
-                  ${matStores.map(s => {
+                  <td style="text-align:center;padding:6px">
+                    <button class="btn btn-sm btn-outline" style="min-width:36px;padding:4px 8px;font-size:10px"
+                            onclick="Screens4.toggleAllStores(${vi})">ALL</button>
+                  </td>
+                  ${matStores.map((s, si) => {
                     const vis = v.stores[s.store_id] !== false;
                     return `<td style="text-align:center;padding:6px">
                       <button class="btn btn-sm ${vis ? 'btn-gold' : 'btn-outline'}" style="min-width:36px;padding:4px 8px"
-                              onclick="Screens4.toggleVisibility('${v.vendor_id}', '${s.store_id}', ${!vis})">${vis ? '✅' : '—'}</button>
+                              id="vm-${vi}-${si}"
+                              onclick="Screens4.toggleVisibility(${vi}, ${si})">${vis ? '✅' : '—'}</button>
                     </td>`;
                   }).join('')}
                 </tr>
@@ -296,12 +368,95 @@ const Screens4 = (() => {
     });
   }
 
-  async function toggleVisibility(vendorId, storeId, newVisible) {
+  // Local toggle — no API call
+  function toggleVisibility(vi, si) {
+    if (!_vendorMatrix) return;
+    const v = _vendorMatrix.vendors[vi];
+    const s = _vendorMatrix.stores[si];
+    if (!v || !s) return;
+
+    const current = v.stores[s.store_id] !== false;
+    const newVal = !current;
+    v.stores[s.store_id] = newVal;
+
+    // Track change
+    const key = v.vendor_id + ':' + s.store_id;
+    _matrixChanges[key] = { vendor_id: v.vendor_id, store_id: s.store_id, is_visible: newVal };
+
+    // Update button UI
+    const btn = document.getElementById('vm-' + vi + '-' + si);
+    if (btn) {
+      btn.className = 'btn btn-sm ' + (newVal ? 'btn-gold' : 'btn-outline');
+      btn.textContent = newVal ? '✅' : '—';
+      btn.style.outline = '2px solid var(--gold)'; // highlight changed
+    }
+
+    updateSaveButton();
+  }
+
+  // Toggle ALL stores for one vendor
+  function toggleAllStores(vi) {
+    if (!_vendorMatrix) return;
+    const v = _vendorMatrix.vendors[vi];
+    if (!v) return;
+
+    // If all are visible → set all hidden; otherwise → set all visible
+    const allVisible = _vendorMatrix.stores.every(s => v.stores[s.store_id] !== false);
+    const newVal = !allVisible;
+
+    _vendorMatrix.stores.forEach((s, si) => {
+      v.stores[s.store_id] = newVal;
+      const key = v.vendor_id + ':' + s.store_id;
+      _matrixChanges[key] = { vendor_id: v.vendor_id, store_id: s.store_id, is_visible: newVal };
+
+      const btn = document.getElementById('vm-' + vi + '-' + si);
+      if (btn) {
+        btn.className = 'btn btn-sm ' + (newVal ? 'btn-gold' : 'btn-outline');
+        btn.textContent = newVal ? '✅' : '—';
+        btn.style.outline = '2px solid var(--gold)';
+      }
+    });
+
+    updateSaveButton();
+  }
+
+  function updateSaveButton() {
+    const count = Object.keys(_matrixChanges).length;
+    const btn = document.getElementById('vm-save-btn');
+    const countEl = document.getElementById('vm-change-count');
+    if (btn) btn.style.display = count > 0 ? '' : 'none';
+    if (countEl) countEl.textContent = count;
+  }
+
+  // Batch save all pending changes — group by store
+  async function saveVendorMatrix() {
+    const changes = Object.values(_matrixChanges);
+    if (changes.length === 0) return;
+
     try {
-      await API.toggleVendorVisibility(vendorId, storeId, newVisible);
-      App.toast(`${newVisible ? 'เปิด' : 'ปิด'}การมองเห็น สำเร็จ`, 'success');
+      App.showLoader();
+
+      // Group changes by store_id
+      const byStore = {};
+      changes.forEach(c => {
+        if (!byStore[c.store_id]) byStore[c.store_id] = [];
+        byStore[c.store_id].push({ vendor_id: c.vendor_id, is_visible: c.is_visible });
+      });
+
+      // Send one batch per store
+      const storeIds = Object.keys(byStore);
+      for (let i = 0; i < storeIds.length; i++) {
+        await API.batchVendorVisibility(storeIds[i], byStore[storeIds[i]]);
+      }
+
+      _matrixChanges = {};
+      App.toast('บันทึก ' + changes.length + ' รายการ สำเร็จ ✓', 'success');
       await loadTabContent('suppliers');
-    } catch (err) { App.toast(err.message, 'error'); }
+    } catch (err) {
+      App.toast(err.message, 'error');
+    } finally {
+      App.hideLoader();
+    }
   }
 
   async function toggleVendor(vendorId, newActive) {
@@ -624,9 +779,10 @@ const Screens4 = (() => {
     renderSettings, loadSettings, setTab,
     // Channels
     toggleChannel, editChannel, saveChannelEdit,
-    // Suppliers / Vendor Visibility
-    filterVendors, toggleVendor, toggleVisibility,
-    // Vendor Store (☰ menu)
+    showAddChannel, saveNewChannel,
+    // Suppliers / Vendor Visibility (batch)
+    filterVendors, toggleVendor, toggleVisibility, toggleAllStores, saveVendorMatrix,
+    // Vendor Store (☰ menu — T3-T4)
     renderVendorStore, loadVendorStore, filterVendorStore, toggleVendorStore,
     // Settings
     setSettingToggle, saveSettings,
