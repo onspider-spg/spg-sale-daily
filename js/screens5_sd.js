@@ -262,13 +262,20 @@ const Screens5 = (() => {
     const isAdmin = session.tier_level <= 2 || session.store_id === 'HQ';
     if (isAdmin) return renderAdminDashboard(session);
 
+    // Check if date was set from Report Hub
+    const hubDate = sessionStorage.getItem('sd_report_date');
+    if (hubDate) {
+      _reportDate = hubDate;
+      sessionStorage.removeItem('sd_report_date');
+    }
+
     // Store staff → form view
     _reportDate = _reportDate || App.todayStr();
 
     return `
       <div class="screen">
         <div class="header-bar">
-          <button class="back-btn" onclick="App.go('dashboard')">←</button>
+          <button class="back-btn" onclick="App.go('report-hub')">←</button>
           <div style="flex:1;min-width:0">
             <div class="header-title">📝 Daily Report</div>
             <div class="header-sub">S8 สรุปรายงาน · ${App.esc(session.store_name)}</div>
@@ -311,7 +318,7 @@ const Screens5 = (() => {
     return `
       <div class="screen">
         <div class="header-bar">
-          <button class="back-btn" onclick="App.go('dashboard')">←</button>
+          <button class="back-btn" onclick="App.go('report-hub')">←</button>
           <div style="flex:1;min-width:0">
             <div class="header-title">📊 S8 Report Dashboard</div>
             <div class="header-sub">ภาพรวมเหตุการณ์ · ${App.esc(session.store_name)}</div>
@@ -823,6 +830,9 @@ const Screens5 = (() => {
         leftovers: _leftoverItems.filter(l => (l.item_name || '').trim()),
       });
       App.toast('✅ บันทึกแล้ว', 'success');
+
+      // Go to report hub
+      setTimeout(() => App.go('report-hub'), 500);
     } catch (err) { App.toast(err.message, 'error'); }
     finally { App.hideLoader(); }
   }

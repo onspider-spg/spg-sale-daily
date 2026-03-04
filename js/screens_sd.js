@@ -182,7 +182,7 @@ const Screens = (() => {
           </div>
 
           <div class="quick-grid">
-            <div class="quick-btn" onclick="App.go('daily-report')">
+            <div class="quick-btn" onclick="App.go('report-hub')">
               <div class="q-icon" style="background:#FFF4E8;color:#E0872E">📝</div>
               <div>
                 <div class="q-label">สรุปรายงาน</div>
@@ -197,6 +197,18 @@ const Screens = (() => {
               </div>
             </div>
           </div>
+
+          ${session.tier_level <= 2 || session.store_id === 'HQ' ? `
+          <div class="quick-grid">
+            <div class="quick-btn" onclick="App.go('acc-review')">
+              <div class="q-icon" style="background:#E8F5E9;color:#388E3C">🔍</div>
+              <div>
+                <div class="q-label">ACC Review</div>
+                <div class="q-sub">ตรวจ & Sync → Finance</div>
+              </div>
+            </div>
+          </div>
+          ` : ''}
 
         </div>
       </div>`;
@@ -734,10 +746,10 @@ const Screens = (() => {
       });
 
       const isUpdate = result.is_update ? 'อัพเดต' : 'บันทึก';
-      App.toast(`${isUpdate}สำเร็จ ✓ Finance ${result.finance_records_created} records`, 'success');
+      App.toast(`${isUpdate}สำเร็จ ✓`, 'success');
 
-      // Reload to show updated status
-      setTimeout(() => loadDailySale({ date: s1.date }), 500);
+      // Go to sale history
+      setTimeout(() => App.go('sale-history'), 500);
 
     } catch (err) {
       console.error('Save error:', err);

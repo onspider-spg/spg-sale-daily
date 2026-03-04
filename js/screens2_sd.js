@@ -476,14 +476,10 @@ const Screens2 = (() => {
         expense_id: s2.editId,
       });
 
-      App.toast(`บันทึกสำเร็จ ✓ Finance ${result.finance_synced ? 'synced' : 'pending'}`, 'success');
+      App.toast('บันทึกสำเร็จ ✓', 'success');
 
-      // Clear form and reload list
-      s2ClearForm();
-      const data = await API.getExpenses(s2.date);
-      s2.expenses = data.expenses || [];
-      renderS2List();
-      renderS2Summary(data.summary);
+      // Go to expense history
+      setTimeout(() => App.go('expense-history'), 500);
 
     } catch (err) {
       App.toast('บันทึกไม่สำเร็จ: ' + err.message, 'error');

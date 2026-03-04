@@ -476,5 +476,14 @@ const API = (() => {
 
     unlockSale: (store_id, sale_date) =>
       post('sd_unlock_sale', tokenBody({ store_id, sale_date })),
+
+    getReportHub: (store_id, month) =>
+      post('sd_get_report_hub', tokenBody({ store_id, month })),
+
+    getAccReview: (store_id, month) =>
+      post('sd_get_acc_review', tokenBody({ store_id, month })),
+
+    batchSync: (store_id, dates) =>
+      post('sd_batch_sync', tokenBody({ store_id, dates })),
   };
 })();

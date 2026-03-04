@@ -58,6 +58,9 @@ const App = (() => {
     // v1.5: Tasks + Daily Report
     'tasks':            { render: () => Screens5.renderTasks(),       onLoad: () => Screens5.loadTasks() },
     'daily-report':     { render: () => Screens5.renderDailyReport(), onLoad: () => Screens5.loadDailyReport() },
+    // v1.5.2: Hub screens
+    'report-hub':       { render: () => Screens6.renderReportHub(),   onLoad: () => Screens6.loadReportHub() },
+    'acc-review':       { render: () => Screens6.renderAccReview(),   onLoad: () => Screens6.loadAccReview() },
   };
 
   // ─── INIT ───
