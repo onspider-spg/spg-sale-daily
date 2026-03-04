@@ -545,15 +545,27 @@ const Screens = (() => {
     const el = document.getElementById('s1-status');
     if (!el) return;
 
+    const session = API.getSession();
+    const canSync = session && (session.tier_level <= 2 || session.store_id === 'HQ');
+    const canUnlock = session && (session.tier_level <= 3 || session.store_id === 'HQ');
+
     if (data.is_new) {
       el.innerHTML = '<div class="status-bar new">🆕 ยังไม่มีข้อมูลวันนี้ — กรอกใหม่</div>';
     } else if (data.sale?.is_locked) {
-      el.innerHTML = '<div class="status-bar locked">🔒 ล็อคแล้ว — ต้อง T1-T2 ปลดล็อค</div>';
+      el.innerHTML = `
+        <div class="status-bar locked">
+          <span>🔒 Synced & ล็อคแล้ว — ไม่สามารถแก้ไขได้</span>
+          ${canUnlock ? `<button class="btn btn-outline" style="font-size:11px;padding:4px 12px;margin-left:8px" onclick="Screens.unlockSale()">🔓 ปลดล็อค</button>` : ''}
+        </div>`;
     } else {
       const syncText = data.sale?.fin_synced
         ? '✅ Finance synced'
         : '⏳ Finance pending';
-      el.innerHTML = `<div class="status-bar saved">📝 มีข้อมูลแล้ว — แก้ไขได้ · ${syncText}</div>`;
+      el.innerHTML = `
+        <div class="status-bar saved" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="flex:1">📝 มีข้อมูลแล้ว — แก้ไขได้ · ${syncText}</span>
+          ${canSync && !data.sale?.fin_synced ? `<button class="btn btn-gold" style="font-size:11px;padding:4px 12px" onclick="Screens.syncSale()">🔒 Sync</button>` : ''}
+        </div>`;
     }
 
     // Finance tag
@@ -629,6 +641,30 @@ const Screens = (() => {
     }
     _photoTarget = target;
     document.getElementById('s1-file-input')?.click();
+  }
+
+  async function syncSale() {
+    if (!confirm('🔒 Sync & ล็อคยอดขายวันนี้?\n\nหลังจาก Sync จะไม่สามารถแก้ไขได้\nต้อง T1-T3 ปลดล็อค')) return;
+    try {
+      App.showLoader();
+      const storeId = API.isHQ() ? API.getSelectedStore() : null;
+      await API.syncSale(storeId, s1.saleDate);
+      App.toast('🔒 Sync สำเร็จ — ล็อคแล้ว', 'success');
+      App.go('s1-sale');
+    } catch (err) { App.toast(err.message, 'error'); }
+    finally { App.hideLoader(); }
+  }
+
+  async function unlockSale() {
+    if (!confirm('🔓 ปลดล็อคยอดขายวันนี้?\n\nน้องจะสามารถแก้ไขได้อีกครั้ง')) return;
+    try {
+      App.showLoader();
+      const storeId = API.isHQ() ? API.getSelectedStore() : null;
+      await API.unlockSale(storeId, s1.saleDate);
+      App.toast('🔓 ปลดล็อคแล้ว', 'success');
+      App.go('s1-sale');
+    } catch (err) { App.toast(err.message, 'error'); }
+    finally { App.hideLoader(); }
   }
 
   async function s1HandlePhoto(event) {
@@ -809,6 +845,7 @@ const Screens = (() => {
     s1ChangeDate, s1GoToday,
     s1OnChannelInput, s1RecalcTotal,
     s1PickPhoto, s1HandlePhoto,
+    syncSale, unlockSale,
     s1Save,
   };
 })();

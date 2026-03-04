@@ -46,13 +46,71 @@ const API = (() => {
   }
 
   // ─── PHOTO UPLOAD (multipart) ───
+  // ─── IMAGE COMPRESSION ───
+  // Auto-compress before upload: max 1200px, JPEG 75%
+  // ~8MB phone photo → ~200-400KB
+  async function compressImage(file, maxSize = 1200, quality = 0.75) {
+    // Skip if not an image
+    if (!file.type.startsWith('image/')) return file;
+    // Skip if already small (< 500KB)
+    if (file.size < 500 * 1024) return file;
+
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          let w = img.width;
+          let h = img.height;
+
+          // Scale down if larger than maxSize
+          if (w > maxSize || h > maxSize) {
+            if (w > h) {
+              h = Math.round(h * maxSize / w);
+              w = maxSize;
+            } else {
+              w = Math.round(w * maxSize / h);
+              h = maxSize;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) { resolve(file); return; }
+              // Create new File with original name
+              const compressed = new File(
+                [blob],
+                file.name.replace(/\.\w+$/, '.jpg'),
+                { type: 'image/jpeg' }
+              );
+              console.log(`📸 Compressed: ${(file.size/1024).toFixed(0)}KB → ${(compressed.size/1024).toFixed(0)}KB (${Math.round(compressed.size/file.size*100)}%)`);
+              resolve(compressed);
+            },
+            'image/jpeg',
+            quality
+          );
+        } catch (e) { resolve(file); }
+      };
+      img.onerror = () => resolve(file);
+      img.src = URL.createObjectURL(file);
+    });
+  }
+
   async function uploadPhoto(file, category = 'sale', store_id = null) {
     const session = getSession();
     if (!session) throw new Error('No session');
 
+    // Auto-compress before upload
+    const compressed = await compressImage(file);
+
     const formData = new FormData();
     formData.append('token', session.token);
-    formData.append('file', file);
+    formData.append('file', compressed);
     formData.append('category', category);
     if (store_id) formData.append('store_id', store_id);
 
@@ -166,6 +224,7 @@ const API = (() => {
     setSelectedStore, getSelectedStore,
     setSelectedBranch, getSelectedBranch,
     uploadPhoto,
+    compressImage,
 
     // EP-01: Validate Session
     validateSession: () => {
@@ -411,5 +470,11 @@ const API = (() => {
 
     getS8Summary: (store_id, report_date) =>
       post('sd_get_s8_summary', tokenBody({ store_id, report_date })),
+
+    syncSale: (store_id, sale_date) =>
+      post('sd_sync_sale', tokenBody({ store_id, sale_date })),
+
+    unlockSale: (store_id, sale_date) =>
+      post('sd_unlock_sale', tokenBody({ store_id, sale_date })),
   };
 })();
