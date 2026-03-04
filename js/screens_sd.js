@@ -198,7 +198,7 @@ const Screens = (() => {
             </div>
           </div>
 
-          ${session.tier_level <= 2 || session.store_id === 'HQ' ? `
+          ${s.tier_level <= 2 || s.store_id === 'HQ' ? `
           <div class="quick-grid">
             <div class="quick-btn" onclick="App.go('acc-review')">
               <div class="q-icon" style="background:#E8F5E9;color:#388E3C">🔍</div>
