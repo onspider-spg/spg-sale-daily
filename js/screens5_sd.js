@@ -178,6 +178,7 @@ const Screens5 = (() => {
   let _reportDate = null;
   let _reportData = null;
   let _incidentState = {};
+  let _leftoverItems = [];
   let _activeTab = 'overview';
 
   const INCIDENT_CATS = [
@@ -250,6 +251,13 @@ const Screens5 = (() => {
         _incidentState[i.category] = { count: i.count || 0, note: i.note || '' };
       });
 
+      // Init leftover items
+      _leftoverItems = (data.leftovers || []).map(l => ({
+        item_name: l.item_name || '',
+        quantity: l.quantity || 1,
+        level: l.level || 'half',
+      }));
+
       renderS8Tab(el);
     } catch (err) {
       el.innerHTML = '<div style="color:var(--red);padding:16px">' + App.esc(err.message) + '</div>';
@@ -257,7 +265,10 @@ const Screens5 = (() => {
   }
 
   function renderS8Tab(el) {
-    if (_activeTab === 'overview') renderOverviewTab(el);
+    if (_activeTab === 'overview') {
+      renderOverviewTab(el);
+      renderLeftoverList();
+    }
     else renderIncidentsTab(el);
   }
 
@@ -326,16 +337,12 @@ const Screens5 = (() => {
         </div>
       </div>
 
-      <!-- Waste link -->
-      <div class="section-label">🗑️ Waste / ของเสีย</div>
-      <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;border:1px dashed #E0872E;border-radius:12px;background:#FFF4E8;cursor:pointer"
-           onclick="window.open('https://onspider-spg.github.io/spg-bc-order/#waste','_blank')">
-        <span style="font-size:24px">🗑️</span>
-        <div style="flex:1">
-          <div style="font-weight:600;font-size:13px">บันทึก Waste / ของเสีย</div>
-          <div style="font-size:11px;color:#E0872E">เปิด BC Order → Waste ในหน้าต่างใหม่</div>
-        </div>
-        <span style="font-size:14px;color:#E0872E">↗</span>
+      <!-- Food Leftover -->
+      <div class="section-label">🍞 อาหาร / ขนมปังที่เหลือ</div>
+      <div style="font-size:11px;color:var(--tm);margin-bottom:8px">พิมพ์ชื่อ → เลือกจำนวนที่เหลือ (ไม่จำเป็นต้องกรอก)</div>
+      <div id="s8-leftover-list"></div>
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 0;cursor:pointer;color:var(--gold);font-size:13px;font-weight:600" onclick="Screens5.addLeftoverRow()">
+        ➕ เพิ่มรายการ
       </div>
     `;
   }
@@ -384,6 +391,70 @@ const Screens5 = (() => {
         <div style="font-size:11px;color:var(--tm);margin-top:6px">รวม <strong id="inc-total">${totalCount}</strong> เหตุการณ์</div>
       </div>
     `;
+  }
+
+  // ─── LEFTOVER FUNCTIONS ───
+
+  const LEVEL_OPTS = [
+    { key: 'little', label: '🟢 นิดหน่อย' },
+    { key: 'half', label: '🟡 ครึ่งนึง' },
+    { key: 'almost_full', label: '🔴 เกือบหมด' },
+    { key: 'full', label: '⚫ ทั้งจาน' },
+  ];
+
+  function renderLeftoverList() {
+    const el = document.getElementById('s8-leftover-list');
+    if (!el) return;
+    if (_leftoverItems.length === 0) {
+      el.innerHTML = '<div style="text-align:center;padding:12px;color:var(--tm);font-size:12px">ยังไม่มีรายการ — กด ➕ เพิ่ม</div>';
+      return;
+    }
+    el.innerHTML = _leftoverItems.map((item, idx) => `
+      <div class="card" style="padding:12px 16px;margin-bottom:6px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <span style="font-size:16px">🍞</span>
+          <input class="form-input" style="flex:1;padding:6px 10px;font-size:13px"
+                 value="${App.esc(item.item_name)}" placeholder="ชื่ออาหาร..."
+                 oninput="Screens5.leftoverName(${idx},this.value)">
+          <input type="number" class="form-input" style="width:50px;padding:6px 8px;font-size:13px;text-align:center"
+                 value="${item.quantity}" min="0"
+                 oninput="Screens5.leftoverQty(${idx},this.value)">
+          <button class="cnt-btn" onclick="Screens5.removeLeftoverRow(${idx})" style="color:var(--red);border-color:rgba(220,38,38,0.2);font-size:14px">✕</button>
+        </div>
+        <div class="pill-group">
+          ${LEVEL_OPTS.map(lv => `<span class="pill ${item.level === lv.key ? 'active' : ''}" onclick="Screens5.leftoverLevel(${idx},'${lv.key}',this)">${lv.label}</span>`).join('')}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function addLeftoverRow() {
+    _leftoverItems.push({ item_name: '', quantity: 1, level: 'half' });
+    renderLeftoverList();
+    // Focus the new input
+    setTimeout(() => {
+      const inputs = document.querySelectorAll('#s8-leftover-list input[type="text"]');
+      if (inputs.length > 0) inputs[inputs.length - 1].focus();
+    }, 50);
+  }
+
+  function removeLeftoverRow(idx) {
+    _leftoverItems.splice(idx, 1);
+    renderLeftoverList();
+  }
+
+  function leftoverName(idx, val) {
+    if (_leftoverItems[idx]) _leftoverItems[idx].item_name = val;
+  }
+
+  function leftoverQty(idx, val) {
+    if (_leftoverItems[idx]) _leftoverItems[idx].quantity = parseInt(val) || 0;
+  }
+
+  function leftoverLevel(idx, level, el) {
+    if (_leftoverItems[idx]) _leftoverItems[idx].level = level;
+    el.parentElement.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+    el.classList.add('active');
   }
 
   // ─── S8 Helpers ───
@@ -453,6 +524,7 @@ const Screens5 = (() => {
       const noteEl = document.getElementById('inc-note-' + c.key);
       if (noteEl && _incidentState[c.key]) _incidentState[c.key].note = noteEl.value;
     });
+    // Leftover items are updated inline via oninput, no extra collection needed
   }
 
   async function s8Save(isSubmit) {
@@ -480,6 +552,7 @@ const Screens5 = (() => {
         customer_night: r.customer_night,
         is_submitted: isSubmit,
         incidents,
+        leftovers: _leftoverItems.filter(l => (l.item_name || '').trim()),
       });
       App.toast(isSubmit ? 'ส่งรีพอร์ตสำเร็จ ✓' : '💾 บันทึกร่างแล้ว', 'success');
     } catch (err) { App.toast(err.message, 'error'); }
@@ -534,7 +607,15 @@ const Screens5 = (() => {
       text += '\n';
     }
 
-    text += `🗑️ Waste: https://onspider-spg.github.io/spg-bc-order/#waste`;
+    // Leftovers
+    const activeLft = _leftoverItems.filter(l => (l.item_name || '').trim());
+    if (activeLft.length > 0) {
+      const lvMap = { little: '🟢 นิดหน่อย', half: '🟡 ครึ่งนึง', almost_full: '🔴 เกือบหมด', full: '⚫ ทั้งจาน' };
+      text += '🍞 อาหารที่เหลือ\n';
+      activeLft.forEach(l => {
+        text += `${l.item_name}=${l.quantity} (${lvMap[l.level] || l.level})\n`;
+      });
+    }
 
     // Copy to clipboard
     if (navigator.clipboard) {
@@ -566,5 +647,7 @@ const Screens5 = (() => {
     s8ChangeDate, s8Tab, s8Pill,
     incAdj, incNote,
     s8Save, s8CopyReport,
+    // Leftover
+    addLeftoverRow, removeLeftoverRow, leftoverName, leftoverQty, leftoverLevel,
   };
 })();
