@@ -76,7 +76,7 @@ const Screens = (() => {
         <!-- Header -->
         <div class="header-bar">
           <button class="back-btn" onclick="App.goHome()">←</button>
-          <div>
+          <div style="flex:1;min-width:0">
             <div class="header-title">💰 Sale Daily</div>
             <div class="header-sub">${App.esc(s.display_name)} · ${App.esc(s.store_name)}</div>
           </div>

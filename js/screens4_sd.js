@@ -561,14 +561,16 @@ const Screens4 = (() => {
 
 
   // ════════════════════════════════════════
-  // TAB 4: PERMISSIONS MATRIX
+  // TAB 4: PERMISSIONS MATRIX (BATCH SAVE)
   // ════════════════════════════════════════
 
   let _permData = null;
+  let _permChanges = {}; // 'functionKey:tierId' → newVal
 
   async function renderPermissionsTab(el) {
     const data = await API.adminGetPermissions();
     _permData = data;
+    _permChanges = {};
     const tiers = data.tiers || ['T1','T2','T3','T4','T5','T6','T7'];
     const groups = data.groups || {};
 
@@ -578,8 +580,12 @@ const Screens4 = (() => {
     };
 
     let html = `
-      <div class="section-label">🔐 Function × Tier Matrix — ${data.total_functions} functions</div>
-      <div style="font-size:11px;color:var(--td);margin-bottom:8px">กด ✅/— เพื่อ toggle permission</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div class="section-label" style="margin:0">🔐 Permission Matrix — ${data.total_functions} functions</div>
+        <button class="btn btn-gold" id="perm-save-btn" style="font-size:12px;padding:6px 14px;display:none"
+                onclick="Screens4.savePermissions()">💾 บันทึก (<span id="perm-change-count">0</span>)</button>
+      </div>
+      <div style="font-size:11px;color:var(--td);margin-bottom:8px">กดเพื่อ toggle → กด 💾 บันทึก ครั้งเดียว</div>
       <div style="overflow-x:auto">
         <table style="width:100%;font-size:11px;border-collapse:collapse">
           <thead>
@@ -591,15 +597,24 @@ const Screens4 = (() => {
           <tbody>`;
 
     for (const [groupKey, fns] of Object.entries(groups)) {
-      html += `<tr><td colspan="${tiers.length + 1}" style="padding:8px 8px 4px;font-weight:700;color:var(--gold-dim);font-size:12px;border-top:1px solid var(--s2)">${groupLabels[groupKey] || groupKey}</td></tr>`;
+      html += `<tr>
+        <td colspan="${tiers.length + 1}" style="padding:8px 8px 4px;font-weight:700;color:var(--gold-dim);font-size:12px;border-top:1px solid var(--s2)">
+          <span>${groupLabels[groupKey] || groupKey}</span>
+          <button style="margin-left:8px;font-size:9px;padding:2px 8px;border:1px solid var(--b1);border-radius:4px;background:var(--s1);cursor:pointer;font-family:inherit"
+                  onclick="Screens4.toggleGroupAll('${groupKey}')">✅ all</button>
+          <button style="font-size:9px;padding:2px 8px;border:1px solid var(--b1);border-radius:4px;background:var(--s1);cursor:pointer;font-family:inherit"
+                  onclick="Screens4.toggleGroupNone('${groupKey}')">— none</button>
+        </td>
+      </tr>`;
 
       fns.forEach((fn) => {
-        html += `<tr>
+        html += `<tr data-group="${groupKey}">
           <td style="padding:4px 8px;font-size:11px">${App.esc(fn.function_name)}</td>
           ${tiers.map(t => {
             const allowed = fn.tiers[t] === true;
             return `<td style="text-align:center;padding:4px;cursor:pointer"
-                        onclick="Screens4.togglePermission('${fn.function_key}', '${t}', ${!allowed})">
+                        id="pm-${fn.function_key}-${t}"
+                        onclick="Screens4.togglePermission('${fn.function_key}', '${t}')">
               <span style="font-size:12px">${allowed ? '✅' : '—'}</span>
             </td>`;
           }).join('')}
@@ -611,12 +626,94 @@ const Screens4 = (() => {
     el.innerHTML = html;
   }
 
-  async function togglePermission(functionKey, tierId, newVal) {
+  // Local toggle — no API call
+  function togglePermission(functionKey, tierId) {
+    if (!_permData) return;
+    // Find and flip the value in local data
+    for (const fns of Object.values(_permData.groups)) {
+      const fn = fns.find(f => f.function_key === functionKey);
+      if (fn) {
+        const current = fn.tiers[tierId] === true;
+        const newVal = !current;
+        fn.tiers[tierId] = newVal;
+
+        // Track change
+        const key = functionKey + ':' + tierId;
+        _permChanges[key] = { function_key: functionKey, tier_id: tierId, is_allowed: newVal };
+
+        // Update UI
+        const cell = document.getElementById('pm-' + functionKey + '-' + tierId);
+        if (cell) {
+          cell.querySelector('span').textContent = newVal ? '✅' : '—';
+          cell.style.outline = '2px solid var(--gold)';
+        }
+        break;
+      }
+    }
+    updatePermSaveButton();
+  }
+
+  // Toggle all permissions in a group → ON
+  function toggleGroupAll(groupKey) {
+    if (!_permData || !_permData.groups[groupKey]) return;
+    const tiers = _permData.tiers || ['T1','T2','T3','T4','T5','T6','T7'];
+    _permData.groups[groupKey].forEach(fn => {
+      tiers.forEach(t => {
+        if (fn.tiers[t] !== true) {
+          fn.tiers[t] = true;
+          const key = fn.function_key + ':' + t;
+          _permChanges[key] = { function_key: fn.function_key, tier_id: t, is_allowed: true };
+          const cell = document.getElementById('pm-' + fn.function_key + '-' + t);
+          if (cell) {
+            cell.querySelector('span').textContent = '✅';
+            cell.style.outline = '2px solid var(--gold)';
+          }
+        }
+      });
+    });
+    updatePermSaveButton();
+  }
+
+  // Toggle all permissions in a group → OFF
+  function toggleGroupNone(groupKey) {
+    if (!_permData || !_permData.groups[groupKey]) return;
+    const tiers = _permData.tiers || ['T1','T2','T3','T4','T5','T6','T7'];
+    _permData.groups[groupKey].forEach(fn => {
+      tiers.forEach(t => {
+        if (fn.tiers[t] !== false) {
+          fn.tiers[t] = false;
+          const key = fn.function_key + ':' + t;
+          _permChanges[key] = { function_key: fn.function_key, tier_id: t, is_allowed: false };
+          const cell = document.getElementById('pm-' + fn.function_key + '-' + t);
+          if (cell) {
+            cell.querySelector('span').textContent = '—';
+            cell.style.outline = '2px solid var(--gold)';
+          }
+        }
+      });
+    });
+    updatePermSaveButton();
+  }
+
+  function updatePermSaveButton() {
+    const count = Object.keys(_permChanges).length;
+    const btn = document.getElementById('perm-save-btn');
+    const countEl = document.getElementById('perm-change-count');
+    if (btn) btn.style.display = count > 0 ? '' : 'none';
+    if (countEl) countEl.textContent = count;
+  }
+
+  async function savePermissions() {
+    const changes = Object.values(_permChanges);
+    if (changes.length === 0) return;
     try {
-      await API.adminUpdatePermission({ function_key: functionKey, tier_id: tierId, is_allowed: newVal });
-      App.toast(`${functionKey} × ${tierId} → ${newVal ? '✅' : '—'}`, 'success');
+      App.showLoader();
+      await API.adminBatchUpdatePermissions(changes);
+      _permChanges = {};
+      App.toast('บันทึก ' + changes.length + ' permissions สำเร็จ ✓', 'success');
       await loadTabContent('permissions');
     } catch (err) { App.toast(err.message, 'error'); }
+    finally { App.hideLoader(); }
   }
 
 
@@ -786,7 +883,7 @@ const Screens4 = (() => {
     renderVendorStore, loadVendorStore, filterVendorStore, toggleVendorStore,
     // Settings
     setSettingToggle, saveSettings,
-    // Permissions
-    togglePermission,
+    // Permissions (batch)
+    togglePermission, toggleGroupAll, toggleGroupNone, savePermissions,
   };
 })();

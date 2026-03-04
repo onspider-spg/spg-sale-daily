@@ -370,5 +370,9 @@ const API = (() => {
     // EP-27: Batch Vendor Visibility
     batchVendorVisibility: (store_id, changes) =>
       post('sd_batch_vendor_visibility', tokenBody({ store_id, changes })),
+
+    // EP-28: Batch Update Permissions
+    adminBatchUpdatePermissions: (changes) =>
+      post('sd_admin_batch_update_permissions', tokenBody({ changes })),
   };
 })();
