@@ -81,7 +81,8 @@ const Screens = (() => {
             <div class="header-sub">${App.esc(s.display_name)} · ${App.esc(s.store_name)}</div>
           </div>
           <div class="header-right">
-            <span class="tag gray">${App.esc(s.tier_id)}</span>
+            <span class="tag gray" style="font-size:10px">${App.esc(s.tier_id)}</span>
+            <button class="back-btn" onclick="App.toggleSidebar()" style="font-size:16px">☰</button>
           </div>
         </div>
 
@@ -181,17 +182,6 @@ const Screens = (() => {
             </div>
           </div>
 
-          ${(API.isHQ() || API.hasPermission('manage_config')) ? `
-            <div class="quick-grid" style="grid-template-columns:1fr">
-              <div class="quick-btn" onclick="App.go('settings')">
-                <div class="q-icon" style="background:var(--s2);color:var(--td)">⚙️</div>
-                <div>
-                  <div class="q-label">ตั้งค่า & จัดการ</div>
-                  <div class="q-sub">S7 Admin — Channel, Vendor, Permissions</div>
-                </div>
-              </div>
-            </div>
-          ` : ''}
         </div>
       </div>`;
   }
@@ -724,6 +714,67 @@ const Screens = (() => {
 
 
   // ════════════════════════════════════════
+  // PROFILE
+  // ════════════════════════════════════════
+
+  function renderProfile() {
+    const s = API.getSession();
+    if (!s) return renderNoAccess();
+
+    const initial = (s.display_name || '?').charAt(0).toUpperCase();
+    const tierNames = {
+      'T1': 'Super Admin', 'T2': 'Admin', 'T3': 'Senior Manager',
+      'T4': 'Manager', 'T5': 'Senior Staff', 'T6': 'Junior Staff', 'T7': 'Viewer'
+    };
+    const tierName = tierNames[s.tier_id] || s.tier_id;
+
+    return `
+      <div class="screen">
+        <div class="header-bar">
+          <button class="back-btn" onclick="App.go('dashboard')">←</button>
+          <div>
+            <div class="header-title">👤 โปรไฟล์</div>
+            <div class="header-sub">ข้อมูลส่วนตัว</div>
+          </div>
+        </div>
+        <div class="screen-body">
+          <div style="text-align:center;padding:24px 0">
+            <div style="width:64px;height:64px;border-radius:50%;background:var(--gold);color:#fff;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;margin:0 auto 12px">${App.esc(initial)}</div>
+            <div style="font-size:18px;font-weight:600">${App.esc(s.display_name)}</div>
+            <div style="font-size:13px;color:var(--tm);margin-top:4px">${App.esc(s.store_name)}</div>
+          </div>
+
+          <div class="card" style="margin:0 16px">
+            <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--b1)">
+              <span style="color:var(--td);font-size:13px">Account ID</span>
+              <span style="font-size:13px;font-weight:500">${App.esc(s.account_id)}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--b1)">
+              <span style="color:var(--td);font-size:13px">ร้าน (Store)</span>
+              <span style="font-size:13px;font-weight:500">${App.esc(s.store_name)} (${App.esc(s.store_id)})</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--b1)">
+              <span style="color:var(--td);font-size:13px">แผนก (Dept)</span>
+              <span style="font-size:13px;font-weight:500">${App.esc(s.dept_id || '—')}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--b1)">
+              <span style="color:var(--td);font-size:13px">Tier</span>
+              <span style="font-size:13px;font-weight:500">${App.esc(s.tier_id)} — ${App.esc(tierName)}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:12px 0">
+              <span style="color:var(--td);font-size:13px">Access Level</span>
+              <span class="tag ${s.access_level === 'super_admin' || s.access_level === 'admin' ? 'gold' : 'gray'}" style="font-size:11px">${App.esc(s.access_level)}</span>
+            </div>
+          </div>
+
+          <div style="padding:24px 16px;text-align:center">
+            <button class="btn" style="background:var(--red);color:#fff;width:100%;padding:12px;border-radius:10px;border:none;font-size:14px;cursor:pointer" onclick="App.logout()">🚪 ออกจากระบบ</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  // ════════════════════════════════════════
   // EXPORTS
   // ════════════════════════════════════════
 
@@ -733,6 +784,9 @@ const Screens = (() => {
 
     // S0 Dashboard
     renderDashboard, loadDashboard,
+
+    // Profile
+    renderProfile,
 
     // S1 Daily Sale
     renderDailySale, loadDailySale,

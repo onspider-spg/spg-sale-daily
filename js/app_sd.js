@@ -49,6 +49,9 @@ const App = (() => {
     'expense-history':  { render: () => Screens3.renderExpenseHistory(),  onLoad: () => Screens3.loadExpenseHistory() },
     // Sprint 4
     'settings':         { render: () => Screens4.renderSettings(),   onLoad: () => Screens4.loadSettings() },
+    // Phase 1: ☰ Menu screens
+    'profile':          { render: () => Screens.renderProfile(),     onLoad: null },
+    'vendor-store':     { render: () => Screens4.renderVendorStore(), onLoad: () => Screens4.loadVendorStore() },
   };
 
   // ─── INIT ───
@@ -92,6 +95,7 @@ const App = (() => {
       }
 
       go('dashboard');
+      initSidebar(); // ★ v1.4: inject sidebar after session ready
     } catch (err) {
       console.error('Session validation failed:', err);
       if (err.code === 'NO_ACCESS') {
@@ -258,6 +262,69 @@ const App = (() => {
     go(currentRoute, currentParams);
   }
 
+  // ─── SIDEBAR / ☰ MENU ───
+  function initSidebar() {
+    // Inject sidebar HTML into body (outside #app)
+    if (document.getElementById('sidebar-overlay')) return; // already injected
+    const s = API.getSession();
+    if (!s) return;
+
+    const initial = (s.display_name || '?').charAt(0).toUpperCase();
+    const isManager = s.tier_level <= 4;
+    const isAdmin = s.tier_level <= 2 || s.store_id === 'HQ';
+
+    const html = `
+      <div id="sidebar-overlay" class="sidebar-overlay" onclick="App.closeSidebar()"></div>
+      <div id="sidebar" class="sidebar">
+        <div class="sidebar-profile">
+          <div class="sidebar-avatar">${esc(initial)}</div>
+          <div>
+            <div class="sidebar-name">${esc(s.display_name)}</div>
+            <div class="sidebar-info">${esc(s.store_name)} · ${esc(s.tier_id)}</div>
+          </div>
+        </div>
+        <div class="sidebar-menu">
+          <div class="sidebar-item" onclick="App.goMenu('profile')">👤 โปรไฟล์</div>
+          <div class="sidebar-item" onclick="App.goMenu('noti')" style="opacity:0.4;pointer-events:none">🔔 แจ้งเตือน <span style="font-size:11px;color:var(--tm)">(เร็วๆ นี้)</span></div>
+          ${isManager ? `<div class="sidebar-item" onclick="App.goMenu('vendor-store')">🏪 Vendor ร้านฉัน</div>` : ''}
+          ${isAdmin ? `<div class="sidebar-item" onclick="App.goMenu('settings')">⚙️ ตั้งค่า & จัดการ</div>` : ''}
+          <div style="height:1px;background:var(--s2);margin:8px 20px"></div>
+          <div class="sidebar-item sidebar-logout" onclick="App.logout()">🚪 ออกจากระบบ</div>
+        </div>
+        <div class="sidebar-footer">SPG Sale Daily v1.4</div>
+      </div>`;
+
+    document.body.insertAdjacentHTML('beforeend', html);
+  }
+
+  function toggleSidebar() {
+    initSidebar(); // ensure injected
+    const overlay = document.getElementById('sidebar-overlay');
+    const panel = document.getElementById('sidebar');
+    if (!overlay || !panel) return;
+    const isOpen = panel.classList.contains('open');
+    overlay.classList.toggle('open', !isOpen);
+    panel.classList.toggle('open', !isOpen);
+  }
+
+  function closeSidebar() {
+    const overlay = document.getElementById('sidebar-overlay');
+    const panel = document.getElementById('sidebar');
+    if (overlay) overlay.classList.remove('open');
+    if (panel) panel.classList.remove('open');
+  }
+
+  function goMenu(route) {
+    closeSidebar();
+    go(route);
+  }
+
+  function logout() {
+    closeSidebar();
+    API.clearSession();
+    goHome();
+  }
+
   // ─── BACK TO HOME ───
   function goHome() {
     // Navigate back to Home module
@@ -277,7 +344,7 @@ const App = (() => {
     esc, formatMoney, formatMoneyShort, formatDate, formatDateShort,
     todayStr, addDays,
     renderStoreSelector, selectStore, selectBranch,
-    goHome,
+    goHome, toggleSidebar, closeSidebar, goMenu, logout,
     getStores: () => stores,
     getCurrentRoute: () => currentRoute,
   };

@@ -503,6 +503,91 @@ const Screens4 = (() => {
 
 
   // ════════════════════════════════════════
+  // VENDOR STORE (standalone screen from ☰ menu)
+  // ════════════════════════════════════════
+
+  let _vendorStoreList = [];
+
+  function renderVendorStore() {
+    const session = API.getSession();
+    if (!session) return Screens.renderNoAccess();
+
+    const storeName = session.store_name || session.store_id;
+
+    return `
+      <div class="screen">
+        <div class="header-bar">
+          <button class="back-btn" onclick="App.go('dashboard')">←</button>
+          <div>
+            <div class="header-title">🏪 Vendor ร้านฉัน</div>
+            <div class="header-sub">${App.esc(storeName)} — Vendor Visibility</div>
+          </div>
+        </div>
+        <div class="screen-body">
+          ${API.isHQ() ? App.renderStoreSelector() : ''}
+          <div class="form-group" style="margin:0 0 12px">
+            <input type="text" class="form-input" id="vs-search" placeholder="🔍 ค้นหา vendor..."
+                   oninput="Screens4.filterVendorStore()">
+          </div>
+          <div id="vs-list">
+            <div style="text-align:center;padding:20px;color:var(--tm)">กำลังโหลด...</div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  async function loadVendorStore() {
+    const el = document.getElementById('vs-list');
+    if (!el) return;
+    try {
+      App.showLoader();
+      const data = await API.getVendors();
+      _vendorStoreList = data.vendors || [];
+      renderVendorStoreList(el, _vendorStoreList);
+    } catch (err) {
+      el.innerHTML = `<div style="color:var(--red);padding:16px">${err.message}</div>`;
+    } finally {
+      App.hideLoader();
+    }
+  }
+
+  function renderVendorStoreList(el, vendors) {
+    const session = API.getSession();
+    const isManager = session?.tier_level <= 4;
+
+    if (vendors.length === 0) {
+      el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--tm)">ไม่มี vendor ในร้านนี้</div>';
+      return;
+    }
+
+    el.innerHTML = `
+      <div style="font-size:12px;color:var(--tm);margin-bottom:8px">แสดง ${vendors.length} vendors</div>
+      ${vendors.map(v => `
+        <div class="card-flat vs-row" style="display:flex;align-items:center;gap:10px" data-name="${(v.vendor_name || v.name || '').toLowerCase()}">
+          <div style="flex:1">
+            <div style="font-weight:600;font-size:13px">${App.esc(v.vendor_name || v.name)}</div>
+            <div style="font-size:10px;color:var(--td)">${App.esc(v.vendor_group || '—')}</div>
+          </div>
+          <div style="font-size:12px;color:var(--green)">✅ แสดง</div>
+        </div>
+      `).join('')}
+      ${isManager ? `
+        <div style="margin-top:12px;padding:12px;background:var(--s1);border-radius:8px;font-size:11px;color:var(--td);text-align:center">
+          💡 ฟีเจอร์เปิด/ปิด vendor จะมาใน Phase 2
+        </div>
+      ` : ''}
+    `;
+  }
+
+  function filterVendorStore() {
+    const q = (document.getElementById('vs-search')?.value || '').toLowerCase();
+    document.querySelectorAll('.vs-row').forEach(row => {
+      const name = row.getAttribute('data-name') || '';
+      row.style.display = name.includes(q) ? '' : 'none';
+    });
+  }
+
+  // ════════════════════════════════════════
   // EXPORTS
   // ════════════════════════════════════════
 
@@ -512,6 +597,8 @@ const Screens4 = (() => {
     toggleChannel, editChannel, saveChannelEdit,
     // Suppliers / Vendor Visibility
     filterVendors, toggleVendor, toggleVisibility,
+    // Vendor Store (☰ menu)
+    renderVendorStore, loadVendorStore, filterVendorStore,
     // Settings
     setSettingToggle, saveSettings,
     // Permissions
