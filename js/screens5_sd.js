@@ -696,42 +696,58 @@ const Screens5 = (() => {
 
   function renderTasksTab(el) {
     const session = API.getSession();
-    const canCreate = session && session.tier_level <= 4;
-    const pending = _s8Tasks.filter(t => t.status === 'pending' && t.type !== 'suggestion');
-    const suggestions = _s8Tasks.filter(t => t.type === 'suggestion');
-    const done = _s8Tasks.filter(t => t.status === 'done' && t.type !== 'suggestion');
+    const pending = _s8Tasks.filter(t => t.status === 'pending');
 
     el.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-        <div class="section-label" style="margin:0">📋 งานติดตาม</div>
-        ${canCreate ? `<button class="btn btn-gold" style="font-size:11px;padding:5px 12px" onclick="Screens5.showCreateTask()">+ เพิ่ม</button>` : ''}
+      <!-- Add Task -->
+      <div class="section-label" style="margin-top:0">📋 เพิ่มงานติดตาม</div>
+      <div class="card" style="margin-bottom:12px">
+        <input class="form-input" id="s8-task-title" placeholder="เช่น ช่างซ่อมเครื่องน้ำแข็ง..." style="margin-bottom:8px">
+        <div style="display:flex;gap:8px">
+          <input class="form-input" id="s8-task-assign" placeholder="มอบหมายให้..." style="flex:1">
+          <select class="form-select" id="s8-task-priority" style="width:100px">
+            <option value="normal">📋 ปกติ</option>
+            <option value="urgent">🚨 ด่วน</option>
+          </select>
+        </div>
+        <button class="btn btn-gold" style="width:100%;margin-top:10px" onclick="Screens5.s8AddTask('follow_up')">+ เพิ่มงาน</button>
       </div>
 
-      <!-- Pending -->
-      <div style="margin-bottom:16px">
-        <div style="font-size:12px;font-weight:600;color:var(--td);margin-bottom:6px">⏳ ค้าง (${pending.length})</div>
-        <div class="card" id="s8-tasks-pending"></div>
+      <!-- Add Suggestion -->
+      <div class="section-label">💡 เพิ่ม Suggestion</div>
+      <div class="card" style="margin-bottom:16px">
+        <input class="form-input" id="s8-sug-title" placeholder="เช่น ลองเพิ่มเมนูใหม่..." style="margin-bottom:8px">
+        <button class="btn btn-outline" style="width:100%" onclick="Screens5.s8AddTask('suggestion')">+ เพิ่ม Suggestion</button>
       </div>
 
-      <!-- Suggestion -->
-      <div style="margin-bottom:16px">
-        <div style="font-size:12px;font-weight:600;color:var(--purple);margin-bottom:6px">💡 Suggestion (${suggestions.length})</div>
-        <div class="card" id="s8-tasks-suggestion"></div>
-      </div>
-
-      <!-- Done -->
-      <div>
-        <div style="font-size:12px;font-weight:600;color:var(--td);margin-bottom:6px">✅ เสร็จ (${done.length})</div>
-        <div class="card" id="s8-tasks-done"></div>
-      </div>
+      <!-- Pending tasks — click to complete -->
+      <div class="section-label">⏳ ค้าง (${pending.length})</div>
+      <div id="s8-pending-list"></div>
     `;
 
-    const pendEl = document.getElementById('s8-tasks-pending');
-    const sugEl = document.getElementById('s8-tasks-suggestion');
-    const doneEl = document.getElementById('s8-tasks-done');
-    if (pendEl) renderTaskListEmbedded(pendEl, pending);
-    if (sugEl) renderTaskListEmbedded(sugEl, suggestions);
-    if (doneEl) renderTaskListEmbedded(doneEl, done.slice(0, 10));
+    // Render pending list
+    const listEl = document.getElementById('s8-pending-list');
+    if (listEl) {
+      if (pending.length === 0) {
+        listEl.innerHTML = '<div style="text-align:center;padding:16px;color:var(--tm);font-size:12px">ไม่มีงานค้าง</div>';
+      } else {
+        listEl.innerHTML = pending.map(t => {
+          const isSug = t.type === 'suggestion';
+          const icon = isSug ? '💡' : (t.priority === 'urgent' ? '🚨' : '⏳');
+          return `
+            <div class="card" style="margin-bottom:6px;padding:12px;cursor:pointer;border-left:3px solid ${isSug ? 'var(--purple)' : (t.priority === 'urgent' ? 'var(--red)' : 'var(--gold)')}" onclick="Screens5.s8CompleteTask('${t.id}')">
+              <div style="display:flex;align-items:center;gap:10px">
+                <span style="font-size:16px">${icon}</span>
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:13px;font-weight:500">${App.esc(t.title)}</div>
+                  ${t.assigned_to ? `<div style="font-size:10px;color:var(--tm)">👤 ${App.esc(t.assigned_to)}</div>` : ''}
+                </div>
+                <span style="font-size:11px;color:var(--green);font-weight:600">กดเสร็จ ✓</span>
+              </div>
+            </div>`;
+        }).join('');
+      }
+    }
   }
 
 
@@ -796,11 +812,57 @@ const Screens5 = (() => {
     if (el) renderS8Tab(el);
   }
 
+  async function s8AddTask(type) {
+    const isTask = type === 'follow_up';
+    const titleEl = document.getElementById(isTask ? 's8-task-title' : 's8-sug-title');
+    const title = (titleEl?.value || '').trim();
+    if (!title) { App.toast('กรุณากรอกหัวข้อ', 'error'); return; }
+
+    try {
+      App.showLoader();
+      await API.createTask({
+        title,
+        type,
+        assigned_to: isTask ? (document.getElementById('s8-task-assign')?.value || '') : '',
+        priority: isTask ? (document.getElementById('s8-task-priority')?.value || 'normal') : 'normal',
+        note: '',
+        report_date: _reportDate || App.todayStr(),
+      });
+      App.toast(isTask ? '📋 เพิ่มงานแล้ว' : '💡 เพิ่ม Suggestion แล้ว', 'success');
+
+      // Clear inputs
+      if (titleEl) titleEl.value = '';
+      if (isTask) {
+        const assignEl = document.getElementById('s8-task-assign');
+        if (assignEl) assignEl.value = '';
+      }
+
+      // Reload tasks
+      const data = await API.getTasks(null);
+      _s8Tasks = data.tasks || [];
+      const el = document.getElementById('s8-content');
+      if (el) renderTasksTab(el);
+      await App.refreshTaskBadge();
+    } catch (err) { App.toast(err.message, 'error'); }
+    finally { App.hideLoader(); }
+  }
+
+  async function s8CompleteTask(taskId) {
+    try {
+      await API.updateTask({ task_id: taskId, status: 'done' });
+      App.toast('✅ เสร็จแล้ว', 'success');
+      const data = await API.getTasks(null);
+      _s8Tasks = data.tasks || [];
+      const el = document.getElementById('s8-content');
+      if (el) renderTasksTab(el);
+      await App.refreshTaskBadge();
+    } catch (err) { App.toast(err.message, 'error'); }
+  }
+
   function s8OpenWaste() {
     const session = API.getSession();
     const token = session?.token || '';
-    // Use location.href for mobile compatibility
-    location.href = `https://onspider-spg.github.io/spg-bc-order/?token=${token}#waste`;
+    window.open(`https://onspider-spg.github.io/spg-bc-order/?token=${token}#waste`, '_blank');
   }
 
   function s8WasteAnswer(isYes) {
@@ -995,8 +1057,7 @@ const Screens5 = (() => {
       App.toast('📋 Copy แล้ว!', 'success');
     }
 
-    // Also save
-    s8Save(false);
+    // Copy only — no auto-save
   }
 
 
@@ -1013,6 +1074,7 @@ const Screens5 = (() => {
     incAdj, incNote,
     s8Save, s8CopyReport,
     s8WasteAnswer, s8OpenWaste,
+    s8AddTask, s8CompleteTask,
     // Leftover
     addLeftoverRow, removeLeftoverRow, leftoverName, leftoverQty, leftoverLevel,
   };
