@@ -331,7 +331,7 @@ const Screens2 = (() => {
         <div class="bottom-bar">
           <button class="btn btn-outline" style="flex:0.4" onclick="Screens2.s2ClearForm()">ล้าง</button>
           <button class="btn btn-gold" style="flex:1" id="s2-save-btn" onclick="Screens2.s2Save()">
-            💾 บันทึก + Push Finance
+            💾 บันทึก
           </button>
         </div>
       </div>`;
@@ -478,15 +478,19 @@ const Screens2 = (() => {
 
       App.toast('บันทึกสำเร็จ ✓', 'success');
 
-      // Go to expense history
-      setTimeout(() => App.go('expense-history'), 500);
+      // Stay on same page — clear form and reload list
+      s2ClearForm();
+      const data = await API.getExpenses(s2.date);
+      s2.expenses = data.expenses || [];
+      renderS2List();
+      renderS2Summary(data.summary);
 
     } catch (err) {
       App.toast('บันทึกไม่สำเร็จ: ' + err.message, 'error');
     } finally {
       App.hideLoader();
       const btn = document.getElementById('s2-save-btn');
-      if (btn) { btn.disabled = false; btn.textContent = '💾 บันทึก + Push Finance'; }
+      if (btn) { btn.disabled = false; btn.textContent = '💾 บันทึก'; }
     }
   }
 
@@ -578,6 +582,12 @@ const Screens2 = (() => {
             <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
               <span class="tag gray">Store: ${App.esc(session.store_name)}</span>
               <span class="tag blue">Doc Type: Invoice (auto)</span>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">📅 Issue Date <span class="req">*</span></label>
+              <input type="date" class="form-input" id="s3-issue-date" value="${App.todayStr()}">
+              <div class="form-hint">วันที่ออก Invoice — เลือกย้อนหลังได้</div>
             </div>
 
             <div class="form-group">
@@ -681,7 +691,7 @@ const Screens2 = (() => {
         <div class="bottom-bar">
           <button class="btn btn-outline" style="flex:0.4" onclick="Screens2.s3ClearForm()">ล้าง</button>
           <button class="btn btn-gold" style="flex:1" id="s3-save-btn" onclick="Screens2.s3Save()">
-            💾 บันทึก + Push Finance
+            💾 บันทึก
           </button>
         </div>
       </div>`;
@@ -822,6 +832,7 @@ const Screens2 = (() => {
   }
 
   async function s3Save() {
+    const issue_date = document.getElementById('s3-issue-date')?.value || null;
     const invoice_no = document.getElementById('s3-invoice-no')?.value?.trim();
     const vendor_name = document.getElementById('s3-vendor')?.value;
     const main_category = document.getElementById('s3-main')?.value;
@@ -832,6 +843,7 @@ const Screens2 = (() => {
     const due_date = document.getElementById('s3-due-date')?.value || null;
     const payment_date = document.getElementById('s3-payment-date')?.value || null;
 
+    if (!issue_date) return App.toast('กรุณาเลือก Issue Date', 'error');
     if (!invoice_no) return App.toast('กรุณาใส่ Invoice No', 'error');
     if (!vendor_name) return App.toast('กรุณาเลือก Vendor', 'error');
     if (!main_category) return App.toast('กรุณาเลือก Main Category', 'error');
@@ -849,7 +861,7 @@ const Screens2 = (() => {
       if (btn) { btn.disabled = true; btn.textContent = '⏳ กำลังบันทึก...'; }
 
       const result = await API.saveInvoice({
-        invoice_no, vendor_name, main_category, sub_category,
+        issue_date, invoice_no, vendor_name, main_category, sub_category,
         description, amount_ex_gst, gst,
         payment_status: s3.paymentStatus,
         payment_method: s3.paymentStatus === 'paid' ? _s3PayMethod : null,
@@ -873,7 +885,7 @@ const Screens2 = (() => {
     } finally {
       App.hideLoader();
       const btn = document.getElementById('s3-save-btn');
-      if (btn) { btn.disabled = false; btn.textContent = '💾 บันทึก + Push Finance'; }
+      if (btn) { btn.disabled = false; btn.textContent = '💾 บันทึก'; }
     }
   }
 
@@ -896,7 +908,7 @@ const Screens2 = (() => {
   }
 
   function s3ClearForm() {
-    ['s3-invoice-no', 's3-desc', 's3-amount', 's3-gst', 's3-due-date', 's3-payment-date'].forEach(id => {
+    ['s3-issue-date', 's3-invoice-no', 's3-desc', 's3-amount', 's3-gst', 's3-due-date', 's3-payment-date'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.value = '';
     });
@@ -909,6 +921,9 @@ const Screens2 = (() => {
     s3.paymentStatus = 'unpaid'; _s3PayMethod = '';
     s3CalcTotal();
     s3SetStatus('unpaid');
+    // Reset issue date to today
+    const issueDateEl = document.getElementById('s3-issue-date');
+    if (issueDateEl) issueDateEl.value = App.todayStr();
 
     const box = document.getElementById('s3-photo-box');
     if (box) { box.classList.remove('has-photo'); box.innerHTML = '<div class="photo-icon">📸</div><div class="photo-label">ถ่าย Invoice</div><div class="photo-required">* บังคับ</div>'; }

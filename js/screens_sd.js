@@ -454,7 +454,7 @@ const Screens = (() => {
         <div class="bottom-bar">
           <button class="btn btn-outline" style="flex:0.4" onclick="App.go('dashboard')">ยกเลิก</button>
           <button class="btn btn-gold" style="flex:1" id="s1-save-btn" onclick="Screens.s1Save()">
-            💾 บันทึก + Push Finance
+            💾 บันทึก
           </button>
         </div>
       </div>`;
@@ -757,7 +757,7 @@ const Screens = (() => {
     } finally {
       App.hideLoader();
       const saveBtn = document.getElementById('s1-save-btn');
-      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '💾 บันทึก + Push Finance'; }
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '💾 บันทึก'; }
     }
   }
 
