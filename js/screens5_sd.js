@@ -620,7 +620,7 @@ const Screens5 = (() => {
         </div>
         <div id="s8-waste-link" style="display:none;margin-top:12px;padding:12px;background:var(--gold-bg);border-radius:10px">
           <div style="font-size:13px;color:var(--td);margin-bottom:8px">กรุณากรอก Waste List ที่ BC Order</div>
-          <a href="https://onspider-spg.github.io/spg-bc-order/#waste" target="_blank" 
+          <a href="#" onclick="event.preventDefault();Screens5.s8OpenWaste()" 
              style="display:block;text-align:center;padding:12px;background:var(--gold);color:white;border-radius:8px;font-weight:600;font-size:14px;text-decoration:none">
             🍞 เปิด Waste List →
           </a>
@@ -794,6 +794,12 @@ const Screens5 = (() => {
     _activeTab = tab;
     const el = document.getElementById('s8-content');
     if (el) renderS8Tab(el);
+  }
+
+  function s8OpenWaste() {
+    const session = API.getSession();
+    const token = session?.token || '';
+    window.open(`https://onspider-spg.github.io/spg-bc-order/?token=${token}#waste`, '_blank');
   }
 
   function s8WasteAnswer(isYes) {
@@ -1005,7 +1011,7 @@ const Screens5 = (() => {
     s8ChangeDate, s8Tab, s8Pill,
     incAdj, incNote,
     s8Save, s8CopyReport,
-    s8WasteAnswer,
+    s8WasteAnswer, s8OpenWaste,
     // Leftover
     addLeftoverRow, removeLeftoverRow, leftoverName, leftoverQty, leftoverLevel,
   };
