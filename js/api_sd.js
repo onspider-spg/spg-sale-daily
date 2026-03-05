@@ -225,6 +225,7 @@ const API = (() => {
     setSelectedBranch, getSelectedBranch,
     uploadPhoto,
     compressImage,
+    post,
 
     // EP-01: Validate Session
     validateSession: () => {

@@ -37,6 +37,7 @@ const Screens5 = (() => {
           <div style="display:flex;gap:0;background:var(--s1);border-radius:12px;padding:3px;margin-bottom:12px">
             <button class="tab-pill ${_taskFilter === 'pending' ? 'active' : ''}" onclick="Screens5.filterTasks('pending')">⏳ ค้าง</button>
             <button class="tab-pill ${_taskFilter === 'done' ? 'active' : ''}" onclick="Screens5.filterTasks('done')">✅ เสร็จ</button>
+            <button class="tab-pill ${_taskFilter === 'suggestion' ? 'active' : ''}" onclick="Screens5.filterTasks('suggestion')">💡 Suggestion</button>
             <button class="tab-pill ${_taskFilter === 'all' ? 'active' : ''}" onclick="Screens5.filterTasks('all')">📋 ทั้งหมด</button>
           </div>
           <div id="task-list">
@@ -51,9 +52,14 @@ const Screens5 = (() => {
     if (!el) return;
     try {
       App.showLoader();
-      const status = _taskFilter === 'all' ? undefined : _taskFilter;
+      // For suggestion: load all then filter by type client-side
+      const isSuggestion = _taskFilter === 'suggestion';
+      const status = (_taskFilter === 'all' || isSuggestion) ? undefined : _taskFilter;
       const data = await API.getTasks(API.isHQ() ? API.getSelectedStore() : null, status);
       _tasks = data.tasks || [];
+      if (isSuggestion) {
+        _tasks = _tasks.filter(t => t.type === 'suggestion');
+      }
       renderTaskList(el);
     } catch (err) {
       el.innerHTML = '<div style="color:var(--red);padding:16px">' + App.esc(err.message) + '</div>';
@@ -291,21 +297,26 @@ const Screens5 = (() => {
             <span style="cursor:pointer;font-size:20px;padding:4px 8px;border-radius:8px;background:var(--s1)" onclick="Screens5.s8ChangeDate(1)">›</span>
           </div>
 
-          <!-- 3 Tabs -->
+          <!-- 2 Tabs -->
           <div id="s8-tabs" style="display:flex;gap:0;background:var(--s1);border-radius:12px;padding:3px;margin-bottom:12px">
             <button class="tab-pill ${_activeTab === 'overview' ? 'active' : ''}" data-tab="overview" onclick="Screens5.s8Tab('overview')">📊 ภาพรวม</button>
             <button class="tab-pill ${_activeTab === 'incidents' ? 'active' : ''}" data-tab="incidents" onclick="Screens5.s8Tab('incidents')">⚠️ เหตุการณ์</button>
-            <button class="tab-pill ${_activeTab === 'tasks' ? 'active' : ''}" data-tab="tasks" onclick="Screens5.s8Tab('tasks')">📋 ติดตาม</button>
           </div>
 
           <div id="s8-content">
             <div style="text-align:center;padding:20px;color:var(--tm)">กำลังโหลด...</div>
           </div>
 
-          <!-- Bottom: single save button -->
-          <div style="display:flex;gap:8px;margin-top:16px;padding-bottom:20px">
-            <button class="btn btn-gold" style="flex:1" onclick="Screens5.s8Save(false)">บันทึก</button>
-            <button class="btn btn-outline" style="flex:1" onclick="Screens5.s8CopyReport()">📋 Copy Report</button>
+          <!-- Bottom mini tabs + save -->
+          <div style="margin-top:16px;padding-bottom:20px">
+            <div id="s8-bottom-tabs" style="display:flex;justify-content:center;gap:6px;margin-bottom:12px">
+              <span class="s8-btab" data-tab="overview" style="font-size:11px;padding:4px 14px;border-radius:20px;cursor:pointer" onclick="Screens5.s8Tab('overview')">📊 ภาพรวม</span>
+              <span class="s8-btab" data-tab="incidents" style="font-size:11px;padding:4px 14px;border-radius:20px;cursor:pointer" onclick="Screens5.s8Tab('incidents')">⚠️ เหตุการณ์</span>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-gold" style="flex:1" onclick="Screens5.s8Save(false)">บันทึก</button>
+              <button class="btn btn-outline" style="flex:1" onclick="Screens5.s8CopyReport()">📋 Copy Report</button>
+            </div>
           </div>
         </div>
       </div>`;
@@ -488,14 +499,19 @@ const Screens5 = (() => {
   // ─── TAB ROUTING ───
 
   function renderS8Tab(el) {
-    // Update tab highlight
+    // Update top tab highlight
     document.querySelectorAll('#s8-tabs .tab-pill').forEach(btn => {
       btn.classList.toggle('active', btn.getAttribute('data-tab') === _activeTab);
+    });
+    // Update bottom mini tab highlight
+    document.querySelectorAll('#s8-bottom-tabs .s8-btab').forEach(btn => {
+      const isActive = btn.getAttribute('data-tab') === _activeTab;
+      btn.style.background = isActive ? 'var(--gold)' : 'var(--s1)';
+      btn.style.color = isActive ? '#fff' : 'var(--tm)';
     });
 
     if (_activeTab === 'overview') renderOverviewTab(el);
     else if (_activeTab === 'incidents') renderIncidentsTab(el);
-    else if (_activeTab === 'tasks') renderTasksTab(el);
   }
 
 
@@ -557,7 +573,7 @@ const Screens5 = (() => {
         <div class="form-group" style="margin-bottom:10px">
           <div class="form-label">ระบบ POS / Printer</div>
           <div class="pill-group">
-            ${posOpts.map(p => `<span class="pill ${(r.pos_status || 'ok') === p.key ? 'active' : ''}" onclick="Screens5.s8Pill(this,'pos_status','${p.key}')">${p.label}</span>`).join('')}
+            ${posOpts.map(p => `<span class="pill ${r.pos_status === p.key ? 'active' : ''}" onclick="Screens5.s8Pill(this,'pos_status','${p.key}')">${p.label}</span>`).join('')}
           </div>
         </div>
         <div class="form-group" style="margin-bottom:0">
@@ -595,9 +611,9 @@ const Screens5 = (() => {
       <div class="section-label">🍞 Waste List</div>
       <div class="card">
         <div style="font-size:14px;font-weight:600;margin-bottom:10px">ขนมปัง / เค้กที่เหลือ?</div>
-        <div style="display:flex;gap:8px">
-          <button class="btn btn-gold" style="flex:1" onclick="Screens5.s8ShowWasteLink()">✅ Yes</button>
-          <button class="btn btn-outline" style="flex:1" onclick="Screens5.s8HideWasteLink()">❌ No</button>
+        <div style="display:flex;gap:8px" id="s8-waste-btns">
+          <button class="btn btn-outline" style="flex:1" id="s8-waste-yes" onclick="Screens5.s8WasteAnswer(true)">✅ Yes</button>
+          <button class="btn btn-outline" style="flex:1" id="s8-waste-no" onclick="Screens5.s8WasteAnswer(false)">❌ No</button>
         </div>
         <div id="s8-waste-link" style="display:none;margin-top:12px;padding:12px;background:var(--gold-bg);border-radius:10px">
           <div style="font-size:13px;color:var(--td);margin-bottom:8px">กรุณากรอก Waste List ที่ BC Order</div>
@@ -605,6 +621,9 @@ const Screens5 = (() => {
              style="display:block;text-align:center;padding:12px;background:var(--gold);color:white;border-radius:8px;font-weight:600;font-size:14px;text-decoration:none">
             🍞 เปิด Waste List →
           </a>
+        </div>
+        <div id="s8-waste-no-msg" style="display:none;margin-top:8px;padding:8px 12px;background:var(--s1);border-radius:8px;font-size:12px;color:var(--tm)">
+          ✅ ไม่มี waste วันนี้
         </div>
       </div>
     `;
@@ -769,14 +788,22 @@ const Screens5 = (() => {
     if (el) renderS8Tab(el);
   }
 
-  function s8ShowWasteLink() {
-    const el = document.getElementById('s8-waste-link');
-    if (el) el.style.display = '';
-  }
-
-  function s8HideWasteLink() {
-    const el = document.getElementById('s8-waste-link');
-    if (el) el.style.display = 'none';
+  function s8WasteAnswer(isYes) {
+    const link = document.getElementById('s8-waste-link');
+    const noMsg = document.getElementById('s8-waste-no-msg');
+    const yesBtn = document.getElementById('s8-waste-yes');
+    const noBtn = document.getElementById('s8-waste-no');
+    if (isYes) {
+      if (link) link.style.display = '';
+      if (noMsg) noMsg.style.display = 'none';
+      if (yesBtn) { yesBtn.className = 'btn btn-gold'; yesBtn.style.flex = '1'; }
+      if (noBtn) { noBtn.className = 'btn btn-outline'; noBtn.style.flex = '1'; }
+    } else {
+      if (link) link.style.display = 'none';
+      if (noMsg) noMsg.style.display = '';
+      if (noBtn) { noBtn.className = 'btn btn-gold'; noBtn.style.flex = '1'; }
+      if (yesBtn) { yesBtn.className = 'btn btn-outline'; yesBtn.style.flex = '1'; }
+    }
   }
 
   function s8Pill(el, field, value) {
@@ -845,7 +872,7 @@ const Screens5 = (() => {
         report_date: _reportDate,
         weather: r.weather,
         traffic: r.traffic,
-        pos_status: r.pos_status || 'ok',
+        pos_status: r.pos_status || null,
         overview_note: r.overview_note,
         customer_morning: r.customer_morning,
         customer_midday: r.customer_midday,
@@ -963,14 +990,14 @@ const Screens5 = (() => {
   // ════════════════════════════════════════
   return {
     // Tasks
-    renderTasks, loadTasks, filterTasks, toggleTask, toggleTaskFromS8,
+    renderTasks, loadTasks, filterTasks, toggleTask,
     showCreateTask, saveNewTask,
     // S8 Daily Report
     renderDailyReport, loadDailyReport,
     s8ChangeDate, s8Tab, s8Pill,
     incAdj, incNote,
     s8Save, s8CopyReport,
-    s8ShowWasteLink, s8HideWasteLink,
+    s8WasteAnswer,
     // Leftover
     addLeftoverRow, removeLeftoverRow, leftoverName, leftoverQty, leftoverLevel,
   };

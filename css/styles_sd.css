@@ -842,3 +842,9 @@ html, body {
   .card { padding: 28px; }
   .form-input, .form-select, textarea { font-size: 17px; padding: 16px 20px; }
 }
+
+/* ═══ Module Switcher ═══ */
+.mod-switch-btn{position:fixed;bottom:76px;right:16px;width:44px;height:44px;border-radius:50%;background:#1E3A5F;color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,.2);cursor:pointer;z-index:50}
+.mod-switch-popup{position:fixed;bottom:130px;right:16px;background:#fff;border-radius:12px;padding:8px;box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:51;min-width:200px;max-height:60vh;overflow-y:auto}
+.mod-switch-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer}
+.mod-switch-item:hover{background:#f1f5f9}
