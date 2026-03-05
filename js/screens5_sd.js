@@ -417,7 +417,7 @@ const Screens5 = (() => {
         <div class="card" style="margin-bottom:12px">${incHtml}</div>
 
         <!-- Leftovers -->
-        <div class="section-label">🍞 ของเหลือ</div>
+        <div class="section-label">🍚 อาหารเหลือ</div>
         <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">${lftHtml}</div>
 
         <!-- Tasks -->
@@ -590,6 +590,23 @@ const Screens5 = (() => {
           <input class="form-input" id="s8-cust-night" placeholder="เช่น วัยรุ่นเอเชีย, Take away..." value="${App.esc(r.customer_night || '')}">
         </div>
       </div>
+
+      <!-- Waste List Question -->
+      <div class="section-label">🍞 Waste List</div>
+      <div class="card">
+        <div style="font-size:14px;font-weight:600;margin-bottom:10px">ขนมปัง / เค้กที่เหลือ?</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-gold" style="flex:1" onclick="Screens5.s8ShowWasteLink()">✅ Yes</button>
+          <button class="btn btn-outline" style="flex:1" onclick="Screens5.s8HideWasteLink()">❌ No</button>
+        </div>
+        <div id="s8-waste-link" style="display:none;margin-top:12px;padding:12px;background:var(--gold-bg);border-radius:10px">
+          <div style="font-size:13px;color:var(--td);margin-bottom:8px">กรุณากรอก Waste List ที่ BC Order</div>
+          <a href="https://onspider-spg.github.io/spg-bc-order/#waste" target="_blank" 
+             style="display:block;text-align:center;padding:12px;background:var(--gold);color:white;border-radius:8px;font-weight:600;font-size:14px;text-decoration:none">
+            🍞 เปิด Waste List →
+          </a>
+        </div>
+      </div>
     `;
   }
 
@@ -640,8 +657,8 @@ const Screens5 = (() => {
       </div>
 
       <!-- Waste / Leftover (moved here from tab 1) -->
-      <div class="section-label">🍞 Waste List — ขนมปัง / เค้กที่เหลือ</div>
-      <div style="font-size:11px;color:var(--tm);margin-bottom:8px">กรอกรายการที่เหลือ → save เก็บเข้า waste database</div>
+      <div class="section-label">🍚 อาหารเหลือ</div>
+      <div style="font-size:11px;color:var(--tm);margin-bottom:8px">กรอกรายการอาหารที่เหลือประจำวัน</div>
       <div id="s8-leftover-list"></div>
       <div style="display:flex;align-items:center;gap:8px;padding:10px 0;cursor:pointer;color:var(--gold);font-size:13px;font-weight:600" onclick="Screens5.addLeftoverRow()">
         ➕ เพิ่มรายการ
@@ -705,7 +722,7 @@ const Screens5 = (() => {
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
           <span style="font-size:16px">🍞</span>
           <input class="form-input" style="flex:1;padding:6px 10px;font-size:13px"
-                 value="${App.esc(item.item_name)}" placeholder="ชื่อขนมปัง/เค้ก..."
+                 value="${App.esc(item.item_name)}" placeholder="ชื่ออาหาร..."
                  oninput="Screens5.leftoverName(${idx},this.value)">
           <input type="number" class="form-input" style="width:50px;padding:6px 8px;font-size:13px;text-align:center"
                  value="${item.quantity}" min="0"
@@ -750,6 +767,16 @@ const Screens5 = (() => {
     _activeTab = tab;
     const el = document.getElementById('s8-content');
     if (el) renderS8Tab(el);
+  }
+
+  function s8ShowWasteLink() {
+    const el = document.getElementById('s8-waste-link');
+    if (el) el.style.display = '';
+  }
+
+  function s8HideWasteLink() {
+    const el = document.getElementById('s8-waste-link');
+    if (el) el.style.display = 'none';
   }
 
   function s8Pill(el, field, value) {
@@ -896,7 +923,7 @@ const Screens5 = (() => {
     const activeLft = _leftoverItems.filter(l => (l.item_name || '').trim());
     if (activeLft.length > 0) {
       const lvMap = { little: '🟢 นิดหน่อย', half: '🟡 ครึ่งนึง', almost_full: '🔴 เกือบหมด', full: '⚫ ทั้งจาน' };
-      text += '🍞 Waste List:\n';
+      text += '🍚 อาหารเหลือ:\n';
       activeLft.forEach(l => {
         text += `${l.item_name} ×${l.quantity} (${lvMap[l.level] || l.level})\n`;
       });
@@ -943,6 +970,7 @@ const Screens5 = (() => {
     s8ChangeDate, s8Tab, s8Pill,
     incAdj, incNote,
     s8Save, s8CopyReport,
+    s8ShowWasteLink, s8HideWasteLink,
     // Leftover
     addLeftoverRow, removeLeftoverRow, leftoverName, leftoverQty, leftoverLevel,
   };
