@@ -726,7 +726,7 @@ const Screens3 = (() => {
   }
 
   function s6GoEditInvoice(id) {
-    App.go('invoice', { edit_id: id });
+    App.go('invoice-form', { edit_id: id });
   }
 
   function s6ChangeMonth(delta) {

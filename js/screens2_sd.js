@@ -545,26 +545,21 @@ const Screens2 = (() => {
     const session = API.getSession();
     if (!session) return Screens.renderNoAccess();
 
-    // Accept edit_id from params (when coming from history)
-    if (params && params.edit_id) s3.editId = params.edit_id;
-
     return `
       <div class="screen">
         <div class="header-bar">
           <button class="back-btn" onclick="App.go('dashboard')">←</button>
-          <div>
+          <div style="flex:1;min-width:0">
             <div class="header-title">📄 Invoice</div>
             <div class="header-sub">S3 Invoice · ${App.esc(session.store_name)}</div>
           </div>
-          <div class="header-right">
-            <span class="tag blue">→ Finance [Paid/Unpaid]</span>
-          </div>
+          <button class="back-btn" onclick="App.toggleSidebar()" style="font-size:16px">☰</button>
         </div>
 
         <div class="screen-body">
           ${App.renderStoreSelector()}
 
-          <!-- Date range -->
+          <!-- Date Range -->
           <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;font-size:12px">
             <span style="color:var(--td)">📅</span>
             <input type="date" class="form-input" style="flex:1;padding:8px 10px;font-size:13px" id="s3-date-from" onchange="Screens2.s3ReloadList()">
@@ -572,47 +567,63 @@ const Screens2 = (() => {
             <input type="date" class="form-input" style="flex:1;padding:8px 10px;font-size:13px" id="s3-date-to" onchange="Screens2.s3ReloadList()">
           </div>
 
-          <!-- Tabs: All / Unpaid / Paid -->
+          <!-- Tabs -->
           <div class="nav-tabs">
             <button class="nav-tab active" id="s3-tab-all" onclick="Screens2.s3FilterTab('all')">ทั้งหมด</button>
             <button class="nav-tab" id="s3-tab-unpaid" onclick="Screens2.s3FilterTab('unpaid')">🔴 Unpaid</button>
             <button class="nav-tab" id="s3-tab-paid" onclick="Screens2.s3FilterTab('paid')">✅ Paid</button>
           </div>
 
+          <!-- Summary -->
+          <div id="s3-summary"></div>
+
           <!-- Invoice List -->
           <div id="s3-list">
             <div style="text-align:center;padding:20px;color:var(--tm)">กำลังโหลด...</div>
           </div>
 
-          <!-- Summary -->
-          <div id="s3-summary"></div>
+          <!-- Add button -->
+          <div style="padding:16px 0">
+            <button class="btn btn-gold" style="width:100%" onclick="Screens2.s3GoAdd()">+ เพิ่ม Invoice</button>
+          </div>
+        </div>
+      </div>`;
+  }
 
-          <div class="divider"></div>
+  function renderInvoiceForm(params) {
+    const session = API.getSession();
+    if (!session) return Screens.renderNoAccess();
 
-          <!-- New Invoice Form -->
-          <div class="section-label">✏️ เพิ่ม Invoice</div>
+    if (params && params.edit_id) s3.editId = params.edit_id;
+    const isEdit = !!s3.editId;
+
+    return `
+      <div class="screen">
+        <div class="header-bar">
+          <button class="back-btn" onclick="App.go('invoice')">←</button>
+          <div style="flex:1;min-width:0">
+            <div class="header-title">${isEdit ? '✏️ แก้ไข Invoice' : '📄 เพิ่ม Invoice'}</div>
+            <div class="header-sub">S3 · ${App.esc(session.store_name)}</div>
+          </div>
+        </div>
+        <div class="screen-body">
           <div class="card" id="s3-form">
             <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
               <span class="tag gray">Store: ${App.esc(session.store_name)}</span>
-              <span class="tag blue">Doc Type: Invoice (auto)</span>
+              <span class="tag blue">Doc Type: Invoice</span>
             </div>
-
             <div class="form-group">
               <label class="form-label">📅 Issue Date <span class="req">*</span></label>
               <input type="date" class="form-input" id="s3-issue-date" value="${App.todayStr()}">
-              <div class="form-hint">วันที่ออก Invoice — เลือกย้อนหลังได้</div>
             </div>
-
             <div class="form-group">
               <label class="form-label">Invoice No <span class="req">*</span></label>
               <input type="text" class="form-input" id="s3-invoice-no" placeholder="INV-xxxx">
             </div>
-
             <div class="form-group">
               <label class="form-label">Vendor Name <span class="req">*</span></label>
               <div id="s3-vendor-wrap">${renderVendorDropdown('s3-vendor', '')}</div>
             </div>
-
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
               <div class="form-group">
                 <label class="form-label">Main Category <span class="req">*</span></label>
@@ -623,51 +634,38 @@ const Screens2 = (() => {
                 <div id="s3-sub-wrap">${renderSubCategoryDropdown('s3-sub', '', '')}</div>
               </div>
             </div>
-
             <div class="form-group">
               <label class="form-label">Description <span class="req">*</span></label>
               <input type="text" class="form-input" id="s3-desc" placeholder="อธิบาย">
             </div>
-
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
               <div class="form-group">
                 <label class="form-label">Amount (ex GST) <span class="req">*</span></label>
-                <input type="number" step="0.01" class="form-input" id="s3-amount"
-                       placeholder="0.00" oninput="Screens2.s3CalcTotal()">
+                <input type="number" step="0.01" class="form-input" id="s3-amount" placeholder="0.00" oninput="Screens2.s3CalcTotal()">
               </div>
               <div class="form-group">
                 <label class="form-label">GST <span class="req">*</span></label>
-                <input type="number" step="0.01" class="form-input" id="s3-gst"
-                       placeholder="0.00" oninput="Screens2.s3CalcTotal()">
+                <input type="number" step="0.01" class="form-input" id="s3-gst" placeholder="0.00" oninput="Screens2.s3CalcTotal()">
               </div>
               <div class="form-group">
                 <label class="form-label">Total <span class="auto-tag">AUTO</span></label>
                 <input type="text" class="form-input readonly" id="s3-total" value="$0.00" readonly>
               </div>
             </div>
-
             <div class="divider"></div>
-
-            <!-- Payment Section (different from S2) -->
             <div class="section-label" style="color:var(--red);margin-top:0">💳 Payment Status</div>
-
             <div class="form-group">
               <div style="display:flex;gap:8px">
                 <button class="btn btn-sm btn-outline" id="s3-status-paid" onclick="Screens2.s3SetStatus('paid')" style="flex:1">✅ Paid</button>
                 <button class="btn btn-sm btn-gold" id="s3-status-unpaid" onclick="Screens2.s3SetStatus('unpaid')" style="flex:1">🔴 Unpaid</button>
               </div>
             </div>
-
-            <!-- Conditional: Due Date (Unpaid) -->
             <div id="s3-unpaid-fields">
               <div class="form-group">
                 <label class="form-label">Due Date <span class="req">*</span></label>
                 <input type="date" class="form-input" id="s3-due-date">
-                <div class="form-hint">กำหนดชำระ — บังคับเมื่อ Unpaid</div>
               </div>
             </div>
-
-            <!-- Conditional: Payment Date + Method (Paid) -->
             <div id="s3-paid-fields" style="display:none">
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
                 <div class="form-group">
@@ -684,8 +682,6 @@ const Screens2 = (() => {
                 </div>
               </div>
             </div>
-
-            <!-- Photo -->
             <div class="form-group" style="margin-top:12px">
               <label class="form-label">📸 ถ่ายหน้า Invoice <span class="req">*</span></label>
               <div class="photo-grid" style="grid-template-columns:1fr">
@@ -695,17 +691,13 @@ const Screens2 = (() => {
                   <div class="photo-required">* บังคับ</div>
                 </div>
               </div>
-              <input type="file" id="s3-file-input" accept="image/*" capture="environment"
-                     style="display:none" onchange="Screens2.s3HandlePhoto(event)">
+              <input type="file" id="s3-file-input" accept="image/*" capture="environment" style="display:none" onchange="Screens2.s3HandlePhoto(event)">
             </div>
           </div>
-        </div>
-
-        <div class="bottom-bar">
-          <button class="btn btn-outline" style="flex:0.4" onclick="Screens2.s3ClearForm()">ล้าง</button>
-          <button class="btn btn-gold" style="flex:1" id="s3-save-btn" onclick="Screens2.s3Save()">
-            💾 บันทึก
-          </button>
+          <div style="display:flex;gap:8px;margin-top:16px;padding-bottom:20px">
+            <button class="btn btn-gold" style="flex:1" id="s3-save-btn" onclick="Screens2.s3Save()">💾 บันทึก</button>
+            <button class="btn btn-outline" style="flex:0.4" onclick="App.go('invoice')">ยกเลิก</button>
+          </div>
         </div>
       </div>`;
   }
@@ -713,36 +705,50 @@ const Screens2 = (() => {
   async function loadInvoice(params) {
     try {
       App.showLoader();
-      await loadLookups();
-
-      // Re-render dropdowns
-      const vw = document.getElementById('s3-vendor-wrap');
-      if (vw) vw.innerHTML = renderVendorDropdown('s3-vendor', '');
-      const mw = document.getElementById('s3-main-wrap');
-      if (mw) mw.innerHTML = renderMainCategoryDropdown('s3-main', '', "Screens2.onMainCategoryChange('s3-main','s3-sub')");
-
       // Set default date range (this month)
       const now = new Date();
       const fromEl = document.getElementById('s3-date-from');
       const toEl = document.getElementById('s3-date-to');
       if (fromEl && !fromEl.value) fromEl.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
       if (toEl && !toEl.value) toEl.value = App.todayStr();
-
-      // Load invoices with date range
       await s3FetchList();
+    } catch (err) {
+      App.toast('โหลดข้อมูลไม่สำเร็จ', 'error');
+    } finally {
+      App.hideLoader();
+    }
+  }
 
-      // Auto-edit if edit_id was passed from history
+  async function loadInvoiceForm(params) {
+    try {
+      App.showLoader();
+      await loadLookups();
+      // Re-render dropdowns
+      const vw = document.getElementById('s3-vendor-wrap');
+      if (vw) vw.innerHTML = renderVendorDropdown('s3-vendor', '');
+      const mw = document.getElementById('s3-main-wrap');
+      if (mw) mw.innerHTML = renderMainCategoryDropdown('s3-main', '', "Screens2.onMainCategoryChange('s3-main','s3-sub')");
+      // Auto-fill if editing
       if (s3.editId) {
-        setTimeout(() => {
-          s3EditInvoice(s3.editId);
-          s3.editId = null; // Clear so it doesn't re-trigger
-        }, 100);
+        const data = await API.getInvoices({});
+        s3.invoices = data.invoices || [];
+        s3EditInvoice(s3.editId);
       }
     } catch (err) {
       App.toast('โหลดข้อมูลไม่สำเร็จ', 'error');
     } finally {
       App.hideLoader();
     }
+  }
+
+  function s3GoAdd() {
+    s3ClearForm();
+    App.go('invoice-form');
+  }
+
+  function s3GoEdit(id) {
+    s3.editId = id;
+    App.go('invoice-form', { edit_id: id });
   }
 
   async function s3FetchList() {
@@ -841,7 +847,7 @@ const Screens2 = (() => {
         : `<span class="tag red">🔴 Unpaid</span>`;
       const dueText = !isPaid && inv.due_date ? `Due: ${App.formatDateShort(inv.due_date)}` : '';
       const canEdit = !isSynced;
-      const click = canEdit ? `onclick="Screens2.s3EditInvoice('${inv.id}')"` : '';
+      const click = canEdit ? `onclick="Screens2.s3GoEdit('${inv.id}')"` : '';
       const cursor = canEdit ? 'cursor:pointer' : '';
 
       return `
@@ -965,14 +971,11 @@ const Screens2 = (() => {
         invoice_id: s3.editId,
       });
 
-      App.toast(`บันทึกสำเร็จ ✓ ${result.payment_status}`, 'success');
+      App.toast('บันทึกสำเร็จ ✓', 'success');
       s3ClearForm();
 
-      // Reload
-      const data = await API.getInvoices({});
-      s3.invoices = data.invoices || [];
-      renderS3List(_s3CurrentTab);
-      renderS3Summary(data.summary);
+      // Go back to invoice list
+      setTimeout(() => App.go('invoice'), 500);
 
     } catch (err) {
       App.toast('บันทึกไม่สำเร็จ: ' + err.message, 'error');
@@ -1041,7 +1044,9 @@ const Screens2 = (() => {
 
     // S3 Invoice
     renderInvoice, loadInvoice,
+    renderInvoiceForm, loadInvoiceForm,
     s3FilterTab, s3ReloadList, s3EditInvoice,
+    s3GoAdd, s3GoEdit,
     s3SetStatus, s3SetPayMethod, s3CalcTotal,
     s3PickPhoto, s3HandlePhoto, s3Save, s3ClearForm,
     s3MarkPaid,

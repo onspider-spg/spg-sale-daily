@@ -42,7 +42,8 @@ const App = (() => {
     'daily-sale':       { render: (p) => Screens.renderDailySale(p), onLoad: (p) => Screens.loadDailySale(p) },
     // Sprint 2
     'expense':          { render: (p) => Screens2.renderExpense(p),  onLoad: (p) => Screens2.loadExpense(p) },
-    'invoice':          { render: (p) => Screens2.renderInvoice(p),  onLoad: (p) => Screens2.loadInvoice(p) },
+    'invoice':          { render: (p) => Screens2.renderInvoice(p),      onLoad: (p) => Screens2.loadInvoice(p) },
+    'invoice-form':     { render: (p) => Screens2.renderInvoiceForm(p),  onLoad: (p) => Screens2.loadInvoiceForm(p) },
     // Sprint 3
     'cash':             { render: () => Screens3.renderCash(),            onLoad: () => Screens3.loadCash() },
     'sale-history':     { render: () => Screens3.renderSaleHistory(),     onLoad: () => Screens3.loadSaleHistory() },
