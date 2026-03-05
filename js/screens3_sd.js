@@ -321,7 +321,7 @@ const Screens3 = (() => {
   // S5: SALE HISTORY
   // ════════════════════════════════════════
 
-  let s5 = { month: null };
+  let s5 = { month: null, dateFrom: null, dateTo: null };
 
   function renderSaleHistory() {
     const session = API.getSession();
@@ -330,14 +330,21 @@ const Screens3 = (() => {
     const now = new Date();
     s5.month = s5.month || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
+    // Default date range = full month
+    const [y, m] = s5.month.split('-').map(Number);
+    const daysInMonth = new Date(y, m, 0).getDate();
+    if (!s5.dateFrom) s5.dateFrom = `${s5.month}-01`;
+    if (!s5.dateTo) s5.dateTo = `${s5.month}-${String(daysInMonth).padStart(2, '0')}`;
+
     return `
       <div class="screen">
         <div class="header-bar">
           <button class="back-btn" onclick="App.go('dashboard')">←</button>
-          <div>
+          <div style="flex:1;min-width:0">
             <div class="header-title">📊 ประวัติยอดขาย</div>
             <div class="header-sub">S5 Sale History · ${App.esc(session.store_name)}</div>
           </div>
+          <button class="back-btn" onclick="App.toggleSidebar()" style="font-size:16px">☰</button>
         </div>
 
         <div class="screen-body">
@@ -350,6 +357,14 @@ const Screens3 = (() => {
               <span id="s5-month-label">${formatMonthLabel(s5.month)}</span>
             </div>
             <button class="date-nav" onclick="Screens3.s5ChangeMonth(1)">›</button>
+          </div>
+
+          <!-- Date range -->
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;font-size:12px">
+            <span style="color:var(--td)">📅</span>
+            <input type="date" class="form-input" style="flex:1;padding:8px 10px;font-size:13px" id="s5-from" value="${s5.dateFrom}" onchange="Screens3.s5DateRange()">
+            <span style="color:var(--tm)">→</span>
+            <input type="date" class="form-input" style="flex:1;padding:8px 10px;font-size:13px" id="s5-to" value="${s5.dateTo}" onchange="Screens3.s5DateRange()">
           </div>
 
           <!-- KPIs -->
@@ -387,16 +402,19 @@ const Screens3 = (() => {
           <div id="s5-channels"></div>
 
           <!-- Daily Table -->
-          <div class="section-label">📋 รายวัน</div>
+          <div class="section-label">📋 รายวัน <span style="font-size:11px;color:var(--tm);font-weight:400">— กดเพื่อแก้ไข</span></div>
           <div id="s5-daily-table"></div>
         </div>
       </div>`;
   }
 
+  let _s5AllDays = []; // store full month data for filtering
+
   async function loadSaleHistory() {
     try {
       App.showLoader();
       const data = await API.getSaleHistory(s5.month);
+      _s5AllDays = data.daily_breakdown || [];
       const k = data.kpis;
 
       // KPIs
@@ -412,19 +430,6 @@ const Screens3 = (() => {
       if (k.worst_day) {
         setText('s5-worst', App.formatMoney(k.worst_day.amount));
         setText('s5-worst-sub', App.formatDateShort(k.worst_day.date));
-      }
-
-      // Bar chart
-      const chartEl = document.getElementById('s5-chart');
-      const days = data.daily_breakdown || [];
-      if (chartEl && days.length > 0) {
-        const maxVal = Math.max(...days.map(d => d.total), 1);
-        chartEl.innerHTML = days.map(d => {
-          const pct = Math.max((d.total / maxVal) * 100, 3);
-          const isToday = d.date === App.todayStr();
-          return `<div class="mini-bar ${isToday ? 'today' : ''}" style="height:${pct}%"
-                       title="${App.formatDateShort(d.date)}: ${App.formatMoney(d.total)}"></div>`;
-        }).join('');
       }
 
       // Channel breakdown
@@ -444,27 +449,72 @@ const Screens3 = (() => {
           </div>`).join('');
       }
 
-      // Daily table
-      const tableEl = document.getElementById('s5-daily-table');
-      if (tableEl) {
-        tableEl.innerHTML = days.map(d => `
-          <div class="card-flat" style="display:flex;align-items:center;gap:8px;padding:8px 12px">
-            <div style="font-size:12px;color:var(--td);width:60px">${App.formatDateShort(d.date)}</div>
-            <div style="flex:1;font-weight:600;font-size:13px">${App.formatMoney(d.total)}</div>
-            <div>${d.synced ? '<span class="tag green" style="font-size:9px">synced</span>' : '<span class="tag gray" style="font-size:9px">pending</span>'}</div>
-            ${d.locked ? '<span class="tag red" style="font-size:9px">🔒</span>' : ''}
-          </div>`).join('');
-      }
+      // Render filtered daily table
+      s5RenderDaily();
 
     } catch (err) {
       App.toast('โหลดข้อมูลไม่สำเร็จ', 'error');
     } finally { App.hideLoader(); }
   }
 
+  function s5RenderDaily() {
+    const tableEl = document.getElementById('s5-daily-table');
+    const chartEl = document.getElementById('s5-chart');
+    if (!tableEl) return;
+
+    // Filter by date range
+    const from = s5.dateFrom || '';
+    const to = s5.dateTo || '';
+    const days = _s5AllDays.filter(d => {
+      if (from && d.date < from) return false;
+      if (to && d.date > to) return false;
+      return true;
+    });
+
+    // Bar chart
+    if (chartEl && days.length > 0) {
+      const maxVal = Math.max(...days.map(d => d.total), 1);
+      chartEl.innerHTML = days.map(d => {
+        const pct = Math.max((d.total / maxVal) * 100, 3);
+        const isToday = d.date === App.todayStr();
+        return `<div class="mini-bar ${isToday ? 'today' : ''}" style="height:${pct}%"
+                     title="${App.formatDateShort(d.date)}: ${App.formatMoney(d.total)}"></div>`;
+      }).join('');
+    }
+
+    // Daily table — clickable
+    tableEl.innerHTML = days.map(d => {
+      const isLocked = d.locked || d.synced;
+      const lockIcon = d.locked ? '🔒' : (d.synced ? '✅' : '');
+      const cursor = isLocked ? 'default' : 'pointer';
+      const click = isLocked ? '' : `onclick="Screens3.s5GoEdit('${d.date}')"`;
+
+      return `
+        <div class="card-flat" style="display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:${cursor}" ${click}>
+          <div style="font-size:12px;color:var(--td);width:60px">${App.formatDateShort(d.date)}</div>
+          <div style="flex:1;font-weight:600;font-size:14px">${App.formatMoney(d.total)}</div>
+          ${lockIcon ? `<span style="font-size:12px">${lockIcon}</span>` : '<span style="font-size:14px;color:var(--tm)">✏️</span>'}
+        </div>`;
+    }).join('') || '<div style="text-align:center;padding:20px;color:var(--tm)">ไม่มีข้อมูลในช่วงนี้</div>';
+  }
+
+  function s5DateRange() {
+    s5.dateFrom = document.getElementById('s5-from')?.value || '';
+    s5.dateTo = document.getElementById('s5-to')?.value || '';
+    s5RenderDaily();
+  }
+
+  function s5GoEdit(date) {
+    App.go('daily-sale', { date: date });
+  }
+
   function s5ChangeMonth(delta) {
     const [y, m] = s5.month.split('-').map(Number);
     const d = new Date(y, m - 1 + delta, 1);
     s5.month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const daysInMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    s5.dateFrom = `${s5.month}-01`;
+    s5.dateTo = `${s5.month}-${String(daysInMonth).padStart(2, '0')}`;
     App.go('sale-history');
   }
 
@@ -473,7 +523,7 @@ const Screens3 = (() => {
   // S6: EXPENSE HISTORY
   // ════════════════════════════════════════
 
-  let s6 = { month: null, view: 'category' };
+  let s6 = { month: null, view: 'list', dateFrom: null, dateTo: null };
 
   function renderExpenseHistory() {
     const session = API.getSession();
@@ -482,14 +532,20 @@ const Screens3 = (() => {
     const now = new Date();
     s6.month = s6.month || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
+    const [y, m] = s6.month.split('-').map(Number);
+    const daysInMonth = new Date(y, m, 0).getDate();
+    if (!s6.dateFrom) s6.dateFrom = `${s6.month}-01`;
+    if (!s6.dateTo) s6.dateTo = `${s6.month}-${String(daysInMonth).padStart(2, '0')}`;
+
     return `
       <div class="screen">
         <div class="header-bar">
           <button class="back-btn" onclick="App.go('dashboard')">←</button>
-          <div>
+          <div style="flex:1;min-width:0">
             <div class="header-title">📋 ประวัติรายจ่าย</div>
             <div class="header-sub">S6 Expense History · ${App.esc(session.store_name)}</div>
           </div>
+          <button class="back-btn" onclick="App.toggleSidebar()" style="font-size:16px">☰</button>
         </div>
 
         <div class="screen-body">
@@ -502,6 +558,14 @@ const Screens3 = (() => {
               <span id="s6-month-label">${formatMonthLabel(s6.month)}</span>
             </div>
             <button class="date-nav" onclick="Screens3.s6ChangeMonth(1)">›</button>
+          </div>
+
+          <!-- Date range -->
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;font-size:12px">
+            <span style="color:var(--td)">📅</span>
+            <input type="date" class="form-input" style="flex:1;padding:8px 10px;font-size:13px" id="s6-from" value="${s6.dateFrom}" onchange="Screens3.s6DateRange()">
+            <span style="color:var(--tm)">→</span>
+            <input type="date" class="form-input" style="flex:1;padding:8px 10px;font-size:13px" id="s6-to" value="${s6.dateTo}" onchange="Screens3.s6DateRange()">
           </div>
 
           <!-- KPIs -->
@@ -528,9 +592,9 @@ const Screens3 = (() => {
 
           <!-- View Tabs -->
           <div class="nav-tabs">
-            <button class="nav-tab active" id="s6-tab-category" onclick="Screens3.s6SetView('category')">ตาม Category</button>
+            <button class="nav-tab" id="s6-tab-category" onclick="Screens3.s6SetView('category')">ตาม Category</button>
             <button class="nav-tab" id="s6-tab-vendor" onclick="Screens3.s6SetView('vendor')">ตาม Vendor</button>
-            <button class="nav-tab" id="s6-tab-list" onclick="Screens3.s6SetView('list')">รายการ</button>
+            <button class="nav-tab active" id="s6-tab-list" onclick="Screens3.s6SetView('list')">รายการ</button>
           </div>
 
           <!-- Content -->
@@ -561,6 +625,12 @@ const Screens3 = (() => {
     } finally { App.hideLoader(); }
   }
 
+  function s6DateRange() {
+    s6.dateFrom = document.getElementById('s6-from')?.value || '';
+    s6.dateTo = document.getElementById('s6-to')?.value || '';
+    s6RenderView();
+  }
+
   function s6SetView(view) {
     s6.view = view;
     ['category', 'vendor', 'list'].forEach(v => {
@@ -568,6 +638,16 @@ const Screens3 = (() => {
       if (btn) btn.className = `nav-tab ${v === view ? 'active' : ''}`;
     });
     s6RenderView();
+  }
+
+  function s6FilterByRange(items, dateField) {
+    return items.filter(item => {
+      const d = item[dateField];
+      if (!d) return true;
+      if (s6.dateFrom && d < s6.dateFrom) return false;
+      if (s6.dateTo && d > s6.dateTo) return false;
+      return true;
+    });
   }
 
   function s6RenderView() {
@@ -598,10 +678,13 @@ const Screens3 = (() => {
         </div>`).join('') || '<div class="empty-state"><div class="empty-text">ไม่มีข้อมูล</div></div>';
 
     } else {
-      // List view — all expenses + invoices combined, sorted by date
+      // List view — filtered by date range + clickable
+      const expenses = s6FilterByRange(_s6Data.expenses || [], 'expense_date');
+      const invoices = s6FilterByRange(_s6Data.invoices || [], 'invoice_date');
+
       const all = [
-        ...(_s6Data.expenses || []).map(e => ({ ...e, type: 'expense', date: e.expense_date })),
-        ...(_s6Data.invoices || []).map(i => ({ ...i, type: 'invoice', date: i.invoice_date })),
+        ...expenses.map(e => ({ ...e, type: 'expense', date: e.expense_date })),
+        ...invoices.map(i => ({ ...i, type: 'invoice', date: i.invoice_date })),
       ].sort((a, b) => b.date.localeCompare(a.date));
 
       el.innerHTML = all.map(item => {
@@ -610,27 +693,49 @@ const Screens3 = (() => {
           : `<span class="tag gray" style="font-size:9px">Expense</span>`;
         const statusTag = item.type === 'invoice' && item.payment_status === 'unpaid'
           ? ` <span class="tag red" style="font-size:9px">Unpaid</span>` : '';
+        const syncTag = item.fin_synced
+          ? ' <span style="font-size:10px">🔒</span>' : '';
+
+        const canEdit = !item.fin_synced;
+        const click = canEdit
+          ? (item.type === 'expense'
+            ? `onclick="Screens3.s6GoEditExpense('${item.date}')"`
+            : `onclick="Screens3.s6GoEditInvoice('${item.id}')"`)
+          : '';
+        const cursor = canEdit ? 'cursor:pointer' : '';
 
         return `
-          <div class="card-flat" style="display:flex;align-items:center;gap:8px">
+          <div class="card-flat" style="display:flex;align-items:center;gap:8px;${cursor}" ${click}>
             <div style="font-size:11px;color:var(--td);width:48px">${App.formatDateShort(item.date)}</div>
-            <div style="flex:1">
+            <div style="flex:1;min-width:0">
               <div style="font-weight:600;font-size:12px">${App.esc(item.doc_number || item.invoice_no || '—')}</div>
               <div style="font-size:11px;color:var(--td)">${App.esc(item.vendor_name)} · ${App.esc(item.main_category)}</div>
             </div>
             <div style="text-align:right">
               <div style="font-weight:700;font-size:13px">${App.formatMoney(item.total_amount)}</div>
-              <div>${typeTag}${statusTag}</div>
+              <div>${typeTag}${statusTag}${syncTag}</div>
             </div>
+            ${canEdit ? '<span style="font-size:12px;color:var(--tm)">✏️</span>' : ''}
           </div>`;
-      }).join('') || '<div class="empty-state"><div class="empty-text">ไม่มีข้อมูล</div></div>';
+      }).join('') || '<div class="empty-state"><div class="empty-text">ไม่มีข้อมูลในช่วงนี้</div></div>';
     }
+  }
+
+  function s6GoEditExpense(date) {
+    App.go('expense', { date: date });
+  }
+
+  function s6GoEditInvoice(id) {
+    App.go('invoice', { edit_id: id });
   }
 
   function s6ChangeMonth(delta) {
     const [y, m] = s6.month.split('-').map(Number);
     const d = new Date(y, m - 1 + delta, 1);
     s6.month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const daysInMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    s6.dateFrom = `${s6.month}-01`;
+    s6.dateTo = `${s6.month}-${String(daysInMonth).padStart(2, '0')}`;
     App.go('expense-history');
   }
 
@@ -664,10 +769,11 @@ const Screens3 = (() => {
 
     // S5 Sale History
     renderSaleHistory, loadSaleHistory,
-    s5ChangeMonth,
+    s5ChangeMonth, s5DateRange, s5GoEdit,
 
     // S6 Expense History
     renderExpenseHistory, loadExpenseHistory,
-    s6SetView, s6ChangeMonth,
+    s6SetView, s6ChangeMonth, s6DateRange,
+    s6GoEditExpense, s6GoEditInvoice,
   };
 })();
