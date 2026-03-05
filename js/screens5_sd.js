@@ -297,10 +297,11 @@ const Screens5 = (() => {
             <span style="cursor:pointer;font-size:20px;padding:4px 8px;border-radius:8px;background:var(--s1)" onclick="Screens5.s8ChangeDate(1)">›</span>
           </div>
 
-          <!-- 2 Tabs -->
+          <!-- 3 Tabs -->
           <div id="s8-tabs" style="display:flex;gap:0;background:var(--s1);border-radius:12px;padding:3px;margin-bottom:12px">
             <button class="tab-pill ${_activeTab === 'overview' ? 'active' : ''}" data-tab="overview" onclick="Screens5.s8Tab('overview')">📊 ภาพรวม</button>
             <button class="tab-pill ${_activeTab === 'incidents' ? 'active' : ''}" data-tab="incidents" onclick="Screens5.s8Tab('incidents')">⚠️ เหตุการณ์</button>
+            <button class="tab-pill ${_activeTab === 'tasks' ? 'active' : ''}" data-tab="tasks" onclick="Screens5.s8Tab('tasks')">📋 ติดตาม</button>
           </div>
 
           <div id="s8-content">
@@ -312,6 +313,7 @@ const Screens5 = (() => {
             <div id="s8-bottom-tabs" style="display:flex;justify-content:center;gap:6px;margin-bottom:12px">
               <span class="s8-btab" data-tab="overview" style="font-size:11px;padding:4px 14px;border-radius:20px;cursor:pointer" onclick="Screens5.s8Tab('overview')">📊 ภาพรวม</span>
               <span class="s8-btab" data-tab="incidents" style="font-size:11px;padding:4px 14px;border-radius:20px;cursor:pointer" onclick="Screens5.s8Tab('incidents')">⚠️ เหตุการณ์</span>
+              <span class="s8-btab" data-tab="tasks" style="font-size:11px;padding:4px 14px;border-radius:20px;cursor:pointer" onclick="Screens5.s8Tab('tasks')">📋 ติดตาม</span>
             </div>
             <div style="display:flex;gap:8px">
               <button class="btn btn-gold" style="flex:1" onclick="Screens5.s8Save(false)">บันทึก</button>
@@ -512,6 +514,7 @@ const Screens5 = (() => {
 
     if (_activeTab === 'overview') renderOverviewTab(el);
     else if (_activeTab === 'incidents') renderIncidentsTab(el);
+    else if (_activeTab === 'tasks') renderTasksTab(el);
   }
 
 
@@ -694,8 +697,9 @@ const Screens5 = (() => {
   function renderTasksTab(el) {
     const session = API.getSession();
     const canCreate = session && session.tier_level <= 4;
-    const pending = _s8Tasks.filter(t => t.status === 'pending');
-    const done = _s8Tasks.filter(t => t.status === 'done');
+    const pending = _s8Tasks.filter(t => t.status === 'pending' && t.type !== 'suggestion');
+    const suggestions = _s8Tasks.filter(t => t.type === 'suggestion');
+    const done = _s8Tasks.filter(t => t.status === 'done' && t.type !== 'suggestion');
 
     el.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
@@ -706,23 +710,27 @@ const Screens5 = (() => {
       <!-- Pending -->
       <div style="margin-bottom:16px">
         <div style="font-size:12px;font-weight:600;color:var(--td);margin-bottom:6px">⏳ ค้าง (${pending.length})</div>
-        <div class="card" id="s8-tasks-pending">
-          <div style="text-align:center;padding:12px;color:var(--tm);font-size:12px">กำลังโหลด...</div>
-        </div>
+        <div class="card" id="s8-tasks-pending"></div>
+      </div>
+
+      <!-- Suggestion -->
+      <div style="margin-bottom:16px">
+        <div style="font-size:12px;font-weight:600;color:var(--purple);margin-bottom:6px">💡 Suggestion (${suggestions.length})</div>
+        <div class="card" id="s8-tasks-suggestion"></div>
       </div>
 
       <!-- Done -->
       <div>
         <div style="font-size:12px;font-weight:600;color:var(--td);margin-bottom:6px">✅ เสร็จ (${done.length})</div>
-        <div class="card" id="s8-tasks-done">
-          <div style="text-align:center;padding:12px;color:var(--tm);font-size:12px">กำลังโหลด...</div>
-        </div>
+        <div class="card" id="s8-tasks-done"></div>
       </div>
     `;
 
     const pendEl = document.getElementById('s8-tasks-pending');
+    const sugEl = document.getElementById('s8-tasks-suggestion');
     const doneEl = document.getElementById('s8-tasks-done');
     if (pendEl) renderTaskListEmbedded(pendEl, pending);
+    if (sugEl) renderTaskListEmbedded(sugEl, suggestions);
     if (doneEl) renderTaskListEmbedded(doneEl, done.slice(0, 10));
   }
 
@@ -990,7 +998,7 @@ const Screens5 = (() => {
   // ════════════════════════════════════════
   return {
     // Tasks
-    renderTasks, loadTasks, filterTasks, toggleTask,
+    renderTasks, loadTasks, filterTasks, toggleTask, toggleTaskFromS8,
     showCreateTask, saveNewTask,
     // S8 Daily Report
     renderDailyReport, loadDailyReport,
