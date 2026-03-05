@@ -799,7 +799,8 @@ const Screens5 = (() => {
   function s8OpenWaste() {
     const session = API.getSession();
     const token = session?.token || '';
-    window.open(`https://onspider-spg.github.io/spg-bc-order/?token=${token}#waste`, '_blank');
+    // Use location.href for mobile compatibility
+    location.href = `https://onspider-spg.github.io/spg-bc-order/?token=${token}#waste`;
   }
 
   function s8WasteAnswer(isYes) {
