@@ -41,8 +41,8 @@ const App = (() => {
     'dashboard':        { render: () => Screens.renderDashboard(),   onLoad: () => Screens.loadDashboard() },
     'daily-sale':       { render: (p) => Screens.renderDailySale(p), onLoad: (p) => Screens.loadDailySale(p) },
     // Sprint 2
-    'expense':          { render: () => Screens2.renderExpense(),    onLoad: () => Screens2.loadExpense() },
-    'invoice':          { render: () => Screens2.renderInvoice(),    onLoad: () => Screens2.loadInvoice() },
+    'expense':          { render: (p) => Screens2.renderExpense(p),  onLoad: (p) => Screens2.loadExpense(p) },
+    'invoice':          { render: (p) => Screens2.renderInvoice(p),  onLoad: (p) => Screens2.loadInvoice(p) },
     // Sprint 3
     'cash':             { render: () => Screens3.renderCash(),            onLoad: () => Screens3.loadCash() },
     'sale-history':     { render: () => Screens3.renderSaleHistory(),     onLoad: () => Screens3.loadSaleHistory() },
@@ -308,7 +308,7 @@ const App = (() => {
           <div style="height:1px;background:var(--s2);margin:8px 20px"></div>
           <div class="sidebar-item sidebar-logout" onclick="App.logout()">🚪 ออกจากระบบ</div>
         </div>
-        <div class="sidebar-footer">SPG Sale Daily v1.5.2</div>
+        <div class="sidebar-footer">SPG Sale Daily v1.6</div>
       </div>`;
 
     document.body.insertAdjacentHTML('beforeend', html);

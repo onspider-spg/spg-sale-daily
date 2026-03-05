@@ -204,10 +204,12 @@ const Screens2 = (() => {
     editId: null,
   };
 
-  function renderExpense() {
+  function renderExpense(params) {
     const session = API.getSession();
     if (!session) return Screens.renderNoAccess();
 
+    // Accept date from params (when coming from history edit)
+    if (params && params.date) s2.date = params.date;
     const date = s2.date || App.todayStr();
     s2.date = date;
 
@@ -539,9 +541,12 @@ const Screens2 = (() => {
     paymentStatus: 'unpaid',
   };
 
-  function renderInvoice() {
+  function renderInvoice(params) {
     const session = API.getSession();
     if (!session) return Screens.renderNoAccess();
+
+    // Accept edit_id from params (when coming from history)
+    if (params && params.edit_id) s3.editId = params.edit_id;
 
     return `
       <div class="screen">
@@ -558,6 +563,14 @@ const Screens2 = (() => {
 
         <div class="screen-body">
           ${App.renderStoreSelector()}
+
+          <!-- Date range -->
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;font-size:12px">
+            <span style="color:var(--td)">📅</span>
+            <input type="date" class="form-input" style="flex:1;padding:8px 10px;font-size:13px" id="s3-date-from" onchange="Screens2.s3ReloadList()">
+            <span style="color:var(--tm)">→</span>
+            <input type="date" class="form-input" style="flex:1;padding:8px 10px;font-size:13px" id="s3-date-to" onchange="Screens2.s3ReloadList()">
+          </div>
 
           <!-- Tabs: All / Unpaid / Paid -->
           <div class="nav-tabs">
@@ -697,7 +710,7 @@ const Screens2 = (() => {
       </div>`;
   }
 
-  async function loadInvoice() {
+  async function loadInvoice(params) {
     try {
       App.showLoader();
       await loadLookups();
@@ -708,16 +721,45 @@ const Screens2 = (() => {
       const mw = document.getElementById('s3-main-wrap');
       if (mw) mw.innerHTML = renderMainCategoryDropdown('s3-main', '', "Screens2.onMainCategoryChange('s3-main','s3-sub')");
 
-      // Load invoices
-      const data = await API.getInvoices({});
-      s3.invoices = data.invoices || [];
-      renderS3List('all');
-      renderS3Summary(data.summary);
+      // Set default date range (this month)
+      const now = new Date();
+      const fromEl = document.getElementById('s3-date-from');
+      const toEl = document.getElementById('s3-date-to');
+      if (fromEl && !fromEl.value) fromEl.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+      if (toEl && !toEl.value) toEl.value = App.todayStr();
+
+      // Load invoices with date range
+      await s3FetchList();
+
+      // Auto-edit if edit_id was passed from history
+      if (s3.editId) {
+        setTimeout(() => {
+          s3EditInvoice(s3.editId);
+          s3.editId = null; // Clear so it doesn't re-trigger
+        }, 100);
+      }
     } catch (err) {
       App.toast('โหลดข้อมูลไม่สำเร็จ', 'error');
     } finally {
       App.hideLoader();
     }
+  }
+
+  async function s3FetchList() {
+    const dateFrom = document.getElementById('s3-date-from')?.value || null;
+    const dateTo = document.getElementById('s3-date-to')?.value || null;
+    const data = await API.getInvoices({ date_from: dateFrom, date_to: dateTo });
+    s3.invoices = data.invoices || [];
+    renderS3List(_s3CurrentTab);
+    renderS3Summary(data.summary);
+  }
+
+  async function s3ReloadList() {
+    try {
+      App.showLoader();
+      await s3FetchList();
+    } catch (err) { App.toast('โหลดข้อมูลไม่สำเร็จ', 'error'); }
+    finally { App.hideLoader(); }
   }
 
   let _s3CurrentTab = 'all';
@@ -729,6 +771,53 @@ const Screens2 = (() => {
       if (btn) btn.className = `nav-tab ${t === tab ? 'active' : ''}`;
     });
     renderS3List(tab);
+  }
+
+  function s3EditInvoice(id) {
+    const inv = s3.invoices.find(i => i.id === id);
+    if (!inv) return;
+
+    // Load into form
+    const setVal = (elId, val) => { const el = document.getElementById(elId); if (el) el.value = val || ''; };
+    setVal('s3-issue-date', inv.issue_date || '');
+    setVal('s3-invoice-no', inv.invoice_no);
+    setVal('s3-vendor', inv.vendor_name);
+    setVal('s3-main', inv.main_category);
+
+    // Trigger sub category reload
+    const sw = document.getElementById('s3-sub-wrap');
+    if (sw) sw.innerHTML = renderSubCategoryDropdown('s3-sub', inv.main_category, inv.sub_category);
+
+    setVal('s3-desc', inv.description);
+    setVal('s3-amount', inv.amount_ex_gst);
+    setVal('s3-gst', inv.gst);
+    s3CalcTotal();
+
+    setVal('s3-due-date', inv.due_date || '');
+    setVal('s3-payment-date', inv.payment_date || '');
+
+    s3.paymentStatus = inv.payment_status || 'unpaid';
+    _s3PayMethod = inv.payment_method || '';
+    s3SetStatus(s3.paymentStatus);
+
+    if (inv.payment_method) {
+      ['cash', 'card', 'transfer'].forEach(m => {
+        const btn = document.getElementById(`s3-pay-${m}`);
+        if (btn) btn.className = `btn btn-sm ${m === inv.payment_method ? 'btn-gold' : 'btn-outline'}`;
+      });
+    }
+
+    s3.photoUrl = inv.photo_url || null;
+    s3.editId = inv.id;
+
+    if (inv.photo_url) {
+      const box = document.getElementById('s3-photo-box');
+      if (box) { box.classList.add('has-photo'); box.innerHTML = `<img src="${inv.photo_url}" alt="Invoice"><div class="photo-check">✓</div>`; }
+    }
+
+    // Scroll to form
+    document.getElementById('s3-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    App.toast('✏️ แก้ไข Invoice — กด บันทึก เมื่อเสร็จ', 'info');
   }
 
   function renderS3List(filter) {
@@ -746,22 +835,27 @@ const Screens2 = (() => {
 
     el.innerHTML = list.map(inv => {
       const isPaid = inv.payment_status === 'paid';
+      const isSynced = inv.fin_synced;
       const statusTag = isPaid
         ? '<span class="tag green">✅ Paid</span>'
         : `<span class="tag red">🔴 Unpaid</span>`;
       const dueText = !isPaid && inv.due_date ? `Due: ${App.formatDateShort(inv.due_date)}` : '';
+      const canEdit = !isSynced;
+      const click = canEdit ? `onclick="Screens2.s3EditInvoice('${inv.id}')"` : '';
+      const cursor = canEdit ? 'cursor:pointer' : '';
 
       return `
-        <div class="card-flat" style="display:flex;align-items:center;gap:10px">
-          <div style="flex:1">
+        <div class="card-flat" style="display:flex;align-items:center;gap:10px;${cursor}" ${click}>
+          <div style="flex:1;min-width:0">
             <div style="font-weight:600;font-size:13px">${App.esc(inv.invoice_no)} · ${App.esc(inv.vendor_name)}</div>
-            <div style="font-size:11px;color:var(--td)">${App.esc(inv.main_category)} > ${App.esc(inv.sub_category)}</div>
-            <div style="font-size:10px;margin-top:2px">${statusTag} ${dueText ? `<span style="color:var(--tm);margin-left:4px">${dueText}</span>` : ''}</div>
+            <div style="font-size:11px;color:var(--td)">${App.esc(inv.main_category)} > ${App.esc(inv.sub_category)}${inv.issue_date ? ` · ${App.formatDateShort(inv.issue_date)}` : ''}</div>
+            <div style="font-size:10px;margin-top:2px">${statusTag} ${dueText ? `<span style="color:var(--tm);margin-left:4px">${dueText}</span>` : ''} ${isSynced ? '<span style="font-size:10px">🔒</span>' : ''}</div>
           </div>
           <div style="text-align:right">
             <div style="font-weight:700;font-size:14px">${App.formatMoney(inv.total_amount)}</div>
-            ${!isPaid ? `<button class="btn btn-sm btn-gold" style="margin-top:4px;font-size:10px;padding:3px 8px" onclick="Screens2.s3MarkPaid('${inv.id}')">จ่ายแล้ว</button>` : ''}
+            ${!isPaid && !isSynced ? `<button class="btn btn-sm btn-gold" style="margin-top:4px;font-size:10px;padding:3px 8px" onclick="event.stopPropagation();Screens2.s3MarkPaid('${inv.id}')">จ่ายแล้ว</button>` : ''}
           </div>
+          ${canEdit ? '<span style="font-size:12px;color:var(--tm)">✏️</span>' : ''}
         </div>`;
     }).join('');
   }
@@ -947,7 +1041,8 @@ const Screens2 = (() => {
 
     // S3 Invoice
     renderInvoice, loadInvoice,
-    s3FilterTab, s3SetStatus, s3SetPayMethod, s3CalcTotal,
+    s3FilterTab, s3ReloadList, s3EditInvoice,
+    s3SetStatus, s3SetPayMethod, s3CalcTotal,
     s3PickPhoto, s3HandlePhoto, s3Save, s3ClearForm,
     s3MarkPaid,
   };
