@@ -79,13 +79,11 @@ const App = (() => {
 
     try {
       showLoader();
-      const result = await API.initBundle();
-      if (!result.success) throw result.error || { code: 'INIT_FAILED' };
-      const data = result.data;
+      const data = await API.initBundle();
       API.saveSession({ token: session.token, ...data });
 
       // Store dashboard data for loadDashboard to use without API call
-      window._sdDashboardCache = result.dashboard;
+      window._sdDashboardCache = data._dashboard;
 
       // Populate store branches from API data
       if (data.accessible_stores && data.accessible_stores.length > 0) {
