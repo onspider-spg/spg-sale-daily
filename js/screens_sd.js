@@ -216,7 +216,14 @@ const Screens = (() => {
 
   async function loadDashboard() {
     try {
-      const data = await API.getDashboard();
+      // Use cached data from init_bundle if available
+      let data;
+      if (window._sdDashboardCache) {
+        data = window._sdDashboardCache;
+        window._sdDashboardCache = null; // use once, then clear
+      } else {
+        data = await API.getDashboard();
+      }
 
       // KPI: Today
       const todayEl = document.getElementById('kpi-today-value');

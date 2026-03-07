@@ -130,15 +130,22 @@ const API = (() => {
   }
 
   // ─── SESSION MANAGEMENT ───
-  // Token comes from Home module via URL: ?token=xxx
+  // Token comes from: 1) URL param  2) shared spg_token  3) SD's own session
   function initFromUrl() {
     const params = new URLSearchParams(window.location.search);
-    const token = params.get('token');
+    let token = params.get('token');
+
+    // Fallback: shared token from other modules
+    if (!token) token = localStorage.getItem('spg_token');
+
     if (token) {
-      // Store token, will validate with EP-01
+      // Store token in both shared + module key
+      localStorage.setItem('spg_token', token);
       localStorage.setItem(SD_SESSION_KEY, JSON.stringify({ token }));
       // Clean URL
-      window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+      if (params.has('token')) {
+        window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+      }
       return token;
     }
     return null;
@@ -161,6 +168,7 @@ const API = (() => {
       accessible_stores: data.accessible_stores || [],
     };
     localStorage.setItem(SD_SESSION_KEY, JSON.stringify(sessionData));
+    localStorage.setItem('spg_token', sessionData.token);
     return sessionData;
   }
 
@@ -231,6 +239,12 @@ const API = (() => {
     validateSession: () => {
       const s = getSession();
       return post('sd_validate_session', { token: s?.token });
+    },
+
+    // INIT BUNDLE: validate_session + dashboard in 1 call
+    initBundle: () => {
+      const s = getSession();
+      return post('sd_init_bundle', { token: s?.token });
     },
 
     // EP-02: Get Permissions
