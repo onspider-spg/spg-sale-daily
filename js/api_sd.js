@@ -16,6 +16,12 @@ const API = (() => {
   // Session keys
   const SD_SESSION_KEY = 'spg_sd_session';
 
+  // ─── CLIENT CACHE (localStorage + TTL) ──────────────────────
+  const _C = {
+    get(k) { try { const r = JSON.parse(localStorage.getItem('sd_c_' + k)); return r && Date.now() < r.x ? r.d : null; } catch { return null; } },
+    set(k, d, mins) { try { localStorage.setItem('sd_c_' + k, JSON.stringify({ d, x: Date.now() + mins * 60000 })); } catch {} },
+  };
+
   function setBaseUrl(url) {
     BASE_URL = url.replace(/\/$/, '');
     localStorage.setItem('spg_sd_api_url', BASE_URL);
@@ -250,8 +256,15 @@ const API = (() => {
     // EP-02: Get Permissions
     getPermissions: () => post('sd_get_permissions', tokenBody()),
 
-    // EP-03: Get Channels (enabled for store)
-    getChannels: (store_id) => post('sd_get_channels', tokenBody({ store_id: store_id || getSelectedStore() })),
+    // EP-03: Get Channels (enabled for store) — cached 4h
+    getChannels: async (store_id) => {
+      const sid = store_id || getSelectedStore();
+      const cached = _C.get('ch_' + sid);
+      if (cached) return cached;
+      const data = await post('sd_get_channels', tokenBody({ store_id: sid }));
+      _C.set('ch_' + sid, data, 240);
+      return data;
+    },
 
     // EP-04: Get Vendors
     getVendors: (store_id) => post('sd_get_vendors', tokenBody({ store_id: store_id || getSelectedStore() })),
@@ -263,8 +276,15 @@ const API = (() => {
     createVendor: (vendor_name, vendor_group, vendor_type) =>
       post('sd_create_vendor', tokenBody({ vendor_name, vendor_group, vendor_type })),
 
-    // EP-06: Get Categories (cascade)
-    getCategories: (transaction_type) => post('sd_get_categories', tokenBody({ transaction_type })),
+    // EP-06: Get Categories (cascade) — cached 24h
+    getCategories: async (transaction_type) => {
+      const key = 'cat_' + (transaction_type || 'all');
+      const cached = _C.get(key);
+      if (cached) return cached;
+      const data = await post('sd_get_categories', tokenBody({ transaction_type }));
+      _C.set(key, data, 1440);
+      return data;
+    },
 
     // EP-07: Get Store Settings
     getStoreSettings: (store_id) => post('sd_get_store_settings', tokenBody({ store_id: store_id || getSelectedStore() })),
