@@ -1,4 +1,4 @@
-// Version 2.4 | 8 MAR 2026 | Siam Palette Group
+// Version 2.4.1 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -248,7 +248,6 @@ const Screens5 = (() => {
     { key: 'wrong_order', icon: '🔄', name: 'Wrong Order', desc: 'เสิร์ฟผิดเมนู, ผิดตัวเลือก' },
     { key: 'complaint', icon: '💢', name: 'Customer Complaint', desc: 'บ่นโดยตรง, ขอคืนเงิน, Review' },
     { key: 'waste', icon: '🗑️', name: 'Waste / เหลือผิดปกติ', desc: 'เมนูเหลือเยอะ, ทิ้งบ่อย' },
-    { key: 'equipment', icon: '🔧', name: 'Equipment / อุปกรณ์', desc: 'เครื่องเสีย, printer, เครื่องทำน้ำแข็ง' },
     { key: 'staff', icon: '👤', name: 'Staff Issue', desc: 'ขาดคน, ไม่แจ้งออก, พฤติกรรม' },
   ];
 
@@ -322,7 +321,7 @@ const Screens5 = (() => {
 
   let _dashMonth = new Date().toISOString().substring(0, 7);
   const WEATHER_ICONS = { sunny: '☀️', cloudy: '🌤️', rain: '🌧️', heavy_rain: '⛈️', unknown: '❓' };
-  const INC_COLORS = { food_quality: 'var(--red)', contamination: 'var(--orange)', service_delay: 'var(--blue)', wrong_order: 'var(--purple)', complaint: '#999', waste_abnormal: 'var(--gold)', equipment: 'var(--green)', staff_issue: '#E44' };
+  const INC_COLORS = { food_quality: 'var(--red)', contamination: 'var(--orange)', service_delay: 'var(--blue)', wrong_order: 'var(--purple)', complaint: '#999', waste_abnormal: 'var(--gold)', staff_issue: '#E44' };
 
   function renderAdminDashboard(session) {
     var monthLabel = (function() {
