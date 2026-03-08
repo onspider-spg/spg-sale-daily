@@ -1,4 +1,4 @@
-// Version 2.7.2 | 8 MAR 2026 | Siam Palette Group
+// Version 2.7.3 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -743,8 +743,8 @@ const Screens2 = (() => {
               <label class="form-label">📸 ถ่ายหน้า Invoice <span class="req">*</span></label>
               <input type="file" id="s3-file-input" accept="image/*" capture="environment" style="display:none" onchange="Screens2.s3HandlePhoto(event)">
               <label for="s3-file-input" style="cursor:pointer">
-                <div class="photo-grid" style="grid-template-columns:1fr">
-                  <div class="photo-box" id="s3-photo-box" style="min-height:80px">
+                <div style="display:flex">
+                  <div class="photo-box" id="s3-photo-box" style="width:80px;height:80px;min-height:80px">
                     <div class="photo-icon">📸</div>
                     <div class="photo-label">ถ่าย Invoice</div>
                     <div class="photo-required">* บังคับ</div>
@@ -887,7 +887,7 @@ const Screens2 = (() => {
 
     if (inv.photo_url) {
       const box = document.getElementById('s3-photo-box');
-      if (box) { box.classList.add('has-photo'); box.innerHTML = `<img src="${inv.photo_url}" alt="Invoice"><div class="photo-check">✓</div>`; }
+      if (box) { box.classList.add('has-photo'); box.innerHTML = `<img src="${inv.photo_url}" alt="Invoice" style="width:100%;height:100%;object-fit:cover;border-radius:var(--radius-xs)"><div class="photo-check">✓</div>`; }
     }
 
     // Scroll to form
@@ -1033,7 +1033,7 @@ const Screens2 = (() => {
       const result = await API.uploadPhoto(file, 'invoice');
       s3.photoUrl = result.url;
       const box = document.getElementById('s3-photo-box');
-      if (box) { box.classList.add('has-photo'); box.innerHTML = `<img src="${result.url}"><div class="photo-check">✓</div>`; }
+      if (box) { box.classList.add('has-photo'); box.innerHTML = `<img src="${result.url}" style="width:100%;height:100%;object-fit:cover;border-radius:var(--radius-xs)"><div class="photo-check">✓</div>`; }
       App.toast('อัพโหลดสำเร็จ ✓', 'success');
     } catch (err) { App.toast('อัพโหลดไม่สำเร็จ', 'error'); }
     finally { App.hideLoader(); event.target.value = ''; }

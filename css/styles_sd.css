@@ -1,4 +1,4 @@
-/* Version 2.2 | 8 MAR 2026 | Siam Palette Group */
+/* Version 2.2.1 | 8 MAR 2026 | Siam Palette Group */
 /* ═══════════════════════════════════════════
    SPG Sale Daily Module — styles_sd.css
    Warm Light Theme · IBM Plex Sans Thai
@@ -718,7 +718,7 @@ td {
   border-radius: var(--radius-sm);
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
-  cursor: pointer;
+  cursor: pointer; overflow: hidden; position: relative;
   transition: all .15s;
 }
 .photo-box.filled {
