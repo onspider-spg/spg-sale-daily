@@ -1,9 +1,9 @@
-// Version 2.0.1 | 8 MAR 2026 | Siam Palette Group
+// Version 2.1 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
- * screens2_sd.js — S2 Expense (popup) + S3 Invoice
- * v2.0.1 — Phase 4: S3 Invoice wireframe cards
+ * screens2_sd.js — S2 Expense (popup) + S3 Invoice + Credit Note
+ * v2.1 — Phase 9: Invoice Credit Note
  * ═══════════════════════════════════════════
  */
 
@@ -614,6 +614,7 @@ const Screens2 = (() => {
           <!-- Filter Chips -->
           <div class="chip-group">
             <button class="filter-chip active" id="s3-tab-all" onclick="Screens2.s3FilterTab('all')">All</button>
+            <button class="filter-chip" id="s3-tab-cn" onclick="Screens2.s3FilterTab('cn')">Has Credit Note</button>
             <button class="filter-chip" id="s3-tab-unpaid" onclick="Screens2.s3FilterTab('unpaid')">Unpaid</button>
             <button class="filter-chip" id="s3-tab-paid" onclick="Screens2.s3FilterTab('paid')">Paid</button>
           </div>
@@ -691,6 +692,58 @@ const Screens2 = (() => {
               </div>
             </div>
             <div class="divider"></div>
+
+            <!-- Credit Note Toggle (Phase 9) -->
+            <div style="padding:12px;background:var(--green-bg);border:1.5px solid var(--green);border-radius:var(--radius-sm);margin-bottom:var(--sp-sm)">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--sp-sm)">
+                <div style="font-size:var(--fs-body);font-weight:700;color:var(--green)">📝 Credit Note</div>
+                <div class="chip-group" style="margin:0">
+                  <button class="filter-chip" id="s3-cr-no" onclick="Screens2.s3ToggleCR(false)" style="font-size:var(--fs-xs)">No</button>
+                  <button class="filter-chip" id="s3-cr-yes" onclick="Screens2.s3ToggleCR(true)" style="font-size:var(--fs-xs)">Yes</button>
+                </div>
+              </div>
+              <div id="s3-cr-fields" style="display:none">
+                <div style="font-size:var(--fs-xs);color:var(--tm);margin-bottom:var(--sp-sm)">CN No. auto = INV-xxxx_CR</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                  <div class="form-group">
+                    <label class="form-label">Credit Note No</label>
+                    <input type="text" class="form-input readonly" id="s3-cr-no-val" readonly style="background:var(--s1)">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">CR Reason <span class="req">*</span></label>
+                    <select class="form-input" id="s3-cr-reason">
+                      <option value="">-- เลือก --</option>
+                      <option value="return">สินค้าคืน (Return)</option>
+                      <option value="damaged">ชำรุด (Damaged)</option>
+                      <option value="discount">ส่วนลด (Discount)</option>
+                      <option value="overcharge">คิดเกิน (Overcharge)</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">CR Description <span class="req">*</span></label>
+                  <input type="text" class="form-input" id="s3-cr-desc" placeholder="e.g. เนื้อ 2kg ชำรุด">
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+                  <div class="form-group">
+                    <label class="form-label">CR Amount <span class="req">*</span></label>
+                    <input type="number" step="0.01" class="form-input" id="s3-cr-amount" placeholder="0.00" style="color:var(--green);font-weight:700" oninput="Screens2.s3CalcTotal()">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">CR GST</label>
+                    <input type="number" step="0.01" class="form-input" id="s3-cr-gst" placeholder="0.00" oninput="Screens2.s3CalcTotal()">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">CR Total <span class="auto-tag">AUTO</span></label>
+                    <input type="text" class="form-input readonly" id="s3-cr-total" value="$0.00" readonly style="color:var(--green);font-weight:700;background:var(--s1)">
+                  </div>
+                </div>
+                <div style="padding:var(--sp-sm);background:var(--bg);border-radius:var(--radius-xs);font-size:var(--fs-sm)">
+                  <b>Net Payable:</b> <span id="s3-net-label">$0.00</span>
+                </div>
+              </div>
+            </div>
+
             <div class="section-label" style="color:var(--red);margin-top:0">💳 Payment Status</div>
             <div class="form-group">
               <div style="display:flex;gap:8px">
@@ -810,7 +863,7 @@ const Screens2 = (() => {
 
   function s3FilterTab(tab) {
     _s3CurrentTab = tab;
-    ['all', 'unpaid', 'paid'].forEach(t => {
+    ['all', 'cn', 'unpaid', 'paid'].forEach(t => {
       const btn = document.getElementById(`s3-tab-${t}`);
       if (btn) btn.className = `filter-chip ${t === tab ? 'active' : ''}`;
     });
@@ -854,6 +907,19 @@ const Screens2 = (() => {
     s3.photoUrl = inv.photo_url || null;
     s3.editId = inv.id;
 
+    // Credit Note (Phase 9)
+    _s3HasCR = inv.has_credit_note || false;
+    s3ToggleCR(_s3HasCR);
+    if (_s3HasCR) {
+      setVal('s3-cr-no-val', inv.cr_no || (inv.invoice_no + '_CR'));
+      const crReasonEl = document.getElementById('s3-cr-reason');
+      if (crReasonEl) crReasonEl.value = inv.cr_reason || '';
+      setVal('s3-cr-desc', inv.cr_description || '');
+      setVal('s3-cr-amount', inv.cr_amount_ex_gst || '');
+      setVal('s3-cr-gst', inv.cr_gst || '');
+      s3CalcTotal();
+    }
+
     if (inv.photo_url) {
       const box = document.getElementById('s3-photo-box');
       if (box) { box.classList.add('has-photo'); box.innerHTML = `<img src="${inv.photo_url}" alt="Invoice"><div class="photo-check">✓</div>`; }
@@ -871,6 +937,7 @@ const Screens2 = (() => {
     let list = s3.invoices;
     if (filter === 'paid') list = list.filter(i => i.payment_status === 'paid');
     if (filter === 'unpaid') list = list.filter(i => i.payment_status === 'unpaid');
+    if (filter === 'cn') list = list.filter(i => i.has_credit_note);
 
     if (list.length === 0) {
       el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--tm)">ไม่มี Invoice</div>';
@@ -881,15 +948,24 @@ const Screens2 = (() => {
       const isPaid = inv.payment_status === 'paid';
       const isSynced = inv.fin_synced;
       const isLocked = isPaid || isSynced;
-      const borderColor = isPaid ? 'var(--green)' : 'var(--red)';
+      const hasCR = inv.has_credit_note;
+      const borderColor = isPaid ? 'var(--green)' : hasCR ? 'var(--orange)' : 'var(--red)';
       const rowOpacity = isLocked ? 'opacity:.6' : '';
 
       const statusHtml = isPaid
         ? '<span class="status-badge sts-synced">Paid ✅</span>'
         : '<span class="status-badge sts-pending">Unpaid</span>';
 
-      const amountColor = isPaid ? 'var(--green)' : 'var(--red)';
       const dueText = !isPaid && inv.due_date ? `Due: ${App.formatDateShort(inv.due_date)}` : '';
+
+      // CN badge + amount display
+      const cnBadge = hasCR ? ' <span style="padding:1px 5px;background:var(--green-bg);color:var(--green);border-radius:4px;font-size:9px;font-weight:600">CN</span>' : '';
+      const displayAmount = hasCR
+        ? `<div style="font-size:var(--fs-xs);color:var(--tm);text-decoration:line-through">${App.formatMoney(inv.total_amount)}</div>
+           <div style="font-size:var(--fs-body);font-weight:800;color:var(--orange)">${App.formatMoney(inv.net_payable || inv.total_amount)}</div>`
+        : `<div style="font-size:var(--fs-body);font-weight:800;color:${isPaid ? 'var(--green)' : 'var(--red)'}">${App.formatMoney(inv.total_amount)}</div>`;
+
+      const crDetail = hasCR ? `<div style="font-size:var(--fs-xs);color:var(--green);margin-top:2px">CR: ${App.esc(inv.cr_no || '')} -${App.formatMoney(inv.cr_total || 0)} (${App.esc(inv.cr_reason || '')})</div>` : '';
 
       const editHtml = isLocked
         ? `<div style="font-size:var(--fs-xs);color:var(--tm);margin-top:var(--sp-xs)">🔒 ${isPaid ? 'Paid' : 'Synced'} — locked</div>`
@@ -899,11 +975,12 @@ const Screens2 = (() => {
         <div style="padding:12px;background:var(--bg);border:1px solid var(--bd2);border-left:4px solid ${borderColor};border-radius:0 var(--radius-sm) var(--radius-sm) 0;margin-bottom:var(--sp-xs);${rowOpacity}">
           <div style="display:flex;justify-content:space-between;align-items:flex-start">
             <div>
-              <div style="font-size:var(--fs-body);font-weight:700">${App.esc(inv.invoice_no)} — ${App.esc(inv.vendor_name)}</div>
+              <div style="font-size:var(--fs-body);font-weight:700">${App.esc(inv.invoice_no)} — ${App.esc(inv.vendor_name)}${cnBadge}</div>
               <div style="font-size:var(--fs-xs);color:var(--tm);margin-top:2px">${App.formatDateShort(inv.issue_date || '')} · ${App.esc(inv.main_category)} > ${App.esc(inv.sub_category)}${dueText ? ` · ${dueText}` : ''}</div>
+              ${crDetail}
             </div>
             <div style="text-align:right">
-              <div style="font-size:var(--fs-body);font-weight:800;color:${amountColor}">${App.formatMoney(inv.total_amount)}</div>
+              ${displayAmount}
               ${statusHtml}
             </div>
           </div>
@@ -954,11 +1031,46 @@ const Screens2 = (() => {
     });
   }
 
+  let _s3HasCR = false;
+
+  function s3ToggleCR(hasCR) {
+    _s3HasCR = hasCR;
+    const fields = document.getElementById('s3-cr-fields');
+    const yesBtn = document.getElementById('s3-cr-yes');
+    const noBtn = document.getElementById('s3-cr-no');
+    if (fields) fields.style.display = hasCR ? 'block' : 'none';
+    if (yesBtn) yesBtn.className = `filter-chip ${hasCR ? 'active' : ''}`;
+    if (noBtn) noBtn.className = `filter-chip ${!hasCR ? 'active' : ''}`;
+
+    // Auto-generate CR No from Invoice No
+    if (hasCR) {
+      const invNo = document.getElementById('s3-invoice-no')?.value || 'INV-xxxx';
+      const crNoEl = document.getElementById('s3-cr-no-val');
+      if (crNoEl) crNoEl.value = invNo + '_CR';
+    }
+
+    s3CalcTotal();
+  }
+
   function s3CalcTotal() {
     const amt = parseFloat(document.getElementById('s3-amount')?.value) || 0;
     const gst = parseFloat(document.getElementById('s3-gst')?.value) || 0;
-    const el = document.getElementById('s3-total');
-    if (el) el.value = App.formatMoney(amt + gst);
+    const total = amt + gst;
+    const totalEl = document.getElementById('s3-total');
+    if (totalEl) totalEl.value = App.formatMoney(total);
+
+    // CR calculation
+    if (_s3HasCR) {
+      const crAmt = parseFloat(document.getElementById('s3-cr-amount')?.value) || 0;
+      const crGst = parseFloat(document.getElementById('s3-cr-gst')?.value) || 0;
+      const crTotal = crAmt + crGst;
+      const crTotalEl = document.getElementById('s3-cr-total');
+      if (crTotalEl) crTotalEl.value = App.formatMoney(crTotal);
+
+      const net = total - crTotal;
+      const netEl = document.getElementById('s3-net-label');
+      if (netEl) netEl.innerHTML = `Total ${App.formatMoney(total)} − CR ${App.formatMoney(crTotal)} = <b style="color:var(--gold)">${App.formatMoney(net)}</b>`;
+    }
   }
 
   function s3PickPhoto() { document.getElementById('s3-file-input')?.click(); }
@@ -1015,6 +1127,13 @@ const Screens2 = (() => {
         due_date,
         photo_url: s3.photoUrl,
         invoice_id: s3.editId,
+        // Credit Note (Phase 9)
+        has_credit_note: _s3HasCR,
+        cr_no: _s3HasCR ? (document.getElementById('s3-cr-no-val')?.value || '') : null,
+        cr_reason: _s3HasCR ? (document.getElementById('s3-cr-reason')?.value || '') : null,
+        cr_description: _s3HasCR ? (document.getElementById('s3-cr-desc')?.value || '') : null,
+        cr_amount_ex_gst: _s3HasCR ? (parseFloat(document.getElementById('s3-cr-amount')?.value) || 0) : 0,
+        cr_gst: _s3HasCR ? (parseFloat(document.getElementById('s3-cr-gst')?.value) || 0) : 0,
       });
 
       App.toast('บันทึกสำเร็จ ✓', 'success');
@@ -1062,8 +1181,17 @@ const Screens2 = (() => {
 
     s3.photoUrl = null; s3.editId = null;
     s3.paymentStatus = 'unpaid'; _s3PayMethod = '';
+    _s3HasCR = false;
     s3CalcTotal();
     s3SetStatus('unpaid');
+    s3ToggleCR(false);
+    // Clear CR fields
+    ['s3-cr-no-val', 's3-cr-desc', 's3-cr-amount', 's3-cr-gst'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    const crReasonEl = document.getElementById('s3-cr-reason');
+    if (crReasonEl) crReasonEl.value = '';
     // Reset issue date to today
     const issueDateEl = document.getElementById('s3-issue-date');
     if (issueDateEl) issueDateEl.value = App.todayStr();
@@ -1094,7 +1222,7 @@ const Screens2 = (() => {
     renderInvoiceForm, loadInvoiceForm,
     s3FilterTab, s3ReloadList, s3EditInvoice,
     s3GoAdd, s3GoEdit,
-    s3SetStatus, s3SetPayMethod, s3CalcTotal,
+    s3SetStatus, s3SetPayMethod, s3CalcTotal, s3ToggleCR,
     s3PickPhoto, s3HandlePhoto, s3Save, s3ClearForm,
     s3MarkPaid,
   };
