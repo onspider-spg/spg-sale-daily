@@ -1,4 +1,4 @@
-// Version 2.7.2 | 8 MAR 2026 | Siam Palette Group
+// Version 2.7.3 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -77,6 +77,8 @@ const App = (() => {
 
   // ─── INIT ───
   async function init() {
+    // Save original hash before go('loading') overwrites it
+    const savedRoute = location.hash.replace('#', '') || 'dashboard';
     go('loading');
 
     // Try to get token from URL (launched from Home module)
@@ -123,10 +125,9 @@ const App = (() => {
         API.setSelectedStore(stores[0].store_id);
       }
 
-      // Navigate to hash route or default dashboard
-      const hashRoute = location.hash.replace('#', '') || 'dashboard';
+      // Navigate to saved route or default dashboard
       const skipRoutes = ['loading', 'no-access'];
-      const targetRoute = (ROUTES[hashRoute] && !skipRoutes.includes(hashRoute)) ? hashRoute : 'dashboard';
+      const targetRoute = (ROUTES[savedRoute] && !skipRoutes.includes(savedRoute)) ? savedRoute : 'dashboard';
       hideLoader();
       go(targetRoute);
 
