@@ -1,4 +1,4 @@
-// Version 2.5 | 8 MAR 2026 | Siam Palette Group
+// Version 2.5.1 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -281,7 +281,10 @@ const Screens4 = (() => {
       const allVendors = data.vendors || [];
 
       el.innerHTML = `
-        <div class="section-label">🏪 Vendor ของร้าน — ${allVendors.length} รายการ</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div class="section-label" style="margin:0">🏪 Vendor ของร้าน — ${allVendors.length} รายการ</div>
+          <button class="btn btn-outline" style="font-size:12px;padding:6px 14px" onclick="Screens4.showAddVendorPopup()">+ เพิ่ม Vendor</button>
+        </div>
         <div class="form-group" style="margin-bottom:12px">
           <input type="text" class="form-input" id="s7-vendor-search" placeholder="🔍 ค้นหา vendor..."
                  oninput="Screens4.filterVendors()">
@@ -297,9 +300,6 @@ const Screens4 = (() => {
                 <div style="font-size:11px;color:var(--green)">✅ แสดง</div>
               </div>
             `).join('')}
-        </div>
-        <div style="margin-top:8px;font-size:11px;color:var(--tm);text-align:center">
-          ต้องการซ่อน vendor? ติดต่อ Admin (T1-T2)
         </div>
       `;
     } catch (err) {
@@ -320,8 +320,11 @@ const Screens4 = (() => {
       el.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
           <div class="section-label" style="margin:0">🏪 Vendor Visibility — ${matVendors.length} vendors × ${matStores.length} stores</div>
-          <button class="btn btn-gold" id="vm-save-btn" style="font-size:12px;padding:6px 14px;display:none"
-                  onclick="Screens4.saveVendorMatrix()">💾 บันทึก (<span id="vm-change-count">0</span>)</button>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-outline" style="font-size:12px;padding:6px 14px" onclick="Screens4.showAddVendorPopup()">+ เพิ่ม Vendor</button>
+            <button class="btn btn-gold" id="vm-save-btn" style="font-size:12px;padding:6px 14px;display:none"
+                    onclick="Screens4.saveVendorMatrix()">💾 บันทึก (<span id="vm-change-count">0</span>)</button>
+          </div>
         </div>
 
         <div class="form-group" style="margin-bottom:12px">
@@ -1156,6 +1159,58 @@ const Screens4 = (() => {
   }
 
 
+  // ─── Add Vendor Popup (used from Settings + Expense + Invoice) ───
+  function showAddVendorPopup() {
+    const exist = document.getElementById('add-vendor-overlay');
+    if (exist) { exist.remove(); return; }
+
+    const overlay = document.createElement('div');
+    overlay.id = 'add-vendor-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px;';
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+    overlay.innerHTML = `
+      <div style="background:var(--bg);border-radius:var(--radius);padding:20px;width:100%;max-width:400px;box-shadow:var(--shadow-md)">
+        <div style="font-size:var(--fs-h2);font-weight:700;margin-bottom:12px">➕ เพิ่ม Vendor ใหม่</div>
+        <div class="form-group">
+          <label class="form-label">ชื่อ Vendor <span class="req">*</span></label>
+          <input type="text" class="form-input" id="s4-new-vendor-name" placeholder="ชื่อ vendor">
+        </div>
+        <div class="form-group">
+          <label class="form-label">กลุ่ม</label>
+          <input type="text" class="form-input" id="s4-new-vendor-group" placeholder="เช่น Food, Packaging">
+        </div>
+        <div class="form-group">
+          <label class="form-label">ประเภท</label>
+          <input type="text" class="form-input" id="s4-new-vendor-type" placeholder="เช่น Supplier, Service">
+        </div>
+        <div style="display:flex;gap:8px;margin-top:16px">
+          <button class="btn btn-gold" style="flex:1" onclick="Screens4.doAddVendor()">สร้าง</button>
+          <button class="btn btn-outline" style="flex:0.5" onclick="document.getElementById('add-vendor-overlay')?.remove()">ยกเลิก</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+  }
+
+  async function doAddVendor() {
+    const name = document.getElementById('s4-new-vendor-name')?.value?.trim();
+    const group = document.getElementById('s4-new-vendor-group')?.value?.trim();
+    const type = document.getElementById('s4-new-vendor-type')?.value?.trim();
+    if (!name) { App.toast('กรุณาใส่ชื่อ Vendor', 'error'); return; }
+
+    try {
+      App.showLoader();
+      await API.createVendor(name, group || null, type || null);
+      App.toast('สร้าง Vendor สำเร็จ ✓', 'success');
+      document.getElementById('add-vendor-overlay')?.remove();
+      // Refresh current tab
+      const el = document.getElementById('s7-content');
+      if (el) await loadTabContent(_currentTab);
+    } catch (err) {
+      App.toast('สร้าง Vendor ไม่สำเร็จ: ' + err.message, 'error');
+    } finally { App.hideLoader(); }
+  }
+
+
   // ════════════════════════════════════════
   // EXPORTS
   // ════════════════════════════════════════
@@ -1166,6 +1221,7 @@ const Screens4 = (() => {
     showAddChannel, saveNewChannel,
     // Vendors (batch matrix)
     filterVendors, toggleVendor, toggleVisibility, toggleAllStores, saveVendorMatrix,
+    showAddVendorPopup, doAddVendor,
     // Settings
     setSettingToggle, saveSettings,
     // Categories (Phase 10)

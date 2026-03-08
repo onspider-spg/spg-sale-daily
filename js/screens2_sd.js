@@ -1,4 +1,4 @@
-// Version 2.5 | 8 MAR 2026 | Siam Palette Group
+// Version 2.5.1 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -33,6 +33,8 @@ const Screens2 = (() => {
   }
 
   function renderVendorDropdown(id, value) {
+    const perms = API.getSession()?.permissions || {};
+    const canAdd = perms.manage_suppliers || (API.getSession()?.tier_level || 9) <= 4;
     return `
       <div class="vendor-search-wrap" style="position:relative">
         <div style="display:flex;gap:6px;align-items:center">
@@ -44,10 +46,10 @@ const Screens2 = (() => {
                    oninput="Screens2.filterVendorList('${id}')">
             <div id="${id}-list" class="vendor-dropdown-list" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:100;background:var(--bg);border:1px solid var(--border);border-radius:0 0 8px 8px;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.1)"></div>
           </div>
-          <button class="btn btn-sm btn-outline" onclick="App.go('settings')" title="จัดการ Vendor" style="padding:8px;min-width:36px">⚙</button>
+          <button class="btn btn-sm btn-outline" onclick="App.go('settings',{tab:'suppliers'})" title="จัดการ Vendor" style="padding:8px;min-width:36px">⚙</button>
         </div>
         <div style="margin-top:4px">
-          ${(API.getSession()?.tier_level || 9) <= 4 ? `<button class="btn btn-sm btn-outline" onclick="Screens2.showNewVendorModal('${id}')">+ เพิ่ม Vendor ใหม่</button>` : ''}
+          ${canAdd ? `<button class="btn btn-sm btn-outline" onclick="Screens2.showNewVendorModal('${id}')">+ เพิ่ม Vendor ใหม่</button>` : ''}
         </div>
       </div>`;
   }
