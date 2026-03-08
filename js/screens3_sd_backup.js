@@ -1,9 +1,8 @@
-// Version 2.0 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
- * screens3_sd.js — S4 Cash + S5 Sale History + S6 Expense History
- * v2.0 — Phase 3: S4 Cash wireframe match
+ * screens3_sd.js — Sprint 3: S4 Cash + S5 Sale History + S6 Expense History
+ * v1.0
  * ═══════════════════════════════════════════
  */
 
@@ -32,7 +31,16 @@ const Screens3 = (() => {
 
     return `
       <div class="screen">
-        ${Screens.renderTopbar({ back: 'dashboard', label: 'Cash On Hand' })}
+        <div class="header-bar">
+          <button class="back-btn" onclick="App.go('dashboard')">←</button>
+          <div>
+            <div class="header-title">💵 Cash On Hand</div>
+            <div class="header-sub">S4 · ${App.esc(session.store_name)}</div>
+          </div>
+          <div class="header-right">
+            <span class="tag purple" id="s4-status-tag">—</span>
+          </div>
+        </div>
 
         <div class="screen-body">
           ${App.renderStoreSelector()}
@@ -330,7 +338,14 @@ const Screens3 = (() => {
 
     return `
       <div class="screen">
-        ${Screens.renderTopbar({ back: 'dashboard', label: 'Sale History' })}
+        <div class="header-bar">
+          <button class="back-btn" onclick="App.go('dashboard')">←</button>
+          <div style="flex:1;min-width:0">
+            <div class="header-title">📊 ประวัติยอดขาย</div>
+            <div class="header-sub">S5 Sale History · ${App.esc(session.store_name)}</div>
+          </div>
+          <button class="back-btn" onclick="App.toggleSidebar()" style="font-size:16px">☰</button>
+        </div>
 
         <div class="screen-body">
           ${App.renderStoreSelector()}
@@ -524,7 +539,14 @@ const Screens3 = (() => {
 
     return `
       <div class="screen">
-        ${Screens.renderTopbar({ back: 'dashboard', label: 'Expense History' })}
+        <div class="header-bar">
+          <button class="back-btn" onclick="App.go('dashboard')">←</button>
+          <div style="flex:1;min-width:0">
+            <div class="header-title">📋 ประวัติรายจ่าย</div>
+            <div class="header-sub">S6 Expense History · ${App.esc(session.store_name)}</div>
+          </div>
+          <button class="back-btn" onclick="App.toggleSidebar()" style="font-size:16px">☰</button>
+        </div>
 
         <div class="screen-body">
           ${App.renderStoreSelector()}

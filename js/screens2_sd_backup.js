@@ -1,9 +1,8 @@
-// Version 2.0 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
- * screens2_sd.js — S2 Expense (popup) + S3 Invoice
- * v2.0 — Phase 3: S2 Expense inline→popup
+ * screens2_sd.js — Sprint 2: S2 Expense + S3 Invoice
+ * v1.0
  * ═══════════════════════════════════════════
  */
 
@@ -209,23 +208,26 @@ const Screens2 = (() => {
     const session = API.getSession();
     if (!session) return Screens.renderNoAccess();
 
+    // Accept date from params (when coming from history edit)
     if (params && params.date) s2.date = params.date;
     const date = s2.date || App.todayStr();
     s2.date = date;
 
     return `
       <div class="screen">
-        ${Screens.renderTopbar({ back: 'dashboard', label: 'Expense' })}
+        <div class="header-bar">
+          <button class="back-btn" onclick="App.go('dashboard')">←</button>
+          <div>
+            <div class="header-title">🧾 ค่าใช้จ่าย</div>
+            <div class="header-sub">S2 Expense · ${App.esc(session.store_name)}</div>
+          </div>
+          <div class="header-right">
+            <span class="tag gold">→ Finance [Paid]</span>
+          </div>
+        </div>
 
         <div class="screen-body">
           ${App.renderStoreSelector()}
-
-          <!-- Auto tags -->
-          <div style="display:flex;gap:var(--sp-sm);font-size:var(--fs-xs);color:var(--tm);margin-bottom:var(--sp-sm);flex-wrap:wrap">
-            <span class="tag gray">Store: ${App.esc(session.store_name)}</span>
-            <span class="tag gray">Date: ${App.formatDate(date)}</span>
-            <span class="tag blue">Doc Type: Bill (auto)</span>
-          </div>
 
           <!-- Date bar -->
           <div class="date-bar">
@@ -237,25 +239,104 @@ const Screens2 = (() => {
             <button class="date-today" onclick="Screens2.s2GoToday()">วันนี้</button>
           </div>
 
-          <!-- Header + Add button -->
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--sp-sm)">
-            <div class="section-label" style="margin:0">Today (<span id="s2-count">0</span>)</div>
-            <button class="btn btn-sm btn-gold" onclick="Screens2.showExpensePopup()">+ Add Expense</button>
-          </div>
-
           <!-- Expense List -->
+          <div class="section-label">📋 รายจ่ายวันนี้</div>
           <div id="s2-list">
             <div style="text-align:center;padding:20px;color:var(--tm)">กำลังโหลด...</div>
           </div>
 
           <!-- Summary -->
           <div id="s2-summary"></div>
-        </div>
-      </div>
 
-      <!-- Hidden file input for photo -->
-      <input type="file" id="s2-file-input" accept="image/*" capture="environment"
-             style="display:none" onchange="Screens2.s2HandlePhoto(event)">`;
+          <div class="divider"></div>
+
+          <!-- New Expense Form -->
+          <div class="section-label">✏️ เพิ่มรายจ่าย — กรอก 8 fields</div>
+          <div class="card" id="s2-form">
+            <!-- Auto fields -->
+            <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+              <span class="tag gray">Store: ${App.esc(session.store_name)}</span>
+              <span class="tag gray">Date: ${App.formatDate(date)}</span>
+              <span class="tag blue">Doc Type: Bill (auto)</span>
+            </div>
+
+            <!-- 8 Manual fields -->
+            <div class="form-group">
+              <label class="form-label">❶ Doc Number <span class="req">*</span></label>
+              <input type="text" class="form-input" id="s2-doc-number" placeholder="เลขจากบิล">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">❷ Vendor Name <span class="req">*</span></label>
+              <div id="s2-vendor-wrap">${renderVendorDropdown('s2-vendor', '')}</div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div class="form-group">
+                <label class="form-label">❸ Main Category <span class="req">*</span></label>
+                <div id="s2-main-wrap">${renderMainCategoryDropdown('s2-main', '', "Screens2.onMainCategoryChange('s2-main','s2-sub')")}</div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">❹ Sub Category <span class="req">*</span></label>
+                <div id="s2-sub-wrap">${renderSubCategoryDropdown('s2-sub', '', '')}</div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">❺ Description <span class="req">*</span></label>
+              <input type="text" class="form-input" id="s2-desc" placeholder="อธิบายสั้นๆ">
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+              <div class="form-group">
+                <label class="form-label">❻ Amount <span class="req">*</span></label>
+                <input type="number" step="0.01" class="form-input" id="s2-amount"
+                       placeholder="0.00" oninput="Screens2.s2CalcTotal()">
+              </div>
+              <div class="form-group">
+                <label class="form-label">❼ GST <span class="req">*</span></label>
+                <input type="number" step="0.01" class="form-input" id="s2-gst"
+                       placeholder="0.00" oninput="Screens2.s2CalcTotal()">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Total <span class="auto-tag">AUTO</span></label>
+                <input type="text" class="form-input readonly" id="s2-total" value="$0.00" readonly>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">❽ Payment Method <span class="req">*</span></label>
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-outline btn-sm" id="s2-pay-cash" onclick="Screens2.s2SetPayment('cash')" style="flex:1">💵 Cash</button>
+                <button class="btn btn-outline btn-sm" id="s2-pay-card" onclick="Screens2.s2SetPayment('card')" style="flex:1">💳 Card</button>
+              </div>
+            </div>
+
+            <!-- Photo -->
+            <div class="form-group">
+              <label class="form-label">📸 ถ่ายใบเสร็จ <span class="req">*</span></label>
+              <div class="photo-grid" style="grid-template-columns:1fr">
+                <div class="photo-box" id="s2-photo-box" onclick="Screens2.s2PickPhoto()"
+                     style="min-height:80px">
+                  <div class="photo-icon">📸</div>
+                  <div class="photo-label">ถ่ายใบเสร็จ</div>
+                  <div class="photo-required">* บังคับ</div>
+                </div>
+              </div>
+              <input type="file" id="s2-file-input" accept="image/*" capture="environment"
+                     style="display:none" onchange="Screens2.s2HandlePhoto(event)">
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom Bar -->
+        <div class="bottom-bar">
+          <button class="btn btn-outline" style="flex:0.4" onclick="Screens2.s2ClearForm()">ล้าง</button>
+          <button class="btn btn-gold" style="flex:1" id="s2-save-btn" onclick="Screens2.s2Save()">
+            💾 บันทึก
+          </button>
+        </div>
+      </div>`;
   }
 
   async function loadExpense() {
@@ -263,15 +344,18 @@ const Screens2 = (() => {
       App.showLoader();
       await loadLookups();
 
+      // Re-render dropdowns with loaded data
+      const vendorWrap = document.getElementById('s2-vendor-wrap');
+      if (vendorWrap) vendorWrap.innerHTML = renderVendorDropdown('s2-vendor', '');
+
+      const mainWrap = document.getElementById('s2-main-wrap');
+      if (mainWrap) mainWrap.innerHTML = renderMainCategoryDropdown('s2-main', '', "Screens2.onMainCategoryChange('s2-main','s2-sub')");
+
       // Load expense list
       const data = await API.getExpenses(s2.date);
       s2.expenses = data.expenses || [];
       renderS2List();
       renderS2Summary(data.summary);
-
-      // Update count
-      const countEl = document.getElementById('s2-count');
-      if (countEl) countEl.textContent = s2.expenses.length;
 
     } catch (err) {
       console.error('Load expense error:', err);
@@ -286,27 +370,22 @@ const Screens2 = (() => {
     if (!el) return;
 
     if (s2.expenses.length === 0) {
-      el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--tm)">ยังไม่มีรายจ่ายวันนี้</div>';
+      el.innerHTML = '<div class="card-flat" style="text-align:center;color:var(--tm)">ยังไม่มีรายจ่ายวันนี้</div>';
       return;
     }
 
-    el.innerHTML = s2.expenses.map(e => {
-      const borderColor = e.main_category === 'COGS' ? 'var(--red)' : 'var(--orange)';
-      return `
-        <div style="padding:12px;background:var(--bg);border:1px solid var(--bd2);border-left:4px solid ${borderColor};border-radius:0 var(--radius-sm) var(--radius-sm) 0;margin-bottom:var(--sp-xs)">
-          <div style="display:flex;justify-content:space-between">
-            <div>
-              <div style="font-size:var(--fs-body);font-weight:700">${App.esc(e.description || e.doc_number)}</div>
-              <div style="font-size:var(--fs-xs);color:var(--tm);margin-top:2px">${App.esc(e.main_category)} > ${App.esc(e.sub_category)} · ${App.esc(e.vendor_name || '—')} · ${e.payment_method === 'cash' ? 'Cash' : 'Card'}</div>
-            </div>
-            <div style="font-size:var(--fs-body);font-weight:800;color:var(--red)">-${App.formatMoney(e.total_amount)}</div>
-          </div>
-          <div style="display:flex;gap:var(--sp-xs);margin-top:var(--sp-sm)">
-            <button class="btn btn-sm btn-outline" onclick="Screens2.s2EditExpense('${e.id}')">✏️</button>
-            <button class="btn btn-sm btn-outline" style="color:var(--red);border-color:var(--red)" onclick="Screens2.s2DeleteExpense('${e.id}')">🗑️</button>
-          </div>
-        </div>`;
-    }).join('');
+    el.innerHTML = s2.expenses.map(e => `
+      <div class="card-flat" style="display:flex;align-items:center;gap:10px">
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:13px">${App.esc(e.doc_number)} · ${App.esc(e.vendor_name)}</div>
+          <div style="font-size:11px;color:var(--td)">${App.esc(e.main_category)} > ${App.esc(e.sub_category)}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-weight:700;font-size:14px">${App.formatMoney(e.total_amount)}</div>
+          <div style="font-size:10px">${e.payment_method === 'cash' ? '💵' : '💳'} ${e.fin_transaction_id ? '<span class="tag green" style="font-size:9px">synced</span>' : ''}</div>
+        </div>
+      </div>
+    `).join('');
   }
 
   function renderS2Summary(summary) {
@@ -314,140 +393,13 @@ const Screens2 = (() => {
     if (!el || !summary) return;
 
     el.innerHTML = `
-      <div style="padding:12px;background:var(--red-bg);border:1.5px solid var(--red);border-radius:var(--radius-sm);display:flex;justify-content:space-between;font-weight:700;font-size:var(--fs-sm);margin-top:var(--sp-sm)">
-        <span>Total Expense</span>
-        <span style="color:var(--red)">-${App.formatMoney(summary.total_expenses)}</span>
+      <div class="total-bar" style="border-color:var(--red);background:var(--red-bg)">
+        <div>
+          <span class="total-label" style="color:var(--red)">รวมรายจ่าย</span>
+          <span style="font-size:11px;color:var(--td);display:block">${summary.count} รายการ · 💵${App.formatMoney(summary.total_cash)} · 💳${App.formatMoney(summary.total_card)}</span>
+        </div>
+        <span class="total-value" style="color:var(--red)">${App.formatMoney(summary.total_expenses)}</span>
       </div>`;
-  }
-
-  // ─── EXPENSE POPUP (wireframe: s2-popup) ───
-
-  function showExpensePopup(editData) {
-    // Remove existing popup if any
-    document.getElementById('s2-popup')?.remove();
-
-    const isEdit = !!editData;
-    const title = isEdit ? '✏️ Edit Expense' : '+ Add Expense';
-
-    const overlay = document.createElement('div');
-    overlay.id = 's2-popup';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px;';
-    overlay.innerHTML = `
-      <div style="background:var(--bg);border-radius:var(--radius);padding:16px;width:100%;max-width:440px;max-height:85vh;overflow-y:auto;box-shadow:var(--shadow-md)">
-        <div style="display:flex;justify-content:space-between;margin-bottom:var(--sp-sm)">
-          <div style="font-size:var(--fs-h2);font-weight:700">${title}</div>
-          <div style="font-size:18px;cursor:pointer;color:var(--tm);padding:4px" onclick="document.getElementById('s2-popup')?.remove()">✕</div>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Doc Number <span class="req">*</span></label>
-          <input type="text" class="form-input" id="s2-doc-number" placeholder="เลขจากบิล" value="${App.esc(editData?.doc_number || '')}">
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Vendor Name <span class="req">*</span></label>
-          <div id="s2-vendor-wrap">${renderVendorDropdown('s2-vendor', editData?.vendor_name || '')}</div>
-        </div>
-
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-          <div class="form-group">
-            <label class="form-label">Main Category <span class="req">*</span></label>
-            <div id="s2-main-wrap">${renderMainCategoryDropdown('s2-main', editData?.main_category || '', "Screens2.onMainCategoryChange('s2-main','s2-sub')")}</div>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Sub Category <span class="req">*</span></label>
-            <div id="s2-sub-wrap">${renderSubCategoryDropdown('s2-sub', editData?.sub_category || '', editData?.main_category || '')}</div>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Description <span class="req">*</span></label>
-          <input type="text" class="form-input" id="s2-desc" placeholder="อธิบายสั้นๆ" value="${App.esc(editData?.description || '')}">
-        </div>
-
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
-          <div class="form-group">
-            <label class="form-label">Amount <span class="req">*</span></label>
-            <input type="number" step="0.01" class="form-input" id="s2-amount" placeholder="0.00"
-                   oninput="Screens2.s2CalcTotal()" value="${editData?.amount_ex_gst || ''}">
-          </div>
-          <div class="form-group">
-            <label class="form-label">GST <span class="req">*</span></label>
-            <input type="number" step="0.01" class="form-input" id="s2-gst" placeholder="0.00"
-                   oninput="Screens2.s2CalcTotal()" value="${editData?.gst || ''}">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Total <span class="auto-tag">AUTO</span></label>
-            <input type="text" class="form-input readonly" id="s2-total" value="$0.00" readonly>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Payment Method <span class="req">*</span></label>
-          <div style="display:flex;gap:var(--sp-sm)">
-            <button class="btn btn-sm btn-outline" id="s2-pay-cash" onclick="Screens2.s2SetPayment('cash')" style="flex:1">💵 Cash</button>
-            <button class="btn btn-sm btn-outline" id="s2-pay-card" onclick="Screens2.s2SetPayment('card')" style="flex:1">💳 Card</button>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">📸 ถ่ายใบเสร็จ <span class="req">*</span></label>
-          <div class="photo-grid" style="display:flex">
-            <div class="photo-box empty" id="s2-photo-box" onclick="Screens2.s2PickPhoto()" style="min-height:70px;width:70px">
-              <div class="photo-icon">📸</div>
-              <div class="photo-label">ถ่ายใบเสร็จ</div>
-            </div>
-          </div>
-        </div>
-
-        <div style="display:flex;gap:var(--sp-sm);margin-top:var(--sp-md)">
-          <button class="btn btn-outline" style="flex:1" onclick="document.getElementById('s2-popup')?.remove()">ยกเลิก</button>
-          <button class="btn btn-gold" style="flex:1" id="s2-save-btn" onclick="Screens2.s2Save()">💾 บันทึก</button>
-        </div>
-      </div>`;
-
-    document.body.appendChild(overlay);
-
-    // Set edit state
-    s2.editId = editData?.id || null;
-    s2.photoUrl = editData?.photo_url || null;
-    _s2PaymentMethod = editData?.payment_method || '';
-
-    // Populate payment + photo if editing
-    if (_s2PaymentMethod) s2SetPayment(_s2PaymentMethod);
-    if (s2.photoUrl) {
-      const box = document.getElementById('s2-photo-box');
-      if (box) {
-        box.classList.remove('empty');
-        box.classList.add('filled');
-        box.innerHTML = `<img src="${s2.photoUrl}" alt="Receipt" style="width:100%;height:100%;object-fit:cover;border-radius:var(--radius-xs)">`;
-      }
-    }
-
-    // Calc total if editing
-    if (editData) s2CalcTotal();
-  }
-
-  function s2EditExpense(id) {
-    const e = s2.expenses.find(x => x.id === id);
-    if (!e) return;
-    showExpensePopup(e);
-  }
-
-  async function s2DeleteExpense(id) {
-    if (!confirm('ลบรายจ่ายนี้?')) return;
-    try {
-      App.showLoader();
-      await API.deleteExpense(id);
-      App.toast('ลบสำเร็จ ✓', 'success');
-      const data = await API.getExpenses(s2.date);
-      s2.expenses = data.expenses || [];
-      renderS2List();
-      renderS2Summary(data.summary);
-      const countEl = document.getElementById('s2-count');
-      if (countEl) countEl.textContent = s2.expenses.length;
-    } catch (err) { App.toast(err.message, 'error'); }
-    finally { App.hideLoader(); }
   }
 
   let _s2PaymentMethod = '';
@@ -528,15 +480,12 @@ const Screens2 = (() => {
 
       App.toast('บันทึกสำเร็จ ✓', 'success');
 
-      // Close popup + reload list
-      document.getElementById('s2-popup')?.remove();
+      // Stay on same page — clear form and reload list
       s2ClearForm();
       const data = await API.getExpenses(s2.date);
       s2.expenses = data.expenses || [];
       renderS2List();
       renderS2Summary(data.summary);
-      const countEl = document.getElementById('s2-count');
-      if (countEl) countEl.textContent = s2.expenses.length;
 
     } catch (err) {
       App.toast('บันทึกไม่สำเร็จ: ' + err.message, 'error');
@@ -598,7 +547,14 @@ const Screens2 = (() => {
 
     return `
       <div class="screen">
-        ${Screens.renderTopbar({ back: 'dashboard', label: 'Invoice' })}
+        <div class="header-bar">
+          <button class="back-btn" onclick="App.go('dashboard')">←</button>
+          <div style="flex:1;min-width:0">
+            <div class="header-title">📄 Invoice</div>
+            <div class="header-sub">S3 Invoice · ${App.esc(session.store_name)}</div>
+          </div>
+          <button class="back-btn" onclick="App.toggleSidebar()" style="font-size:16px">☰</button>
+        </div>
 
         <div class="screen-body">
           ${App.renderStoreSelector()}
@@ -643,7 +599,13 @@ const Screens2 = (() => {
 
     return `
       <div class="screen">
-        ${Screens.renderTopbar({ back: 'invoice', label: isEdit ? 'Edit Invoice' : 'New Invoice' })}
+        <div class="header-bar">
+          <button class="back-btn" onclick="App.go('invoice')">←</button>
+          <div style="flex:1;min-width:0">
+            <div class="header-title">${isEdit ? '✏️ แก้ไข Invoice' : '📄 เพิ่ม Invoice'}</div>
+            <div class="header-sub">S3 · ${App.esc(session.store_name)}</div>
+          </div>
+        </div>
         <div class="screen-body">
           <div class="card" id="s3-form">
             <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
@@ -1077,7 +1039,6 @@ const Screens2 = (() => {
 
     // S2 Expense
     renderExpense, loadExpense,
-    showExpensePopup, s2EditExpense, s2DeleteExpense,
     s2SetPayment, s2CalcTotal, s2PickPhoto, s2HandlePhoto,
     s2Save, s2ClearForm, s2ChangeDate, s2GoToday,
 
