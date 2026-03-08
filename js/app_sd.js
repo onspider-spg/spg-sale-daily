@@ -1,4 +1,4 @@
-// Version 2.7 | 8 MAR 2026 | Siam Palette Group
+// Version 2.7.1 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -123,7 +123,10 @@ const App = (() => {
         API.setSelectedStore(stores[0].store_id);
       }
 
-      go('dashboard');
+      // Navigate to hash route or default dashboard
+      const hashRoute = location.hash.replace('#', '') || 'dashboard';
+      const targetRoute = ROUTES[hashRoute] ? hashRoute : 'dashboard';
+      go(targetRoute);
 
       // Fetch noti + task counts (no announcement popup — L1 removed)
       refreshNotiBadge();
