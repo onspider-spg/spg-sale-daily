@@ -1,4 +1,4 @@
-// Version 2.7.1 | 8 MAR 2026 | Siam Palette Group
+// Version 2.7.2 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -608,8 +608,6 @@ const Screens2 = (() => {
           <div class="chip-group">
             <button class="filter-chip active" id="s3-tab-all" onclick="Screens2.s3FilterTab('all')">All</button>
             <button class="filter-chip" id="s3-tab-cn" onclick="Screens2.s3FilterTab('cn')">Has Credit Note</button>
-            <button class="filter-chip" id="s3-tab-unpaid" onclick="Screens2.s3FilterTab('unpaid')">Unpaid</button>
-            <button class="filter-chip" id="s3-tab-paid" onclick="Screens2.s3FilterTab('paid')">Paid</button>
           </div>
 
           <!-- Add button -->
@@ -833,7 +831,7 @@ const Screens2 = (() => {
 
   function s3FilterTab(tab) {
     _s3CurrentTab = tab;
-    ['all', 'cn', 'unpaid', 'paid'].forEach(t => {
+    ['all', 'cn'].forEach(t => {
       const btn = document.getElementById(`s3-tab-${t}`);
       if (btn) btn.className = `filter-chip ${t === tab ? 'active' : ''}`;
     });
@@ -902,8 +900,6 @@ const Screens2 = (() => {
     if (!el) return;
 
     let list = s3.invoices;
-    if (filter === 'paid') list = list.filter(i => i.payment_status === 'paid');
-    if (filter === 'unpaid') list = list.filter(i => i.payment_status === 'unpaid');
     if (filter === 'cn') list = list.filter(i => i.has_credit_note);
 
     if (list.length === 0) {
@@ -912,30 +908,23 @@ const Screens2 = (() => {
     }
 
     el.innerHTML = list.map(inv => {
-      const isPaid = inv.payment_status === 'paid';
       const isSynced = inv.fin_synced;
-      const isLocked = isPaid || isSynced;
       const hasCR = inv.has_credit_note;
-      const borderColor = isPaid ? 'var(--green)' : hasCR ? 'var(--orange)' : 'var(--red)';
-      const rowOpacity = isLocked ? 'opacity:.6' : '';
+      const borderColor = hasCR ? 'var(--orange)' : 'var(--gold)';
+      const rowOpacity = isSynced ? 'opacity:.6' : '';
 
-      const statusHtml = isPaid
-        ? '<span class="status-badge sts-synced">Paid ✅</span>'
-        : '<span class="status-badge sts-pending">Unpaid</span>';
+      const dueText = inv.due_date ? `Due: ${App.formatDateShort(inv.due_date)}` : '';
 
-      const dueText = !isPaid && inv.due_date ? `Due: ${App.formatDateShort(inv.due_date)}` : '';
-
-      // CN badge + amount display
       const cnBadge = hasCR ? ' <span style="padding:1px 5px;background:var(--green-bg);color:var(--green);border-radius:4px;font-size:9px;font-weight:600">CN</span>' : '';
       const displayAmount = hasCR
         ? `<div style="font-size:var(--fs-xs);color:var(--tm);text-decoration:line-through">${App.formatMoney(inv.total_amount)}</div>
            <div style="font-size:var(--fs-body);font-weight:800;color:var(--orange)">${App.formatMoney(inv.net_payable || inv.total_amount)}</div>`
-        : `<div style="font-size:var(--fs-body);font-weight:800;color:${isPaid ? 'var(--green)' : 'var(--red)'}">${App.formatMoney(inv.total_amount)}</div>`;
+        : `<div style="font-size:var(--fs-body);font-weight:800;color:var(--gold)">${App.formatMoney(inv.total_amount)}</div>`;
 
       const crDetail = hasCR ? `<div style="font-size:var(--fs-xs);color:var(--green);margin-top:2px">CR: ${App.esc(inv.cr_no || '')} -${App.formatMoney(inv.cr_total || 0)} (${App.esc(inv.cr_reason || '')})</div>` : '';
 
-      const editHtml = isLocked
-        ? `<div style="font-size:var(--fs-xs);color:var(--tm);margin-top:var(--sp-xs)">🔒 ${isPaid ? 'Paid' : 'Synced'} — locked</div>`
+      const editHtml = isSynced
+        ? `<div style="font-size:var(--fs-xs);color:var(--tm);margin-top:var(--sp-xs)">🔒 Synced — locked</div>`
         : `<div style="display:flex;gap:var(--sp-xs);margin-top:var(--sp-sm)"><button class="btn btn-sm btn-outline" style="padding:3px 10px;font-size:var(--fs-xs)" onclick="Screens2.s3GoEdit('${inv.id}')">✏️ Edit</button></div>`;
 
       return `
@@ -943,12 +932,11 @@ const Screens2 = (() => {
           <div style="display:flex;justify-content:space-between;align-items:flex-start">
             <div>
               <div style="font-size:var(--fs-body);font-weight:700">${App.esc(inv.invoice_no)} — ${App.esc(inv.vendor_name)}${cnBadge}</div>
-              <div style="font-size:var(--fs-xs);color:var(--tm);margin-top:2px">${App.formatDateShort(inv.issue_date || '')} · ${dueText ? ` · ${dueText}` : ''}</div>
+              <div style="font-size:var(--fs-xs);color:var(--tm);margin-top:2px">${App.formatDateShort(inv.issue_date || '')}${dueText ? ` · ${dueText}` : ''}</div>
               ${crDetail}
             </div>
             <div style="text-align:right">
               ${displayAmount}
-              ${statusHtml}
             </div>
           </div>
           ${editHtml}
@@ -961,17 +949,10 @@ const Screens2 = (() => {
     if (!el || !summary) return;
 
     el.innerHTML = `
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
-        <div class="kpi-box">
-          <div class="kpi-label">🔴 Unpaid</div>
-          <div class="kpi-value red">${App.formatMoney(summary.unpaid_total)}</div>
-          <div class="kpi-sub">${summary.unpaid_count} รายการ</div>
-        </div>
-        <div class="kpi-box">
-          <div class="kpi-label">✅ Paid</div>
-          <div class="kpi-value green">${App.formatMoney(summary.paid_total)}</div>
-          <div class="kpi-sub">${summary.count - summary.unpaid_count} รายการ</div>
-        </div>
+      <div class="kpi-box" style="margin-top:8px">
+        <div class="kpi-label">🔴 UNPAID</div>
+        <div class="kpi-value red">${App.formatMoney(summary.unpaid_total || summary.total || 0)}</div>
+        <div class="kpi-sub">${summary.unpaid_count || summary.count || 0} รายการ</div>
       </div>`;
   }
 

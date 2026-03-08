@@ -1,4 +1,4 @@
-// Version 2.7.1 | 8 MAR 2026 | Siam Palette Group
+// Version 2.7.2 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -306,9 +306,6 @@ const Screens4 = (() => {
   }
 
   // ─── Add Vendor Popup ───
-      await loadTabContent('suppliers');
-    } catch (err) { App.toast(err.message, 'error'); }
-  }
 
 
   // ════════════════════════════════════════
