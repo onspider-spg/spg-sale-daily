@@ -1,4 +1,4 @@
-// Version 2.2 | 8 MAR 2026 | Siam Palette Group
+// Version 2.3 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -35,7 +35,7 @@ const Screens = (() => {
     return `
       <div class="g-tb">
         ${leftBtn}
-        <div class="g-tb-logo">SPG</div>
+        <div class="g-tb-logo" onclick="location.href='/spg-home/#dashboard'" style="cursor:pointer">SPG</div>
         <div class="g-tb-title">${titleText}<div class="g-tb-sub">Sale Daily</div></div>
         <div class="g-tb-bell" onclick="App.go('notifications')">🔔<span class="g-tb-bell-dot" id="tb-bell-dot" style="display:none"></span></div>
         <div class="g-tb-avatar">${App.esc(initial)}</div>
@@ -181,11 +181,8 @@ const Screens = (() => {
             <div id="store-status-list" style="font-size:var(--fs-xs);color:var(--tm);text-align:center;padding:var(--sp-sm) 0">กำลังโหลด...</div>
           </div>
 
-          <!-- Alerts (existing) -->
-          <div id="alerts-area"></div>
-
-          <!-- Quick Actions -->
-          <div class="section-label">Quick Actions</div>
+          <!-- History -->
+          <div class="section-label">📊 History</div>
           <div class="quick-grid">
             <div class="quick-btn" onclick="App.go('sale-history')">
               <div class="q-icon" style="background:var(--gold-bg);color:var(--gold)">📊</div>
@@ -197,6 +194,11 @@ const Screens = (() => {
               <div><div class="q-label">Expense History</div><div class="q-sub">ประวัติจ่าย</div></div>
               <div class="q-arrow">→</div>
             </div>
+          </div>
+
+          <!-- Report -->
+          <div class="section-label">📝 Report</div>
+          <div class="quick-grid">
             <div class="quick-btn" onclick="App.go('daily-report')">
               <div class="q-icon" style="background:var(--orange-bg);color:var(--orange)">📝</div>
               <div><div class="q-label">Daily Report</div><div class="q-sub">สรุปรายงาน</div></div>
@@ -204,16 +206,7 @@ const Screens = (() => {
             </div>
             <div class="quick-btn" onclick="App.go('tasks')">
               <div class="q-icon" style="background:var(--purple-bg);color:var(--purple)">📋</div>
-              <div><div class="q-label">Tasks</div><div class="q-sub">Follow-up</div></div>
-              <div class="q-arrow">→</div>
-            </div>
-          </div>
-
-          <div class="section-label">Admin</div>
-          <div class="quick-grid">
-            <div class="quick-btn" onclick="App.go('acc-review')" style="border-left-color:var(--green)">
-              <div class="q-icon" style="background:var(--green-bg);color:var(--green)">📤</div>
-              <div><div class="q-label">Send to Account</div><div class="q-sub">ตรวจ & Sync → Finance</div></div>
+              <div><div class="q-label">Follow-up</div><div class="q-sub">Tasks</div></div>
               <div class="q-arrow">→</div>
             </div>
             <div class="quick-btn" onclick="App.go('report-hub')">
@@ -221,26 +214,35 @@ const Screens = (() => {
               <div><div class="q-label">Report Hub</div><div class="q-sub">สรุปรายเดือน</div></div>
               <div class="q-arrow">→</div>
             </div>
+            <div class="quick-btn" onclick="App.go('daily-detail')">
+              <div class="q-icon" style="background:var(--s2);color:var(--td)">🔍</div>
+              <div><div class="q-label">Daily Detail</div><div class="q-sub">รายละเอียดวัน</div></div>
+              <div class="q-arrow">→</div>
+            </div>
           </div>
 
-          <!-- Settings preview cards -->
-          <div class="section-label">Settings</div>
+          <!-- Settings -->
+          <div class="section-label">⚙️ Settings</div>
           <div class="quick-grid">
-            <div class="quick-btn" onclick="App.go('settings')" style="flex-direction:column;align-items:flex-start;padding:12px">
-              <div style="font-size:var(--fs-body);font-weight:700">Channels</div>
-              <div style="font-size:var(--fs-xs);color:var(--tm);margin-top:2px">ช่องทางขาย · เปิด/ปิด/rename</div>
+            <div class="quick-btn" onclick="App.go('acc-review')" style="border-left-color:var(--green)">
+              <div class="q-icon" style="background:var(--green-bg);color:var(--green)">📤</div>
+              <div><div class="q-label">Send to Account</div><div class="q-sub">Sync → Finance</div></div>
+              <div class="q-arrow">→</div>
             </div>
-            <div class="quick-btn" onclick="App.go('settings')" style="flex-direction:column;align-items:flex-start;padding:12px">
-              <div style="font-size:var(--fs-body);font-weight:700">Vendors</div>
-              <div style="font-size:var(--fs-xs);color:var(--tm);margin-top:2px">รายชื่อ supplier · Matrix view</div>
+            <div class="quick-btn" onclick="App.go('settings',{tab:'channels'})">
+              <div class="q-icon" style="background:var(--gold-bg);color:var(--gold)">📡</div>
+              <div><div class="q-label">Channels</div><div class="q-sub">ช่องทางขาย</div></div>
+              <div class="q-arrow">→</div>
             </div>
-            <div class="quick-btn" onclick="App.go('settings')" style="flex-direction:column;align-items:flex-start;padding:12px">
-              <div style="font-size:var(--fs-body);font-weight:700">Permissions</div>
-              <div style="font-size:var(--fs-xs);color:var(--tm);margin-top:2px">30 functions × T1-T7 matrix</div>
+            <div class="quick-btn" onclick="App.go('settings',{tab:'suppliers'})">
+              <div class="q-icon" style="background:var(--blue-bg);color:var(--blue)">🏪</div>
+              <div><div class="q-label">Vendors</div><div class="q-sub">รายชื่อ supplier</div></div>
+              <div class="q-arrow">→</div>
             </div>
-            <div class="quick-btn" onclick="App.go('settings')" style="flex-direction:column;align-items:flex-start;padding:12px">
-              <div style="font-size:var(--fs-body);font-weight:700">Audit Log</div>
-              <div style="font-size:var(--fs-xs);color:var(--tm);margin-top:2px">ประวัติการเปลี่ยนแปลง</div>
+            <div class="quick-btn" onclick="App.go('settings',{tab:'categories'})">
+              <div class="q-icon" style="background:var(--orange-bg);color:var(--orange)">🏷️</div>
+              <div><div class="q-label">Categories</div><div class="q-sub">หมวดหมู่</div></div>
+              <div class="q-arrow">→</div>
             </div>
           </div>
 
@@ -298,9 +300,6 @@ const Screens = (() => {
               <span id="chart-label-end">วันนี้</span>
             </div>
           </div>
-
-          <!-- Alerts -->
-          <div id="alerts-area"></div>
 
           <!-- กรอกข้อมูล -->
           <div class="section-label">กรอกข้อมูล</div>
@@ -453,48 +452,6 @@ const Screens = (() => {
         if (startLabel && bars.length > 0) startLabel.textContent = App.formatDateShort(bars[0].sale_date);
       }
 
-      // Alerts
-      const alertsEl = document.getElementById('alerts-area');
-      if (alertsEl) {
-        let alertsHtml = '';
-
-        if (!data.today.is_recorded) {
-          alertsHtml += `
-            <div class="alert-row warn" onclick="App.go('daily-sale')">
-              <span class="alert-icon">⚠️</span>
-              <span class="alert-text">ยังไม่ได้กรอกยอดขายวันนี้ — กดเพื่อกรอก</span>
-            </div>`;
-        }
-
-        if (data.alerts.missing_days > 0) {
-          alertsHtml += `
-            <div class="alert-row info">
-              <span class="alert-icon">📅</span>
-              <span class="alert-text">ขาดข้อมูล ${data.alerts.missing_days} วันในเดือนนี้</span>
-            </div>`;
-        }
-
-        if (data.alerts.unpaid_invoices > 0) {
-          alertsHtml += `
-            <div class="alert-row danger" onclick="App.go('invoice')">
-              <span class="alert-icon">🧾</span>
-              <span class="alert-text">${data.alerts.unpaid_invoices} Invoice ค้างจ่าย</span>
-            </div>`;
-        }
-
-        if ((data.alerts.cash_mismatches || []).length > 0) {
-          alertsHtml += `
-            <div class="alert-row danger" onclick="App.go('cash')">
-              <span class="alert-icon">💵</span>
-              <span class="alert-text">${data.alerts.cash_mismatches.length} วันเงินสดไม่ตรง</span>
-            </div>`;
-        }
-
-        if (alertsHtml) {
-          alertsEl.innerHTML = `<div class="section-label">🔔 แจ้งเตือน</div>${alertsHtml}`;
-        }
-      }
-
       // Update noti bell dot
       App.refreshNotiBadge();
 
@@ -539,23 +496,36 @@ const Screens = (() => {
             const lw = wData.last_week || [];
             const labels = wData.labels || [];
             const maxVal = Math.max(...tw, ...lw, 1);
+            const W = 240;
             const H = 90;
-            const barW = 10;
-            const gap = 3;
-            const groupW = barW * 2 + gap;
-            const totalW = labels.length * (groupW + 8);
+            const pad = 4;
+            const stepX = (W - pad * 2) / Math.max(labels.length - 1, 1);
 
-            let svg = `<svg width="100%" height="${H + 16}" viewBox="0 0 ${totalW} ${H + 16}">`;
+            // Build polyline points
+            const twPts = labels.map((_, i) => `${pad + i * stepX},${H - pad - (maxVal > 0 ? (tw[i] / maxVal) * (H - pad * 2) : 0)}`).join(' ');
+            const lwPts = labels.map((_, i) => `${pad + i * stepX},${H - pad - (maxVal > 0 ? (lw[i] / maxVal) * (H - pad * 2) : 0)}`).join(' ');
+
+            let svg = `<svg width="100%" height="${H + 16}" viewBox="0 0 ${W} ${H + 16}" preserveAspectRatio="xMidYMid meet">`;
+            // Grid lines
+            for (let g = 0; g <= 3; g++) {
+              const gy = pad + g * ((H - pad * 2) / 3);
+              svg += `<line x1="${pad}" y1="${gy}" x2="${W - pad}" y2="${gy}" stroke="var(--bd2)" stroke-width="0.5"/>`;
+            }
+            // Last week line (gray dashed)
+            svg += `<polyline points="${lwPts}" fill="none" stroke="var(--s2)" stroke-width="2" stroke-dasharray="4,3"/>`;
+            // This week line (gold solid)
+            svg += `<polyline points="${twPts}" fill="none" stroke="var(--gold)" stroke-width="2.5"/>`;
+            // Dots on this week
+            labels.forEach((_, i) => {
+              if (tw[i] > 0) {
+                const cx = pad + i * stepX;
+                const cy = H - pad - (tw[i] / maxVal) * (H - pad * 2);
+                svg += `<circle cx="${cx}" cy="${cy}" r="3" fill="var(--gold)"/>`;
+              }
+            });
+            // Day labels
             labels.forEach((l, i) => {
-              const x = i * (groupW + 8);
-              const twH = maxVal > 0 ? (tw[i] / maxVal) * H : 0;
-              const lwH = maxVal > 0 ? (lw[i] / maxVal) * H : 0;
-              // Last week bar (gray)
-              svg += `<rect x="${x}" y="${H - lwH}" width="${barW}" height="${lwH}" rx="2" fill="var(--s2)"/>`;
-              // This week bar (gold)
-              svg += `<rect x="${x + barW + gap}" y="${H - twH}" width="${barW}" height="${twH}" rx="2" fill="var(--gold)"/>`;
-              // Day label
-              svg += `<text x="${x + groupW / 2}" y="${H + 12}" text-anchor="middle" fill="var(--tm)" style="font-size:8px">${l}</text>`;
+              svg += `<text x="${pad + i * stepX}" y="${H + 12}" text-anchor="middle" fill="var(--tm)" style="font-size:8px">${l}</text>`;
             });
             svg += `</svg>`;
             chartEl.innerHTML = svg;

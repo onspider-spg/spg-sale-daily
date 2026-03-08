@@ -1,4 +1,4 @@
-// Version 2.2 | 8 MAR 2026 | Siam Palette Group
+// Version 2.3 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -165,7 +165,7 @@ const App = (() => {
     }
 
     window.scrollTo(0, 0);
-    history.replaceState({ route, params }, '', `#${route}`);
+    history.pushState({ route, params }, '', `#${route}`);
 
     // Update sidebar active state
     updateSidebarActive(route);
@@ -249,6 +249,8 @@ const App = (() => {
 
     return `
       <div class="store-selector">
+        <button class="store-pill ${!selected || selected === 'ALL' ? 'active' : ''}"
+                onclick="App.selectStore('ALL')">ทุกร้าน</button>
         ${stores.map(s => {
           const isActive = s.store_id === selected;
           if (s.branches && s.branches.length > 0) {
@@ -322,31 +324,18 @@ const App = (() => {
       let body = '';
 
       if (isAdmin) {
-        // T1-T2: Admin layout from wireframe
-        body += sidebarSection('Dashboard', [
-          sbItem('Dashboard', 'dashboard'),
-        ], true);
-
-        body += '<div class="sidebar-divider"></div>';
-
-        body += sidebarSection('History', [
-          sbItem('Sale History', 'sale-history'),
-          sbItem('Expense History', 'expense-history'),
-        ], true);
-
-        body += '<div class="sidebar-divider"></div>';
-
-        body += sidebarSection('Reports', [
+        // T1-T2: Admin layout
+        body += sidebarSection('Report', [
           sbItem('Daily Report', 'daily-report'),
+          sbItem('Follow-up', 'tasks'),
           sbItem('Report Hub', 'report-hub'),
           sbItem('Daily Detail', 'daily-detail'),
-          sbItem('Send to Account', 'acc-review'),
-          sbItem('Follow-up', 'tasks'),
         ], true);
 
         body += '<div class="sidebar-divider"></div>';
 
         body += sidebarSection('Settings', [
+          sbItem('Send to Account', 'acc-review'),
           sbItem('Channels', 'settings', { tab: 'channels' }),
           sbItem('Vendors', 'settings', { tab: 'suppliers' }),
           sbItem('Categories', 'settings', { tab: 'categories' }),
@@ -356,7 +345,7 @@ const App = (() => {
         ], false);
 
       } else {
-        // T3+ Store-level layout from wireframe
+        // T3+ Store-level layout
         body += sidebarSection('Input', [
           sbItem('Dashboard', 'dashboard'),
           sbItem('Daily Sale', 'daily-sale'),
@@ -376,20 +365,21 @@ const App = (() => {
 
         body += sidebarSection('Report', [
           sbItem('Daily Report', 'daily-report'),
+          sbItem('Follow-up', 'tasks'),
           sbItem('Report Hub', 'report-hub'),
-          sbItem('Tasks', 'tasks'),
         ], false);
       }
 
       bodyEl.innerHTML = body;
     }
 
-    // ─── Footer ───
+    // ─── Footer: Home + Logout with divider + spacing ───
     const footerEl = document.getElementById('sidebarFooter');
     if (footerEl) {
       footerEl.innerHTML = `
-        <div class="sidebar-footer-item" onclick="App.goSidebar('dashboard')">Home</div>
-        <div class="sidebar-footer-item danger" onclick="App.logout()">Log out</div>`;
+        <div class="sidebar-divider" style="margin:8px 0"></div>
+        <div class="sidebar-footer-item" style="padding:12px 14px" onclick="location.href='/spg-home/#dashboard'">🏠 Home</div>
+        <div class="sidebar-footer-item danger" style="padding:12px 14px" onclick="App.logout()">🚪 Log out</div>`;
     }
 
     _sidebarBuilt = true;
@@ -489,10 +479,14 @@ const App = (() => {
     window.location.href = homeUrl;
   }
 
-  // ─── POPSTATE ───
+  // ─── POPSTATE (browser back/forward) ───
   window.addEventListener('popstate', (e) => {
     if (e.state?.route) {
       go(e.state.route, e.state.params || {});
+    } else {
+      // Fallback: read route from hash
+      const hash = location.hash.replace('#', '') || 'dashboard';
+      if (ROUTES[hash]) go(hash);
     }
   });
 
