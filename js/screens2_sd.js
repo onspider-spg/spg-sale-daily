@@ -1,4 +1,4 @@
-// Version 2.6.1 | 8 MAR 2026 | Siam Palette Group
+// Version 2.6.2 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -256,9 +256,7 @@ const Screens2 = (() => {
         </div>
       </div>
 
-      <!-- Hidden file input for photo -->
-      <input type="file" id="s2-file-input" accept="image/*" capture="environment"
-             style="display:none" onchange="Screens2.s2HandlePhoto(event)">`;
+      <!-- Hidden file input moved into popup -->`;
   }
 
   async function loadExpense() {
@@ -385,6 +383,7 @@ const Screens2 = (() => {
 
         <div class="form-group">
           <label class="form-label">📸 ถ่ายใบเสร็จ <span class="req">*</span></label>
+          <input type="file" id="s2-file-input" accept="image/*" capture="environment" style="display:none" onchange="Screens2.s2HandlePhoto(event)">
           <div class="photo-grid" style="display:flex">
             <div class="photo-box empty" id="s2-photo-box" onclick="Screens2.s2PickPhoto()" style="min-height:70px;width:70px">
               <div class="photo-icon">📸</div>
