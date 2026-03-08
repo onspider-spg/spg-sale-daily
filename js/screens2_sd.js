@@ -1,4 +1,4 @@
-// Version 2.6.2 | 8 MAR 2026 | Siam Palette Group
+// Version 2.6.3 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -513,8 +513,6 @@ const Screens2 = (() => {
   async function s2Save() {
     const doc_number = document.getElementById('s2-doc-number')?.value?.trim();
     const vendor_name = document.getElementById('s2-vendor')?.value;
-    const main_category = null;
-    const sub_category = null;
     const description = document.getElementById('s2-desc')?.value?.trim();
     const amount_ex_gst = parseFloat(document.getElementById('s2-amount')?.value) || 0;
     const gst = parseFloat(document.getElementById('s2-gst')?.value) || 0;
@@ -534,7 +532,7 @@ const Screens2 = (() => {
 
       const result = await API.saveExpense({
         expense_date: s2.date,
-        doc_number, vendor_name, main_category, sub_category,
+        doc_number, vendor_name,
         description, amount_ex_gst, gst,
         payment_method: _s2PaymentMethod,
         photo_url: s2.photoUrl,
@@ -654,6 +652,7 @@ const Screens2 = (() => {
 
     if (params && params.edit_id) s3.editId = params.edit_id;
     const isEdit = !!s3.editId;
+    _s3CRAnswered = false;
 
     return `
       <div class="screen">
@@ -666,7 +665,7 @@ const Screens2 = (() => {
             </div>
             <div class="form-group">
               <label class="form-label">📅 Issue Date <span class="req">*</span></label>
-              <input type="date" class="form-input" id="s3-issue-date" value="${App.todayStr()}">
+              <input type="date" class="form-input" id="s3-issue-date" value="${isEdit ? '' : App.todayStr()}">
             </div>
             <div class="form-group">
               <label class="form-label">Invoice No <span class="req">*</span></label>
@@ -1018,9 +1017,11 @@ const Screens2 = (() => {
   }
 
   let _s3HasCR = false;
+  let _s3CRAnswered = false;
 
   function s3ToggleCR(hasCR) {
     _s3HasCR = hasCR;
+    _s3CRAnswered = true;
     const fields = document.getElementById('s3-cr-fields');
     const yesBtn = document.getElementById('s3-cr-yes');
     const noBtn = document.getElementById('s3-cr-no');
@@ -1114,8 +1115,6 @@ const Screens2 = (() => {
     const issue_date = document.getElementById('s3-issue-date')?.value || null;
     const invoice_no = document.getElementById('s3-invoice-no')?.value?.trim();
     const vendor_name = document.getElementById('s3-vendor')?.value;
-    const main_category = null;
-    const sub_category = null;
     const description = document.getElementById('s3-desc')?.value?.trim();
     const amount_ex_gst = parseFloat(document.getElementById('s3-amount')?.value) || 0;
     const gst = parseFloat(document.getElementById('s3-gst')?.value) || 0;
@@ -1130,6 +1129,9 @@ const Screens2 = (() => {
     if (!s3.photoUrl) return App.toast('กรุณาถ่ายรูป Invoice', 'error');
 
     if (!due_date) return App.toast('กรุณาใส่ Due Date', 'error');
+
+    // Credit Note — must answer Yes or No
+    if (!_s3CRAnswered) return App.toast('กรุณาเลือก Credit Note (Yes / No)', 'error');
 
     // Credit Note validation
     if (_s3HasCR) {
@@ -1147,7 +1149,7 @@ const Screens2 = (() => {
       if (btn) { btn.disabled = true; btn.textContent = '⏳ กำลังบันทึก...'; }
 
       const result = await API.saveInvoice({
-        issue_date, invoice_no, vendor_name, main_category, sub_category,
+        issue_date, invoice_no, vendor_name,
         description, amount_ex_gst, gst,
         payment_status: 'unpaid',
         payment_method: null,
@@ -1211,6 +1213,7 @@ const Screens2 = (() => {
     s3CalcTotal();
     s3SetStatus('unpaid');
     s3ToggleCR(false);
+    _s3CRAnswered = false; // reset after toggle (toggle sets it true)
     // Clear CR fields
     ['s3-cr-no-val', 's3-cr-desc', 's3-cr-amount', 's3-cr-gst'].forEach(id => {
       const el = document.getElementById(id);
