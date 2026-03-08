@@ -1,4 +1,4 @@
-// Version 2.6 | 8 MAR 2026 | Siam Palette Group
+// Version 2.6.1 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -447,8 +447,7 @@ const Screens = (() => {
         if (startLabel && bars.length > 0) startLabel.textContent = App.formatDateShort(bars[0].sale_date);
       }
 
-      // Update noti bell dot
-      App.refreshNotiBadge();
+      // Noti badge already refreshed by init() — skip here
 
       // Load T1 admin sections in PARALLEL (anomalies + chart + cash + store status)
       const session = API.getSession();
