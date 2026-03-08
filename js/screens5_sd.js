@@ -1,4 +1,4 @@
-// Version 2.4.3 | 8 MAR 2026 | Siam Palette Group
+// Version 2.4.4 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -562,8 +562,9 @@ const Screens5 = (() => {
 
     // S1/S2 summary with channel detail
     const sale = s.sale;
-    const saleTotal = sale ? (sale.total_sales || 0) : 0;
     const channels = s.channels || [];
+    const channelSum = channels.reduce(function(sum, c) { return sum + (c.amount || 0); }, 0);
+    const saleTotal = sale ? (sale.total_sales || channelSum) : 0;
     const expenses = s.expenses || [];
     const expTotal = expenses.reduce(function(sum, e) { return sum + (e.total_amount || 0); }, 0);
     const expCount = expenses.length;
@@ -594,6 +595,31 @@ const Screens5 = (() => {
         ${expHtml}
         ${expCount > 0 ? '<div style="display:flex;justify-content:space-between;padding:6px 0 0;border-top:1px solid var(--s2);margin-top:4px;font-weight:700"><span>รวม ' + expCount + ' รายการ</span><span style="color:var(--red)">-$' + expTotal.toLocaleString(undefined, {minimumFractionDigits:2}) + '</span></div>' : ''}
       </div>`;
+
+    // Cash on Hand
+    const cash = s.cash;
+    let cashHtml = '';
+    if (cash) {
+      const matched = cash.is_matched;
+      const icon = matched ? '✅' : '🔴';
+      const statusText = matched ? 'เงินตรง' : 'เงินไม่ตรง!';
+      const statusColor = matched ? 'var(--green)' : 'var(--red)';
+      const statusBg = matched ? 'var(--green-bg)' : 'var(--red-bg)';
+      cashHtml = `
+      <div class="section-label">💵 Cash on Hand (ดึงจาก S4 อัตโนมัติ)</div>
+      <div class="card" style="margin-bottom:16px;border-left:3px solid ${statusColor}">
+        <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span>Expected</span><span style="font-weight:600">$${(cash.expected || 0).toLocaleString(undefined, {minimumFractionDigits:2})}</span></div>
+        <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span>Actual</span><span style="font-weight:600">$${(cash.actual || 0).toLocaleString(undefined, {minimumFractionDigits:2})}</span></div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0 0;border-top:1px solid var(--s2);margin-top:4px;font-weight:700"><span>Diff</span><span style="color:${statusColor}">$${(cash.variance || 0).toLocaleString(undefined, {minimumFractionDigits:2})}</span></div>
+        <div style="margin-top:8px;padding:8px 10px;background:${statusBg};border-radius:8px;text-align:center;font-size:13px;font-weight:600;color:${statusColor}">${icon} ${statusText}</div>
+        ${!matched && cash.reason ? '<div style="font-size:11px;color:var(--td);margin-top:6px">📝 ' + App.esc(cash.reason) + '</div>' : ''}
+      </div>`;
+    } else {
+      cashHtml = `
+      <div class="section-label">💵 Cash on Hand</div>
+      <div class="card" style="margin-bottom:16px"><div style="font-size:11px;color:var(--tm)">ยังไม่ได้นับเงิน</div></div>`;
+    }
+    el.innerHTML += cashHtml;
 
     const weathers = [
       { key: 'sunny', label: '☀️ แดด' }, { key: 'cloudy', label: '🌤️ ครึ้ม' },
