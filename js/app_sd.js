@@ -1,4 +1,4 @@
-// Version 2.7.1 | 8 MAR 2026 | Siam Palette Group
+// Version 2.7.2 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -125,12 +125,13 @@ const App = (() => {
 
       // Navigate to hash route or default dashboard
       const hashRoute = location.hash.replace('#', '') || 'dashboard';
-      const targetRoute = ROUTES[hashRoute] ? hashRoute : 'dashboard';
+      const skipRoutes = ['loading', 'no-access'];
+      const targetRoute = (ROUTES[hashRoute] && !skipRoutes.includes(hashRoute)) ? hashRoute : 'dashboard';
+      hideLoader();
       go(targetRoute);
 
-      // Fetch noti + task counts (no announcement popup — L1 removed)
-      refreshNotiBadge();
-      refreshTaskBadge();
+      // Fetch noti + task counts in background (non-blocking)
+      Promise.all([refreshNotiBadge(), refreshTaskBadge()]).catch(() => {});
     } catch (err) {
       console.error('Session validation failed:', err);
       if (err.code === 'NO_ACCESS') {

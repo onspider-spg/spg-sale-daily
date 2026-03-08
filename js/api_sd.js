@@ -1,4 +1,4 @@
-// Version 2.3.1 | 8 MAR 2026 | Siam Palette Group
+// Version 2.4 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -35,11 +35,15 @@ const API = (() => {
     if (!BASE_URL) throw new Error('API URL not configured');
 
     const url = `${BASE_URL}?action=${action}`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000);
     const resp = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
+      signal: controller.signal,
     });
+    clearTimeout(timer);
 
     const json = await resp.json();
 
