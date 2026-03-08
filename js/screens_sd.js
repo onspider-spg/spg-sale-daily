@@ -1,4 +1,4 @@
-// Version 2.6.1 | 8 MAR 2026 | Siam Palette Group
+// Version 2.6.2 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -657,6 +657,7 @@ const Screens = (() => {
 
       s1.photoCardUrl = data.sale?.photo_card_url || null;
       s1.photoCashUrl = data.sale?.photo_cash_url || null;
+      s1.extraPhotos = data.sale?.extra_photos || [];
 
       renderS1Channels();
       renderS1Status(data);
@@ -759,6 +760,16 @@ const Screens = (() => {
       cardBox.classList.remove('empty');
       cardBox.classList.add('filled');
       cardBox.innerHTML = `<img src="${s1.photoCardUrl}" alt="Card" style="width:100%;height:100%;object-fit:cover;border-radius:var(--radius-xs)"><div style="position:absolute;bottom:2px;right:2px;background:var(--green);color:#fff;width:16px;height:16px;border-radius:50%;font-size:10px;display:flex;align-items:center;justify-content:center">✓</div>`;
+    }
+    // Render extra photos
+    const extraEl = document.getElementById('s1-extra-photos');
+    if (extraEl && s1.extraPhotos.length > 0) {
+      extraEl.innerHTML = s1.extraPhotos.map((url, i) =>
+        `<div style="position:relative;width:60px;height:60px">
+          <img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:var(--radius-xs)">
+          <div onclick="Screens.s1RemoveExtra(${i})" style="position:absolute;top:-6px;right:-6px;background:var(--red);color:#fff;width:18px;height:18px;border-radius:50%;font-size:11px;display:flex;align-items:center;justify-content:center;cursor:pointer">×</div>
+        </div>`
+      ).join('');
     }
   }
 

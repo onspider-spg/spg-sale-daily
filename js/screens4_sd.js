@@ -1,4 +1,4 @@
-// Version 2.7 | 8 MAR 2026 | Siam Palette Group
+// Version 2.7.1 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -848,7 +848,7 @@ const Screens4 = (() => {
     const actionColors = {
       create_vendor: 'green', update_channel: 'orange',
       update_permission: 'red', batch_update_permissions: 'purple',
-      batch_vendor_visibility: 'blue', update_store_settings: 'green',
+      update_store_settings: 'green',
     };
 
     el.innerHTML = `

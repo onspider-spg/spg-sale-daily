@@ -1,4 +1,4 @@
-// Version 2.4 | 8 MAR 2026 | Siam Palette Group
+// Version 2.4.1 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -283,7 +283,6 @@ const API = (() => {
     },
 
     // EP-25: Get Store Vendor Visibility (all vendors + toggle status)
-    getStoreVendorVisibility: (store_id) => post('sd_get_store_vendor_visibility', tokenBody({ store_id: store_id || getSelectedStore() })),
 
     // EP-05: Create Vendor
     createVendor: (vendor_name, vendor_group, vendor_type) =>
@@ -461,12 +460,8 @@ const API = (() => {
     // ─── Phase 1: Vendor Visibility ───
 
     // EP-32: Toggle Vendor Visibility
-    toggleVendorVisibility: (vendor_id, store_id, is_visible) =>
-      post('sd_toggle_vendor_visibility', tokenBody({ vendor_id, store_id, is_visible })),
 
     // EP-33: Admin Get Vendor Matrix
-    adminGetVendorMatrix: () =>
-      post('sd_admin_get_vendor_matrix', tokenBody()),
 
     // ─── Phase 3: Channel CRUD + Batch Vendor ───
 
@@ -475,8 +470,6 @@ const API = (() => {
       post('sd_admin_create_channel', tokenBody(data)),
 
     // EP-27: Batch Vendor Visibility
-    batchVendorVisibility: (store_id, changes) =>
-      post('sd_batch_vendor_visibility', tokenBody({ store_id, changes })),
 
     // EP-28: Batch Update Permissions
     adminBatchUpdatePermissions: (changes) =>

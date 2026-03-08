@@ -1,4 +1,4 @@
-// Version 2.7 | 8 MAR 2026 | Siam Palette Group
+// Version 2.7.1 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -168,19 +168,6 @@ const Screens2 = (() => {
         App.toast(`"${err.vendor_name || name}" มีในรายการแล้ว`, 'error');
         const input = document.getElementById(dropdownId);
         if (input) input.value = err.vendor_name || name;
-        document.getElementById('vendor-modal')?.remove();
-      } else if (err.code === 'DUPLICATE_HIDDEN') {
-        // Offer to enable
-        if (confirm(`"${err.vendor_name || name}" มีในระบบแต่ปิดอยู่\nต้องการเปิดการมองเห็นไหม?`)) {
-          try {
-            await API.toggleVendorVisibility(err.vendor_id, API.getSelectedStore(), true);
-            App.toast(`เปิด "${err.vendor_name}" สำเร็จ ✓`, 'success');
-            _vendors.push({ id: err.vendor_id, name: err.vendor_name });
-            _vendors.sort((a, b) => a.name.localeCompare(b.name));
-            const input = document.getElementById(dropdownId);
-            if (input) input.value = err.vendor_name;
-          } catch (e2) { App.toast(e2.message, 'error'); }
-        }
         document.getElementById('vendor-modal')?.remove();
       } else {
         App.toast('สร้าง Vendor ไม่สำเร็จ: ' + err.message, 'error');
