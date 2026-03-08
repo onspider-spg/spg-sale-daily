@@ -1,4 +1,4 @@
-// Version 2.6 | 8 MAR 2026 | Siam Palette Group
+// Version 2.7 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -260,7 +260,7 @@ const App = (() => {
     return `
       <div class="store-selector">
         <button class="store-pill ${!selected || selected === 'ALL' ? 'active' : ''}"
-                onclick="App.selectStore('ALL')">ทุกร้าน</button>
+                onclick="App.selectStore('ALL')">ทั้งหมด</button>
         ${stores.map(s => {
           const isActive = s.store_id === selected;
           if (s.branches && s.branches.length > 0) {
