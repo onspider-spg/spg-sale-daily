@@ -1,10 +1,9 @@
-// Version 2.0 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
- * screens4_sd.js — Settings & Admin
- * v2.0 — Phase 6: SPG topbar + wireframe tabs + lean L1/L2
- * Tabs: Channels | Vendors | Settings | Permissions | Audit
+ * screens4_sd.js — Sprint 4: S7 Settings & Admin
+ * v1.0
+ * Tabs: Channels | Suppliers | Settings | Permissions | Audit
  * ═══════════════════════════════════════════
  */
 
@@ -22,18 +21,24 @@ const Screens4 = (() => {
 
     return `
       <div class="screen">
-        ${Screens.renderTopbar({ back: 'dashboard', label: 'Settings' })}
+        <div class="header-bar">
+          <button class="back-btn" onclick="App.go('dashboard')">←</button>
+          <div>
+            <div class="header-title">⚙️ ตั้งค่า & จัดการ</div>
+            <div class="header-sub">S7 Admin · T1-T2 Only</div>
+          </div>
+        </div>
 
         <div class="screen-body">
           ${App.renderStoreSelector()}
 
-          <!-- Tab chips -->
-          <div class="chip-group" style="margin-bottom:var(--sp-md)">
-            <button class="filter-chip active" id="s7-tab-channels" onclick="Screens4.setTab('channels')">Channels</button>
-            <button class="filter-chip" id="s7-tab-suppliers" onclick="Screens4.setTab('suppliers')">Vendors</button>
-            <button class="filter-chip" id="s7-tab-settings" onclick="Screens4.setTab('settings')">Config</button>
-            <button class="filter-chip" id="s7-tab-permissions" onclick="Screens4.setTab('permissions')">Permissions</button>
-            <button class="filter-chip" id="s7-tab-audit" onclick="Screens4.setTab('audit')">Audit Log</button>
+          <!-- Admin Tabs -->
+          <div class="nav-tabs" style="flex-wrap:wrap">
+            <button class="nav-tab active" id="s7-tab-channels" onclick="Screens4.setTab('channels')">📡 Channels</button>
+            <button class="nav-tab" id="s7-tab-suppliers" onclick="Screens4.setTab('suppliers')">🏪 Vendor</button>
+            <button class="nav-tab" id="s7-tab-settings" onclick="Screens4.setTab('settings')">⚙️ Settings</button>
+            <button class="nav-tab" id="s7-tab-permissions" onclick="Screens4.setTab('permissions')">🔐 Permissions</button>
+            <button class="nav-tab" id="s7-tab-audit" onclick="Screens4.setTab('audit')">📋 Audit</button>
           </div>
 
           <!-- Tab Content -->
@@ -53,7 +58,7 @@ const Screens4 = (() => {
     _currentTab = tab;
     ['channels', 'suppliers', 'settings', 'permissions', 'audit'].forEach(t => {
       const btn = document.getElementById(`s7-tab-${t}`);
-      if (btn) btn.className = `filter-chip ${t === tab ? 'active' : ''}`;
+      if (btn) btn.className = `nav-tab ${t === tab ? 'active' : ''}`;
     });
     loadTabContent(tab);
   }
@@ -721,36 +726,147 @@ const Screens4 = (() => {
     const logs = data.logs || [];
 
     const actionColors = {
-      create_vendor: 'green', update_channel: 'orange',
-      update_permission: 'red', batch_update_permissions: 'purple',
-      batch_vendor_visibility: 'blue', update_store_settings: 'green',
+      update_channel: 'blue', update_permission: 'purple',
+      update_vendor: 'gold', update_store_settings: 'green',
     };
 
     el.innerHTML = `
-      <div style="font-size:var(--fs-body);color:var(--tm);margin-bottom:var(--sp-sm)">ล่าสุด ${logs.length} records</div>
+      <div class="section-label">📋 Audit Log — ล่าสุด ${logs.length} records</div>
       ${logs.length === 0 ? '<div style="text-align:center;padding:20px;color:var(--tm)">ยังไม่มีประวัติ</div>' :
-        `<div style="display:flex;flex-direction:column;gap:var(--sp-xs)">
-        ${logs.map(log => {
+        logs.map(log => {
           const color = actionColors[log.action] || 'gray';
           const time = new Date(log.created_at).toLocaleString('th-TH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
           return `
-            <div style="padding:var(--sp-sm) 12px;background:var(--bg);border:1px solid var(--bd2);border-radius:var(--radius-sm)">
-              <div style="display:flex;justify-content:space-between">
+            <div class="card-flat" style="padding:8px 12px">
+              <div style="display:flex;justify-content:space-between;align-items:center">
                 <span class="tag ${color}" style="font-size:9px">${App.esc(log.action)}</span>
-                <span style="font-size:var(--fs-xs);color:var(--tm)">${time}</span>
+                <span style="font-size:10px;color:var(--tm)">${time}</span>
               </div>
-              <div style="font-size:var(--fs-body);font-weight:600;margin-top:2px">
-                ${App.esc(log.target_type)}: ${App.esc(log.target_id)}
+              <div style="font-size:12px;margin-top:4px">
+                <strong>${App.esc(log.target_type)}</strong>: ${App.esc(log.target_id)}
               </div>
-              <div style="font-size:var(--fs-xs);color:var(--tm)">
-                by ${App.esc(log.changed_by_name || '—')}${log.store_id ? ' · ' + log.store_id : ''}
+              <div style="font-size:10px;color:var(--td);margin-top:2px">
+                by ${App.esc(log.changed_by_name || '—')} ${log.store_id ? `· ${log.store_id}` : ''}
               </div>
             </div>`;
-        }).join('')}
-        </div>`
+        }).join('')
       }`;
   }
 
+
+  // ════════════════════════════════════════
+  // VENDOR STORE (standalone screen from ☰ menu)
+  // Phase 2: T3-T4 toggle, T5+ read-only
+  // ════════════════════════════════════════
+
+  let _vendorStoreList = [];
+  let _vendorStoreCanToggle = false;
+
+  function renderVendorStore() {
+    const session = API.getSession();
+    if (!session) return Screens.renderNoAccess();
+
+    const storeName = session.store_name || session.store_id;
+
+    return `
+      <div class="screen">
+        <div class="header-bar">
+          <button class="back-btn" onclick="App.go('dashboard')">←</button>
+          <div>
+            <div class="header-title">🏪 Vendor ร้านฉัน</div>
+            <div class="header-sub">${App.esc(storeName)} — Vendor Visibility</div>
+          </div>
+        </div>
+        <div class="screen-body">
+          ${API.isHQ() ? App.renderStoreSelector() : ''}
+          <div class="form-group" style="margin:0 0 12px">
+            <input type="text" class="form-input" id="vs-search" placeholder="🔍 ค้นหา vendor..."
+                   oninput="Screens4.filterVendorStore()">
+          </div>
+          <div id="vs-list">
+            <div style="text-align:center;padding:20px;color:var(--tm)">กำลังโหลด...</div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  async function loadVendorStore() {
+    const el = document.getElementById('vs-list');
+    if (!el) return;
+    try {
+      App.showLoader();
+      const data = await API.getStoreVendorVisibility();
+      _vendorStoreList = data.vendors || [];
+      _vendorStoreCanToggle = data.can_toggle || false;
+      renderVendorStoreList(el);
+    } catch (err) {
+      el.innerHTML = `<div style="color:var(--red);padding:16px">${App.esc(err.message)}</div>`;
+    } finally {
+      App.hideLoader();
+    }
+  }
+
+  function renderVendorStoreList(el) {
+    const vendors = _vendorStoreList;
+    const canToggle = _vendorStoreCanToggle;
+
+    if (vendors.length === 0) {
+      el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--tm)">ไม่มี vendor ในระบบ</div>';
+      return;
+    }
+
+    const visible = vendors.filter(v => v.is_visible).length;
+    const hidden = vendors.length - visible;
+
+    el.innerHTML = `
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--tm);margin-bottom:8px">
+        <span>ทั้งหมด ${vendors.length} vendors</span>
+        <span>✅ แสดง ${visible} · 🚫 ซ่อน ${hidden}</span>
+      </div>
+      ${vendors.map((v, i) => `
+        <div class="card-flat vs-row" style="display:flex;align-items:center;gap:10px" data-name="${(v.vendor_name || '').toLowerCase()}" data-idx="${i}">
+          <div style="flex:1">
+            <div style="font-weight:600;font-size:13px">${App.esc(v.vendor_name)}</div>
+            <div style="font-size:10px;color:var(--td)">${App.esc(v.vendor_group || '—')} · ${App.esc(v.vendor_type || '')}</div>
+          </div>
+          ${canToggle ? `
+            <button style="padding:6px 12px;border-radius:8px;border:1px solid ${v.is_visible ? 'var(--green)' : 'var(--b1)'};background:${v.is_visible ? 'var(--green-bg)' : 'var(--s1)'};color:${v.is_visible ? 'var(--green)' : 'var(--tm)'};font-size:11px;cursor:pointer;font-family:inherit;transition:all .15s"
+                    onclick="Screens4.toggleVendorStore(${i})">
+              ${v.is_visible ? '✅ แสดง' : '🚫 ซ่อน'}
+            </button>
+          ` : `
+            <div style="font-size:11px;color:${v.is_visible ? 'var(--green)' : 'var(--tm)'}">
+              ${v.is_visible ? '✅ แสดง' : '🚫 ซ่อน'}
+            </div>
+          `}
+        </div>
+      `).join('')}
+    `;
+  }
+
+  async function toggleVendorStore(idx) {
+    const v = _vendorStoreList[idx];
+    if (!v) return;
+
+    const newVisible = !v.is_visible;
+    try {
+      await API.toggleVendorVisibility(v.vendor_id, null, newVisible);
+      v.is_visible = newVisible;
+      const el = document.getElementById('vs-list');
+      if (el) renderVendorStoreList(el);
+      App.toast(newVisible ? '✅ เปิด "' + v.vendor_name + '"' : '🚫 ซ่อน "' + v.vendor_name + '"', 'success');
+    } catch (err) {
+      App.toast(err.message, 'error');
+    }
+  }
+
+  function filterVendorStore() {
+    const q = (document.getElementById('vs-search')?.value || '').toLowerCase();
+    document.querySelectorAll('.vs-row').forEach(row => {
+      const name = row.getAttribute('data-name') || '';
+      row.style.display = name.includes(q) ? '' : 'none';
+    });
+  }
 
   // ════════════════════════════════════════
   // NOTIFICATIONS SCREEN (Phase 5)
@@ -764,11 +880,17 @@ const Screens4 = (() => {
 
     return `
       <div class="screen">
-        ${Screens.renderTopbar({ back: 'dashboard', label: 'Notifications' })}
-        <div class="screen-body">
-          <div style="display:flex;justify-content:flex-end;margin-bottom:var(--sp-sm)">
-            <button class="btn btn-sm btn-outline" onclick="Screens4.markAllRead()">อ่านทั้งหมด</button>
+        <div class="header-bar">
+          <button class="back-btn" onclick="App.go('dashboard')">←</button>
+          <div style="flex:1;min-width:0">
+            <div class="header-title">🔔 แจ้งเตือน</div>
+            <div class="header-sub">Notifications & Announcements</div>
           </div>
+          <div class="header-right">
+            <button class="btn btn-sm btn-outline" style="font-size:11px;padding:4px 10px" onclick="Screens4.markAllRead()">อ่านทั้งหมด</button>
+          </div>
+        </div>
+        <div class="screen-body">
           <div id="noti-list">
             <div style="text-align:center;padding:20px;color:var(--tm)">กำลังโหลด...</div>
           </div>
@@ -870,20 +992,154 @@ const Screens4 = (() => {
 
 
   // ════════════════════════════════════════
+  // ANNOUNCEMENTS ADMIN SCREEN (Phase 5)
+  // ════════════════════════════════════════
+
+  let _adminAnnouncements = [];
+
+  function renderAnnouncementsAdmin() {
+    const session = API.getSession();
+    if (!session) return Screens.renderNoAccess();
+
+    return `
+      <div class="screen">
+        <div class="header-bar">
+          <button class="back-btn" onclick="App.go('dashboard')">←</button>
+          <div style="flex:1;min-width:0">
+            <div class="header-title">📢 ประกาศ</div>
+            <div class="header-sub">Announcements — Admin</div>
+          </div>
+          <div class="header-right">
+            <button class="btn btn-gold" style="font-size:12px;padding:6px 14px" onclick="Screens4.showCreateAnnouncement()">+ สร้างใหม่</button>
+          </div>
+        </div>
+        <div class="screen-body">
+          <div id="announce-admin-list">
+            <div style="text-align:center;padding:20px;color:var(--tm)">กำลังโหลด...</div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  async function loadAnnouncementsAdmin() {
+    const el = document.getElementById('announce-admin-list');
+    if (!el) return;
+    try {
+      App.showLoader();
+      const data = await API.getAnnouncements(50);
+      _adminAnnouncements = data.announcements || [];
+      renderAnnouncementsList(el);
+    } catch (err) {
+      el.innerHTML = '<div style="color:var(--red);padding:16px">' + App.esc(err.message) + '</div>';
+    } finally { App.hideLoader(); }
+  }
+
+  function renderAnnouncementsList(el) {
+    if (_adminAnnouncements.length === 0) {
+      el.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--tm)"><div style="font-size:36px;margin-bottom:8px">📢</div><div>ยังไม่มีประกาศ</div></div>';
+      return;
+    }
+
+    el.innerHTML = `
+      <div style="font-size:12px;color:var(--tm);margin-bottom:8px">${_adminAnnouncements.length} ประกาศ</div>
+      ${_adminAnnouncements.map(a => `
+        <div class="card" style="margin-bottom:8px;border-left:3px solid ${a.is_active ? (a.priority === 'urgent' ? 'var(--red)' : 'var(--gold)') : 'var(--tm)'}">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div style="font-weight:600;font-size:14px">${a.priority === 'urgent' ? '🚨' : '📢'} ${App.esc(a.title)}</div>
+            <span class="tag ${a.is_active ? 'gold' : 'gray'}" style="flex-shrink:0">${a.is_active ? 'Active' : 'Inactive'}</span>
+          </div>
+          <div style="font-size:13px;color:var(--t);margin-top:4px;white-space:pre-wrap;line-height:1.5">${App.esc(a.body)}</div>
+          <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:10px;color:var(--tm)">
+            <span>🎯 ${App.esc(a.target_scope)} · ${a.expires_at ? 'หมด ' + new Date(a.expires_at).toLocaleDateString('th-TH') : 'ไม่หมดอายุ'}</span>
+            <span>${new Date(a.created_at).toLocaleString('th-TH')}</span>
+          </div>
+        </div>
+      `).join('')}
+    `;
+  }
+
+  function showCreateAnnouncement() {
+    const stores = App.getStores();
+    const overlay = document.createElement('div');
+    overlay.id = 'edit-modal';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px;';
+    overlay.innerHTML = `
+      <div style="background:var(--bg);border-radius:var(--radius);padding:24px;width:100%;max-width:440px;max-height:85vh;overflow-y:auto">
+        <div style="font-size:16px;font-weight:600;margin-bottom:16px">📢 สร้างประกาศใหม่</div>
+        <div class="form-group">
+          <label class="form-label">หัวข้อ *</label>
+          <input type="text" class="form-input" id="ann-title" placeholder="เช่น ปรับเวลาปิดร้าน">
+        </div>
+        <div class="form-group">
+          <label class="form-label">เนื้อหา *</label>
+          <textarea class="form-input" id="ann-body" rows="4" placeholder="รายละเอียดประกาศ..." style="resize:vertical"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">ส่งถึง</label>
+          <select class="form-select" id="ann-scope">
+            <option value="all">🌐 ทุกคน (All)</option>
+            ${stores.map(s => '<option value="store:' + s.store_id + '">🏪 ' + App.esc(s.label) + '</option>').join('')}
+            <option value="tier:T3">👤 T3 Senior Manager</option>
+            <option value="tier:T4">👤 T4 Manager</option>
+            <option value="tier:T5">👤 T5 Senior Staff</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">ระดับ</label>
+          <select class="form-select" id="ann-priority">
+            <option value="normal">📢 Normal</option>
+            <option value="urgent">🚨 Urgent</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:16px">
+          <button class="btn btn-gold" style="flex:1" onclick="Screens4.saveNewAnnouncement()">📢 ประกาศ</button>
+          <button class="btn btn-outline" style="flex:1" onclick="document.getElementById('edit-modal')?.remove()">ยกเลิก</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+  }
+
+  async function saveNewAnnouncement() {
+    const title = (document.getElementById('ann-title')?.value || '').trim();
+    const body = (document.getElementById('ann-body')?.value || '').trim();
+    if (!title || !body) { App.toast('กรุณากรอกหัวข้อและเนื้อหา', 'error'); return; }
+    try {
+      App.showLoader();
+      await API.createAnnouncement({
+        title: title,
+        body: body,
+        target_scope: document.getElementById('ann-scope')?.value || 'all',
+        priority: document.getElementById('ann-priority')?.value || 'normal',
+      });
+      document.getElementById('edit-modal')?.remove();
+      App.toast('สร้างประกาศสำเร็จ ✓', 'success');
+      await loadAnnouncementsAdmin();
+    } catch (err) { App.toast(err.message, 'error'); }
+    finally { App.hideLoader(); }
+  }
+
+
+  // ════════════════════════════════════════
   // EXPORTS
   // ════════════════════════════════════════
+
   return {
     renderSettings, loadSettings, setTab,
     // Channels
     toggleChannel, editChannel, saveChannelEdit,
     showAddChannel, saveNewChannel,
-    // Vendors (batch matrix)
+    // Suppliers / Vendor Visibility (batch)
     filterVendors, toggleVendor, toggleVisibility, toggleAllStores, saveVendorMatrix,
+    // Vendor Store (☰ menu — T3-T4)
+    renderVendorStore, loadVendorStore, filterVendorStore, toggleVendorStore,
     // Settings
     setSettingToggle, saveSettings,
     // Permissions (batch)
     togglePermission, toggleGroupAll, toggleGroupNone, savePermissions,
-    // Notifications
+    // Notifications (Phase 5)
     renderNotifications, loadNotifications, markAllRead, dismissAnnouncement,
+    // Announcements Admin (Phase 5)
+    renderAnnouncementsAdmin, loadAnnouncementsAdmin,
+    showCreateAnnouncement, saveNewAnnouncement,
   };
 })();
