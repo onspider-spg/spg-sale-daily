@@ -1,4 +1,4 @@
-// Version 2.6.2 | 8 MAR 2026 | Siam Palette Group
+// Version 2.6.3 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -339,7 +339,6 @@ const Screens4 = (() => {
             <thead>
               <tr style="background:var(--s1)">
                 <th style="text-align:left;padding:8px;position:sticky;left:0;background:var(--s1);min-width:140px">Vendor</th>
-                <th style="text-align:center;padding:8px;min-width:50px;color:var(--gold);font-weight:700">ALL</th>
                 ${matStores.map(s => `<th style="text-align:center;padding:8px;min-width:50px">${App.esc(s.store_id)}</th>`).join('')}
               </tr>
             </thead>
@@ -347,10 +346,6 @@ const Screens4 = (() => {
               ${matVendors.map((v, vi) => `
                 <tr class="vendor-row" data-name="${(v.vendor_name || '').toLowerCase()}" data-vi="${vi}" style="border-bottom:1px solid var(--b1)">
                   <td style="padding:8px;font-weight:500;position:sticky;left:0;background:var(--bg)">${App.esc(v.vendor_name)}</td>
-                  <td style="text-align:center;padding:6px">
-                    <button class="btn btn-sm btn-outline" style="min-width:36px;padding:4px 8px;font-size:10px"
-                            onclick="Screens4.toggleAllStores(${vi})">ALL</button>
-                  </td>
                   ${matStores.map((s, si) => {
                     const vis = v.stores[s.store_id] !== false;
                     return `<td style="text-align:center;padding:6px">
