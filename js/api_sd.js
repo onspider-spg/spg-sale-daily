@@ -1,9 +1,9 @@
-// Version 2.1 | 8 MAR 2026 | Siam Palette Group
+// Version 2.2 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
  * api_sd.js — API Client + Session Bridge
- * v2.1 — Phase 10: add category visibility + notification prefs
+ * v2.1 — Phase 11: add alert rules visibility + notification prefs
  * ═══════════════════════════════════════════
  * Reuses Home module session token (passed via URL ?token=xxx)
  * Endpoints: EP-01 to EP-26 (Sprint 1: EP-01 to EP-10, EP-26)
@@ -538,5 +538,15 @@ const API = (() => {
 
     updateNotificationPrefs: (prefs) =>
       post('sd_update_notification_prefs', tokenBody({ prefs })),
+
+    // ─── Phase 11: Alert Rules + Anomalies ───
+    getAlertRules: () =>
+      post('sd_get_alert_rules', tokenBody({})),
+
+    updateAlertRules: (updates) =>
+      post('sd_update_alert_rules', tokenBody({ updates })),
+
+    getAnomalies: (store_id) =>
+      post('sd_get_anomalies', tokenBody({ store_id: store_id || getSelectedStore() })),
   };
 })();

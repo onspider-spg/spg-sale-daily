@@ -1,9 +1,9 @@
-// Version 2.0 | 8 MAR 2026 | Siam Palette Group
+// Version 2.1 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
  * screens_sd.js — S0 Dashboard + S1 Daily Sale + Profile
- * v2.0 — Phase 2: Dashboard T1/T4 + SPG Topbar
+ * v2.0 — Phase 11: Dashboard anomaly T1/T4 + SPG Topbar
  * ═══════════════════════════════════════════
  */
 
@@ -158,13 +158,13 @@ const Screens = (() => {
             </div>
           </div>
 
-          <!-- Anomaly auto-detect placeholder (Phase 11: F7) -->
+          <!-- Anomaly auto-detect (Phase 11: F7) -->
           <div id="anomaly-area" class="card" style="margin-bottom:var(--sp-sm)">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--sp-sm)">
               <div style="font-size:var(--fs-sm);font-weight:700;color:var(--red);text-transform:uppercase">🔍 ต้องตรวจสอบ (Auto-detect)</div>
               <div style="font-size:var(--fs-xs);color:var(--tm);cursor:pointer" onclick="App.go('settings')">⚙️ ตั้งค่า Rules →</div>
             </div>
-            <div style="font-size:var(--fs-xs);color:var(--tm);text-align:center;padding:var(--sp-sm) 0">Phase 11 — Anomaly Detection</div>
+            <div id="anomaly-list" style="font-size:var(--fs-xs);color:var(--tm);text-align:center;padding:var(--sp-sm) 0">กำลังตรวจ...</div>
           </div>
 
           <!-- Store Status placeholder (Phase 12: F8) -->
@@ -489,6 +489,36 @@ const Screens = (() => {
 
       // Update noti bell dot
       App.refreshNotiBadge();
+
+      // Load anomalies (T1 only)
+      const session = API.getSession();
+      const isAdmin = (session?.tier_level || 9) <= 2 || session?.store_id === 'HQ';
+      if (isAdmin) {
+        const anomalyEl = document.getElementById('anomaly-list');
+        if (anomalyEl) {
+          try {
+            const aData = await API.getAnomalies();
+            const anomalies = aData.anomalies || [];
+            if (anomalies.length === 0) {
+              anomalyEl.innerHTML = '<div style="text-align:center;padding:var(--sp-sm);color:var(--green);font-size:var(--fs-sm)">✅ ไม่มีสิ่งผิดปกติ</div>';
+            } else {
+              anomalyEl.innerHTML = anomalies.map(a => {
+                const sevClass = a.severity === 'danger' ? 'danger' : a.severity === 'warn' ? 'warn' : 'info';
+                const sevIcon = a.severity === 'danger' ? '🔴' : a.severity === 'warn' ? '🟡' : '🔵';
+                return `<div class="anomaly-card ${sevClass}">
+                  <div style="flex:1">
+                    <div style="font-weight:700">${sevIcon} ${App.esc(a.message)}</div>
+                    <div style="font-size:var(--fs-xs);color:var(--tm);margin-top:2px">${App.esc(a.detail)} · ${App.esc(a.store_id)}</div>
+                  </div>
+                  <button class="btn btn-sm btn-outline" style="padding:2px 8px;font-size:var(--fs-xs)" onclick="App.go('daily-detail',{date:'${a.date}'})">Review</button>
+                </div>`;
+              }).join('');
+            }
+          } catch (e) {
+            anomalyEl.innerHTML = '<div style="font-size:var(--fs-xs);color:var(--tm)">โหลดไม่ได้</div>';
+          }
+        }
+      }
 
     } catch (err) {
       console.error('Dashboard load error:', err);

@@ -1,9 +1,9 @@
-// Version 2.1 | 8 MAR 2026 | Siam Palette Group
+// Version 2.2 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
  * screens4_sd.js — Settings & Admin
- * v2.1 — Phase 10: Categories tab + Notification Settings
+ * v2.2 — Phase 11: Categories tab + Notification Settings
  * Tabs: Channels | Vendors | Categories | Config | Permissions | Audit
  * ═══════════════════════════════════════════
  */
@@ -33,6 +33,7 @@ const Screens4 = (() => {
             <button class="filter-chip" id="s7-tab-suppliers" onclick="Screens4.setTab('suppliers')">Vendors</button>
             <button class="filter-chip" id="s7-tab-categories" onclick="Screens4.setTab('categories')">Categories</button>
             <button class="filter-chip" id="s7-tab-settings" onclick="Screens4.setTab('settings')">Config</button>
+            <button class="filter-chip" id="s7-tab-alerts" onclick="Screens4.setTab('alerts')">Alert Rules</button>
             <button class="filter-chip" id="s7-tab-permissions" onclick="Screens4.setTab('permissions')">Permissions</button>
             <button class="filter-chip" id="s7-tab-audit" onclick="Screens4.setTab('audit')">Audit Log</button>
           </div>
@@ -52,7 +53,7 @@ const Screens4 = (() => {
 
   function setTab(tab) {
     _currentTab = tab;
-    ['channels', 'suppliers', 'categories', 'settings', 'permissions', 'audit'].forEach(t => {
+    ['channels', 'suppliers', 'categories', 'settings', 'alerts', 'permissions', 'audit'].forEach(t => {
       const btn = document.getElementById(`s7-tab-${t}`);
       if (btn) btn.className = `filter-chip ${t === tab ? 'active' : ''}`;
     });
@@ -72,6 +73,7 @@ const Screens4 = (() => {
         case 'suppliers':   await renderSuppliersTab(el); break;
         case 'categories':  await renderCategoriesTab(el); break;
         case 'settings':    await renderSettingsTab(el); break;
+        case 'alerts':      await renderAlertRulesTab(el); break;
         case 'permissions': await renderPermissionsTab(el); break;
         case 'audit':       await renderAuditTab(el); break;
       }
@@ -658,6 +660,87 @@ const Screens4 = (() => {
 
 
   // ════════════════════════════════════════
+  // TAB: ALERT RULES (Phase 11)
+  // ════════════════════════════════════════
+
+  let _alertRules = [];
+
+  async function renderAlertRulesTab(el) {
+    try {
+      const data = await API.getAlertRules();
+      _alertRules = data.rules || [];
+
+      const ruleIcons = { cash_variance: '💰', cash_repeat: '💰', sales_drop: '📉', report_overdue: '⏳', sync_pending: '🔄' };
+
+      let html = `
+        <div style="padding:var(--sp-sm);background:var(--blue-bg);border-radius:var(--radius-sm);font-size:var(--fs-sm);color:var(--blue);margin-bottom:var(--sp-sm)">
+          💡 5 rules auto-detect anomalies · toggle ON/OFF + ปรับ threshold
+        </div>
+        <div style="display:flex;flex-direction:column;gap:var(--sp-xs)">`;
+
+      _alertRules.forEach((r, i) => {
+        const icon = ruleIcons[r.rule_key] || '⚠️';
+        const cfg = r.config_json || {};
+        const unit = cfg.unit || '';
+
+        html += `
+          <div class="card" style="padding:12px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--sp-sm)">
+              <div>
+                <div style="font-size:var(--fs-body);font-weight:700">${icon} ${App.esc(r.rule_name)}</div>
+                <div style="font-size:var(--fs-xs);color:var(--tm)">${App.esc(r.description)}</div>
+              </div>
+              <div style="width:36px;height:20px;background:${r.is_enabled ? 'var(--green)' : 'var(--s2)'};border-radius:10px;position:relative;cursor:pointer" onclick="Screens4.toggleAlertRule(${i})">
+                <div style="width:16px;height:16px;background:#fff;border-radius:50%;position:absolute;${r.is_enabled ? 'right:2px' : 'left:2px'};top:2px"></div>
+              </div>
+            </div>
+            <div style="display:flex;gap:var(--sp-sm);align-items:center">
+              <label style="font-size:var(--fs-sm);color:var(--td);font-weight:600;min-width:70px">Threshold:</label>
+              <input type="number" step="0.01" class="form-input" style="width:100px;padding:var(--sp-xs) var(--sp-sm);font-size:var(--fs-body);font-weight:700"
+                     id="alert-threshold-${i}" value="${r.threshold}" onchange="Screens4.setAlertThreshold(${i})">
+              <span style="font-size:var(--fs-sm);color:var(--tm)">${App.esc(unit)}</span>
+            </div>
+          </div>`;
+      });
+
+      html += `</div>
+        <button class="btn btn-gold" style="width:100%;margin-top:var(--sp-md)" onclick="Screens4.saveAlertRules()">💾 Save All Rules</button>`;
+
+      el.innerHTML = html;
+    } catch (err) {
+      el.innerHTML = `<div style="color:var(--red);padding:16px">${App.esc(err.message)}</div>`;
+    }
+  }
+
+  function toggleAlertRule(idx) {
+    if (!_alertRules[idx]) return;
+    _alertRules[idx].is_enabled = !_alertRules[idx].is_enabled;
+    loadTabContent('alerts');
+  }
+
+  function setAlertThreshold(idx) {
+    if (!_alertRules[idx]) return;
+    const val = parseFloat(document.getElementById('alert-threshold-' + idx)?.value) || 0;
+    _alertRules[idx].threshold = val;
+  }
+
+  async function saveAlertRules() {
+    try {
+      App.showLoader();
+      const updates = _alertRules.map(r => ({
+        rule_key: r.rule_key,
+        is_enabled: r.is_enabled,
+        threshold: r.threshold,
+        config_json: r.config_json,
+      }));
+      await API.updateAlertRules(updates);
+      App.toast('บันทึก Alert Rules สำเร็จ ✓', 'success');
+    } catch (err) { App.toast(err.message, 'error'); }
+    finally { App.hideLoader(); }
+  }
+
+
+  // ════════════════════════════════════════
   // TAB 3: STORE SETTINGS
   // ════════════════════════════════════════
 
@@ -1077,6 +1160,8 @@ const Screens4 = (() => {
     setSettingToggle, saveSettings,
     // Categories (Phase 10)
     toggleMainCategory, toggleSubCategory, saveCategoryVisibility,
+    // Alert Rules (Phase 11)
+    toggleAlertRule, setAlertThreshold, saveAlertRules,
     // Permissions (batch)
     togglePermission, toggleGroupAll, toggleGroupNone, savePermissions,
     // Notifications
