@@ -1,4 +1,4 @@
-// Version 2.3 | 8 MAR 2026 | Siam Palette Group
+// Version 2.3.1 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -267,8 +267,16 @@ const API = (() => {
       return data;
     },
 
-    // EP-04: Get Vendors
-    getVendors: (store_id) => post('sd_get_vendors', tokenBody({ store_id: store_id || getSelectedStore() })),
+    // EP-04: Get Vendors — cached 30min
+    getVendors: async (store_id) => {
+      const sid = store_id || getSelectedStore();
+      const key = 'vnd_' + sid;
+      const cached = _C.get(key);
+      if (cached) return cached;
+      const data = await post('sd_get_vendors', tokenBody({ store_id: sid }));
+      _C.set(key, data, 30);
+      return data;
+    },
 
     // EP-25: Get Store Vendor Visibility (all vendors + toggle status)
     getStoreVendorVisibility: (store_id) => post('sd_get_store_vendor_visibility', tokenBody({ store_id: store_id || getSelectedStore() })),

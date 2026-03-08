@@ -1,4 +1,4 @@
-// Version 2.3 | 8 MAR 2026 | Siam Palette Group
+// Version 2.3.1 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -455,22 +455,28 @@ const Screens = (() => {
       // Update noti bell dot
       App.refreshNotiBadge();
 
-      // Load anomalies (T1 only)
+      // Load T1 admin sections in PARALLEL (anomalies + chart + cash + store status)
       const session = API.getSession();
       const isAdmin = (session?.tier_level || 9) <= 2 || session?.store_id === 'HQ';
       if (isAdmin) {
+        const [aRes, wRes, cvRes, ssRes] = await Promise.allSettled([
+          API.getAnomalies(),
+          API.getWeeklyComparison(),
+          API.getCashVarianceHistory(7),
+          API.getStoreStatus(),
+        ]);
+
+        // ── Anomalies ──
         const anomalyEl = document.getElementById('anomaly-list');
         if (anomalyEl) {
-          try {
-            const aData = await API.getAnomalies();
-            const anomalies = aData.anomalies || [];
+          if (aRes.status === 'fulfilled') {
+            const anomalies = aRes.value.anomalies || [];
             if (anomalies.length === 0) {
               anomalyEl.innerHTML = '<div style="text-align:center;padding:var(--sp-sm);color:var(--green);font-size:var(--fs-sm)">✅ ไม่มีสิ่งผิดปกติ</div>';
             } else {
               anomalyEl.innerHTML = anomalies.map(a => {
-                const sevClass = a.severity === 'danger' ? 'danger' : a.severity === 'warn' ? 'warn' : 'info';
                 const sevIcon = a.severity === 'danger' ? '🔴' : a.severity === 'warn' ? '🟡' : '🔵';
-                return `<div class="anomaly-card ${sevClass}">
+                return `<div class="anomaly-card ${a.severity === 'danger' ? 'danger' : a.severity === 'warn' ? 'warn' : 'info'}">
                   <div style="flex:1">
                     <div style="font-weight:700">${sevIcon} ${App.esc(a.message)}</div>
                     <div style="font-size:var(--fs-xs);color:var(--tm);margin-top:2px">${App.esc(a.detail)} · ${App.esc(a.store_id)}</div>
@@ -479,101 +485,52 @@ const Screens = (() => {
                 </div>`;
               }).join('');
             }
-          } catch (e) {
-            anomalyEl.innerHTML = '<div style="font-size:var(--fs-xs);color:var(--tm)">โหลดไม่ได้</div>';
-          }
+          } else { anomalyEl.innerHTML = '<div style="font-size:var(--fs-xs);color:var(--tm)">—</div>'; }
         }
-      }
 
-      // Load charts + store status (T1-T3, Phase 12)
-      if (isAdmin) {
-        // Weekly comparison chart (SVG bar chart)
-        const chartEl = document.getElementById('chart-weekly');
-        if (chartEl) {
+        // ── Weekly chart (line) ──
+        const chartEl2 = document.getElementById('chart-weekly');
+        if (chartEl2 && wRes.status === 'fulfilled') {
           try {
-            const wData = await API.getWeeklyComparison();
-            const tw = wData.this_week || [];
-            const lw = wData.last_week || [];
-            const labels = wData.labels || [];
+            const tw = wRes.value.this_week || [];
+            const lw = wRes.value.last_week || [];
+            const labels = wRes.value.labels || [];
             const maxVal = Math.max(...tw, ...lw, 1);
-            const W = 240;
-            const H = 90;
-            const pad = 4;
+            const W = 240, H = 90, pad = 4;
             const stepX = (W - pad * 2) / Math.max(labels.length - 1, 1);
-
-            // Build polyline points
             const twPts = labels.map((_, i) => `${pad + i * stepX},${H - pad - (maxVal > 0 ? (tw[i] / maxVal) * (H - pad * 2) : 0)}`).join(' ');
             const lwPts = labels.map((_, i) => `${pad + i * stepX},${H - pad - (maxVal > 0 ? (lw[i] / maxVal) * (H - pad * 2) : 0)}`).join(' ');
-
             let svg = `<svg width="100%" height="${H + 16}" viewBox="0 0 ${W} ${H + 16}" preserveAspectRatio="xMidYMid meet">`;
-            // Grid lines
-            for (let g = 0; g <= 3; g++) {
-              const gy = pad + g * ((H - pad * 2) / 3);
-              svg += `<line x1="${pad}" y1="${gy}" x2="${W - pad}" y2="${gy}" stroke="var(--bd2)" stroke-width="0.5"/>`;
-            }
-            // Last week line (gray dashed)
+            for (let g = 0; g <= 3; g++) { const gy = pad + g * ((H - pad * 2) / 3); svg += `<line x1="${pad}" y1="${gy}" x2="${W - pad}" y2="${gy}" stroke="var(--bd2)" stroke-width="0.5"/>`; }
             svg += `<polyline points="${lwPts}" fill="none" stroke="var(--s2)" stroke-width="2" stroke-dasharray="4,3"/>`;
-            // This week line (gold solid)
             svg += `<polyline points="${twPts}" fill="none" stroke="var(--gold)" stroke-width="2.5"/>`;
-            // Dots on this week
-            labels.forEach((_, i) => {
-              if (tw[i] > 0) {
-                const cx = pad + i * stepX;
-                const cy = H - pad - (tw[i] / maxVal) * (H - pad * 2);
-                svg += `<circle cx="${cx}" cy="${cy}" r="3" fill="var(--gold)"/>`;
-              }
-            });
-            // Day labels
-            labels.forEach((l, i) => {
-              svg += `<text x="${pad + i * stepX}" y="${H + 12}" text-anchor="middle" fill="var(--tm)" style="font-size:8px">${l}</text>`;
-            });
+            labels.forEach((_, i) => { if (tw[i] > 0) { svg += `<circle cx="${pad + i * stepX}" cy="${H - pad - (tw[i] / maxVal) * (H - pad * 2)}" r="3" fill="var(--gold)"/>`; } });
+            labels.forEach((l, i) => { svg += `<text x="${pad + i * stepX}" y="${H + 12}" text-anchor="middle" fill="var(--tm)" style="font-size:8px">${l}</text>`; });
             svg += `</svg>`;
-            chartEl.innerHTML = svg;
-          } catch (e) { chartEl.innerHTML = '<div style="font-size:var(--fs-xs);color:var(--tm)">—</div>'; }
+            chartEl2.innerHTML = svg;
+          } catch (e) { chartEl2.innerHTML = '<div style="font-size:var(--fs-xs);color:var(--tm)">—</div>'; }
         }
 
-        // Cash variance chart (compact rows)
+        // ── Cash variance ──
         const cashChartEl = document.getElementById('chart-cash-var');
-        if (cashChartEl) {
-          try {
-            const cvData = await API.getCashVarianceHistory(7);
-            const items = cvData.items || [];
-            if (items.length === 0) {
-              cashChartEl.innerHTML = '<div style="text-align:center;color:var(--tm)">ไม่มีข้อมูล</div>';
-            } else {
-              cashChartEl.innerHTML = items.slice(0, 7).map(c => {
-                const color = c.is_matched ? 'var(--green)' : 'var(--red)';
-                const icon = c.is_matched ? '✅' : '🔴';
-                return `<div style="display:flex;justify-content:space-between;font-size:var(--fs-xs)"><span>${c.store_id} · ${c.date.slice(5)}</span><span style="color:${color}">${icon} ${c.variance >= 0 ? '+' : ''}$${(c.variance||0).toFixed(2)}</span></div>`;
-              }).join('');
-            }
-          } catch (e) { cashChartEl.innerHTML = '<div style="font-size:var(--fs-xs);color:var(--tm)">—</div>'; }
+        if (cashChartEl && cvRes.status === 'fulfilled') {
+          const items = cvRes.value.items || [];
+          if (items.length === 0) { cashChartEl.innerHTML = '<div style="text-align:center;color:var(--tm)">ไม่มีข้อมูล</div>'; }
+          else { cashChartEl.innerHTML = items.slice(0, 7).map(c => `<div style="display:flex;justify-content:space-between;font-size:var(--fs-xs)"><span>${c.store_id} · ${c.date.slice(5)}</span><span style="color:${c.is_matched ? 'var(--green)' : 'var(--red)'}">${c.is_matched ? '✅' : '🔴'} ${c.variance >= 0 ? '+' : ''}$${(c.variance||0).toFixed(2)}</span></div>`).join(''); }
         }
 
-        // Store status table
+        // ── Store status ──
         const storeStatusEl = document.getElementById('store-status-list');
-        if (storeStatusEl) {
-          try {
-            const ssData = await API.getStoreStatus();
-            const stores = ssData.stores || [];
-            if (stores.length === 0) {
-              storeStatusEl.innerHTML = '<div style="text-align:center;color:var(--tm)">ไม่มีข้อมูล</div>';
-            } else {
-              storeStatusEl.innerHTML = `<div style="overflow-x:auto"><table><thead><tr><th>Store</th><th>Sales</th><th>Cash</th><th>Status</th></tr></thead><tbody>` +
-                stores.map(st => {
-                  const statusMap = { locked: '🔒 Locked', synced: '✅ Synced', recorded: '📝 Recorded', not_recorded: '⚪ ยังไม่กรอก' };
-                  const statusColor = { locked: 'var(--tm)', synced: 'var(--green)', recorded: 'var(--gold)', not_recorded: 'var(--red)' };
-                  const cashIcon = st.cash_matched === true ? '✅' : st.cash_matched === false ? '🔴' : '—';
-                  return `<tr style="color:${statusColor[st.status] || 'var(--tm)'}">
-                    <td style="font-weight:600">${App.esc(st.store_name || st.store_id)}</td>
-                    <td>${st.total_sales !== null ? '$' + (st.total_sales||0).toLocaleString() : '—'}</td>
-                    <td>${cashIcon}${st.cash_variance !== null ? ' $' + (st.cash_variance||0).toFixed(2) : ''}</td>
-                    <td>${statusMap[st.status] || st.status}</td>
-                  </tr>`;
-                }).join('') +
-                `</tbody></table></div>`;
-            }
-          } catch (e) { storeStatusEl.innerHTML = '<div style="font-size:var(--fs-xs);color:var(--tm)">—</div>'; }
+        if (storeStatusEl && ssRes.status === 'fulfilled') {
+          const stores = ssRes.value.stores || [];
+          if (stores.length === 0) { storeStatusEl.innerHTML = '<div style="text-align:center;color:var(--tm)">ไม่มีข้อมูล</div>'; }
+          else {
+            const statusMap = { locked: '🔒 Locked', synced: '✅ Synced', recorded: '📝 Recorded', not_recorded: '⚪ ยังไม่กรอก' };
+            const statusColor = { locked: 'var(--tm)', synced: 'var(--green)', recorded: 'var(--gold)', not_recorded: 'var(--red)' };
+            storeStatusEl.innerHTML = `<div style="overflow-x:auto"><table><thead><tr><th>Store</th><th>Sales</th><th>Cash</th><th>Status</th></tr></thead><tbody>` +
+              stores.map(st => `<tr style="color:${statusColor[st.status] || 'var(--tm)'}"><td style="font-weight:600">${App.esc(st.store_name || st.store_id)}</td><td>${st.total_sales !== null ? '$' + (st.total_sales||0).toLocaleString() : '—'}</td><td>${st.cash_matched === true ? '✅' : st.cash_matched === false ? '🔴' : '—'}${st.cash_variance !== null ? ' $' + (st.cash_variance||0).toFixed(2) : ''}</td><td>${statusMap[st.status] || st.status}</td></tr>`).join('') +
+              `</tbody></table></div>`;
+          }
         }
       }
 
