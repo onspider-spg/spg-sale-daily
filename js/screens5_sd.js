@@ -1,4 +1,4 @@
-// Version 2.4.1 | 8 MAR 2026 | Siam Palette Group
+// Version 2.4.2 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -1173,6 +1173,19 @@ const Screens5 = (() => {
 
 
   // ════════════════════════════════════════
+  // STANDALONE REPORT DASHBOARD (nav menu access)
+  // ════════════════════════════════════════
+
+  function renderReportDashboard() {
+    return renderAdminDashboard(API.getSession());
+  }
+
+  async function loadReportDashboard() {
+    await loadAdminDashboard();
+  }
+
+
+  // ════════════════════════════════════════
   // EXPORTS
   // ════════════════════════════════════════
   return {
@@ -1189,5 +1202,7 @@ const Screens5 = (() => {
     s8AddEquipment, s8AddTask, s8CompleteTask,
     // Leftover
     addLeftoverRow, removeLeftoverRow, leftoverName, leftoverQty, leftoverLevel,
+    // Report Dashboard (standalone)
+    renderReportDashboard, loadReportDashboard,
   };
 })();
