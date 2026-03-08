@@ -1,4 +1,4 @@
-// Version 2.2 | 8 MAR 2026 | Siam Palette Group
+// Version 2.3 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -548,5 +548,15 @@ const API = (() => {
 
     getAnomalies: (store_id) =>
       post('sd_get_anomalies', tokenBody({ store_id: store_id || getSelectedStore() })),
+
+    // ─── Phase 12: Charts + Store Status ───
+    getWeeklyComparison: (store_id) =>
+      post('sd_get_weekly_comparison', tokenBody({ store_id: store_id || getSelectedStore() })),
+
+    getCashVarianceHistory: (days) =>
+      post('sd_get_cash_variance_history', tokenBody({ days: days || 7 })),
+
+    getStoreStatus: () =>
+      post('sd_get_store_status', tokenBody({})),
   };
 })();

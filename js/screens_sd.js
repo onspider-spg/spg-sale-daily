@@ -1,4 +1,4 @@
-// Version 2.1 | 8 MAR 2026 | Siam Palette Group
+// Version 2.2 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -146,15 +146,23 @@ const Screens = (() => {
             </div>
           </div>
 
-          <!-- Charts placeholder (Phase 12: F6) -->
+          <!-- Charts (Phase 12: F6) -->
           <div id="chart-area" class="dash-2col">
-            <div class="card" style="text-align:center;padding:var(--sp-lg);color:var(--tm)">
+            <div class="card" style="padding:12px">
               <div style="font-size:var(--fs-sm);font-weight:700;color:var(--tm);text-transform:uppercase;margin-bottom:var(--sp-sm)">📈 This Week vs Last Week</div>
-              <div style="font-size:var(--fs-xs);color:var(--tm)">Phase 12 — Charts</div>
+              <div id="chart-weekly" style="height:100px">
+                <div style="text-align:center;padding:30px 0;color:var(--tm);font-size:var(--fs-xs)">กำลังโหลด...</div>
+              </div>
+              <div style="display:flex;gap:12px;margin-top:var(--sp-xs);font-size:var(--fs-xs)">
+                <span><span style="color:var(--gold)">━━</span> สัปดาห์นี้</span>
+                <span><span style="color:var(--tm)">╌╌</span> สัปดาห์ก่อน</span>
+              </div>
             </div>
-            <div class="card" style="text-align:center;padding:var(--sp-lg);color:var(--tm)">
+            <div class="card" style="padding:12px">
               <div style="font-size:var(--fs-sm);font-weight:700;color:var(--tm);text-transform:uppercase;margin-bottom:var(--sp-sm)">💰 Cash Variance (7 วัน)</div>
-              <div style="font-size:var(--fs-xs);color:var(--tm)">Phase 12 — Charts</div>
+              <div id="chart-cash-var" style="font-size:var(--fs-sm);line-height:2">
+                <div style="text-align:center;padding:30px 0;color:var(--tm);font-size:var(--fs-xs)">กำลังโหลด...</div>
+              </div>
             </div>
           </div>
 
@@ -167,10 +175,10 @@ const Screens = (() => {
             <div id="anomaly-list" style="font-size:var(--fs-xs);color:var(--tm);text-align:center;padding:var(--sp-sm) 0">กำลังตรวจ...</div>
           </div>
 
-          <!-- Store Status placeholder (Phase 12: F8) -->
+          <!-- Store Status (Phase 12: F8) -->
           <div id="store-status-area" class="card" style="margin-bottom:var(--sp-sm)">
             <div style="font-size:var(--fs-sm);font-weight:700;color:var(--tm);text-transform:uppercase;margin-bottom:var(--sp-sm)">🏪 Store Status วันนี้</div>
-            <div style="font-size:var(--fs-xs);color:var(--tm);text-align:center;padding:var(--sp-sm) 0">Phase 12 — Store Status</div>
+            <div id="store-status-list" style="font-size:var(--fs-xs);color:var(--tm);text-align:center;padding:var(--sp-sm) 0">กำลังโหลด...</div>
           </div>
 
           <!-- Alerts (existing) -->
@@ -517,6 +525,85 @@ const Screens = (() => {
           } catch (e) {
             anomalyEl.innerHTML = '<div style="font-size:var(--fs-xs);color:var(--tm)">โหลดไม่ได้</div>';
           }
+        }
+      }
+
+      // Load charts + store status (T1-T3, Phase 12)
+      if (isAdmin) {
+        // Weekly comparison chart (SVG bar chart)
+        const chartEl = document.getElementById('chart-weekly');
+        if (chartEl) {
+          try {
+            const wData = await API.getWeeklyComparison();
+            const tw = wData.this_week || [];
+            const lw = wData.last_week || [];
+            const labels = wData.labels || [];
+            const maxVal = Math.max(...tw, ...lw, 1);
+            const H = 90;
+            const barW = 10;
+            const gap = 3;
+            const groupW = barW * 2 + gap;
+            const totalW = labels.length * (groupW + 8);
+
+            let svg = `<svg width="100%" height="${H + 16}" viewBox="0 0 ${totalW} ${H + 16}">`;
+            labels.forEach((l, i) => {
+              const x = i * (groupW + 8);
+              const twH = maxVal > 0 ? (tw[i] / maxVal) * H : 0;
+              const lwH = maxVal > 0 ? (lw[i] / maxVal) * H : 0;
+              // Last week bar (gray)
+              svg += `<rect x="${x}" y="${H - lwH}" width="${barW}" height="${lwH}" rx="2" fill="var(--s2)"/>`;
+              // This week bar (gold)
+              svg += `<rect x="${x + barW + gap}" y="${H - twH}" width="${barW}" height="${twH}" rx="2" fill="var(--gold)"/>`;
+              // Day label
+              svg += `<text x="${x + groupW / 2}" y="${H + 12}" text-anchor="middle" fill="var(--tm)" style="font-size:8px">${l}</text>`;
+            });
+            svg += `</svg>`;
+            chartEl.innerHTML = svg;
+          } catch (e) { chartEl.innerHTML = '<div style="font-size:var(--fs-xs);color:var(--tm)">—</div>'; }
+        }
+
+        // Cash variance chart (compact rows)
+        const cashChartEl = document.getElementById('chart-cash-var');
+        if (cashChartEl) {
+          try {
+            const cvData = await API.getCashVarianceHistory(7);
+            const items = cvData.items || [];
+            if (items.length === 0) {
+              cashChartEl.innerHTML = '<div style="text-align:center;color:var(--tm)">ไม่มีข้อมูล</div>';
+            } else {
+              cashChartEl.innerHTML = items.slice(0, 7).map(c => {
+                const color = c.is_matched ? 'var(--green)' : 'var(--red)';
+                const icon = c.is_matched ? '✅' : '🔴';
+                return `<div style="display:flex;justify-content:space-between;font-size:var(--fs-xs)"><span>${c.store_id} · ${c.date.slice(5)}</span><span style="color:${color}">${icon} ${c.variance >= 0 ? '+' : ''}$${(c.variance||0).toFixed(2)}</span></div>`;
+              }).join('');
+            }
+          } catch (e) { cashChartEl.innerHTML = '<div style="font-size:var(--fs-xs);color:var(--tm)">—</div>'; }
+        }
+
+        // Store status table
+        const storeStatusEl = document.getElementById('store-status-list');
+        if (storeStatusEl) {
+          try {
+            const ssData = await API.getStoreStatus();
+            const stores = ssData.stores || [];
+            if (stores.length === 0) {
+              storeStatusEl.innerHTML = '<div style="text-align:center;color:var(--tm)">ไม่มีข้อมูล</div>';
+            } else {
+              storeStatusEl.innerHTML = `<div style="overflow-x:auto"><table><thead><tr><th>Store</th><th>Sales</th><th>Cash</th><th>Status</th></tr></thead><tbody>` +
+                stores.map(st => {
+                  const statusMap = { locked: '🔒 Locked', synced: '✅ Synced', recorded: '📝 Recorded', not_recorded: '⚪ ยังไม่กรอก' };
+                  const statusColor = { locked: 'var(--tm)', synced: 'var(--green)', recorded: 'var(--gold)', not_recorded: 'var(--red)' };
+                  const cashIcon = st.cash_matched === true ? '✅' : st.cash_matched === false ? '🔴' : '—';
+                  return `<tr style="color:${statusColor[st.status] || 'var(--tm)'}">
+                    <td style="font-weight:600">${App.esc(st.store_name || st.store_id)}</td>
+                    <td>${st.total_sales !== null ? '$' + (st.total_sales||0).toLocaleString() : '—'}</td>
+                    <td>${cashIcon}${st.cash_variance !== null ? ' $' + (st.cash_variance||0).toFixed(2) : ''}</td>
+                    <td>${statusMap[st.status] || st.status}</td>
+                  </tr>`;
+                }).join('') +
+                `</tbody></table></div>`;
+            }
+          } catch (e) { storeStatusEl.innerHTML = '<div style="font-size:var(--fs-xs);color:var(--tm)">—</div>'; }
         }
       }
 
