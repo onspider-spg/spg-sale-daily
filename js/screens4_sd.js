@@ -1,4 +1,4 @@
-// Version 2.6.1 | 8 MAR 2026 | Siam Palette Group
+// Version 2.6.2 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -295,10 +295,10 @@ const Screens4 = (() => {
                   <div style="font-weight:600;font-size:13px">${App.esc(v.vendor_name)}</div>
                   <div style="font-size:10px;color:var(--td)">${App.esc(v.vendor_group || '—')}</div>
                 </div>
-                <label style="position:relative;display:inline-block;width:44px;height:24px;cursor:pointer">
-                  <input type="checkbox" ${v.is_visible !== false ? 'checked' : ''} onchange="Screens4.toggleStoreVendor('${v.vendor_id || v.id}', this.checked)" style="opacity:0;width:0;height:0">
-                  <span style="position:absolute;inset:0;background:${v.is_visible !== false ? 'var(--green)' : 'var(--bd)'};border-radius:12px;transition:.2s"></span>
-                  <span style="position:absolute;top:2px;left:${v.is_visible !== false ? '22px' : '2px'};width:20px;height:20px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)"></span>
+                <label class="toggle">
+                  <input type="checkbox" ${v.is_visible !== false ? 'checked' : ''} onchange="Screens4.toggleStoreVendor('${v.vendor_id || v.id}', this.checked)">
+                  <span class="toggle-track"></span>
+                  <span class="toggle-thumb"></span>
                 </label>
               </div>
             `).join('')}

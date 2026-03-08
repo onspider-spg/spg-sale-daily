@@ -1,4 +1,4 @@
-/* Version 2.1 | 8 MAR 2026 | Siam Palette Group */
+/* Version 2.2 | 8 MAR 2026 | Siam Palette Group */
 /* ═══════════════════════════════════════════
    SPG Sale Daily Module — styles_sd.css
    Warm Light Theme · IBM Plex Sans Thai
@@ -986,7 +986,15 @@ td {
 .pill:hover { border-color: var(--gold); }
 .pill.active { background: var(--gold); color: #fff; border-color: var(--gold); }
 
-/* ═══ 28. SCROLLBAR ═══ */
+/* ═══ 28. TOGGLE SWITCH ═══ */
+.toggle { position: relative; display: inline-block; width: 44px; height: 24px; cursor: pointer; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-track { position: absolute; inset: 0; background: var(--bd); border-radius: 12px; transition: .2s; }
+.toggle input:checked + .toggle-track { background: var(--green); }
+.toggle-thumb { position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; background: #fff; border-radius: 50%; transition: .2s; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+.toggle input:checked ~ .toggle-thumb { left: 22px; }
+
+/* ═══ 29. SCROLLBAR ═══ */
 ::-webkit-scrollbar { width: 3px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--bd); border-radius: 2px; }
