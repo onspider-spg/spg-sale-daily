@@ -1,4 +1,4 @@
-// Version 2.3 | 8 MAR 2026 | Siam Palette Group
+// Version 2.3.1 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -325,11 +325,25 @@ const App = (() => {
 
       if (isAdmin) {
         // T1-T2: Admin layout
+        body += sidebarSection('Dashboard', [
+          sbItem('Dashboard', 'dashboard'),
+        ], true);
+
+        body += '<div class="sidebar-divider"></div>';
+
+        body += sidebarSection('History', [
+          sbItem('Sale History', 'sale-history'),
+          sbItem('Expense History', 'expense-history'),
+        ], true);
+
+        body += '<div class="sidebar-divider"></div>';
+
         body += sidebarSection('Report', [
           sbItem('Daily Report', 'daily-report'),
-          sbItem('Follow-up', 'tasks'),
+          sbItem('Tasks', 'tasks'),
           sbItem('Report Hub', 'report-hub'),
           sbItem('Daily Detail', 'daily-detail'),
+          sbItem('Follow-up', 'tasks'),
         ], true);
 
         body += '<div class="sidebar-divider"></div>';
@@ -373,13 +387,13 @@ const App = (() => {
       bodyEl.innerHTML = body;
     }
 
-    // ─── Footer: Home + Logout with divider + spacing ───
+    // ─── Footer ───
     const footerEl = document.getElementById('sidebarFooter');
     if (footerEl) {
       footerEl.innerHTML = `
         <div class="sidebar-divider" style="margin:8px 0"></div>
-        <div class="sidebar-footer-item" style="padding:12px 14px" onclick="location.href='/spg-home/#dashboard'">🏠 Home</div>
-        <div class="sidebar-footer-item danger" style="padding:12px 14px" onclick="App.logout()">🚪 Log out</div>`;
+        <div class="sidebar-footer-item" style="padding:12px 14px" onclick="location.href='https://onspider-spg.github.io/spg-home/#dashboard'">Home</div>
+        <div class="sidebar-footer-item danger" style="padding:12px 14px" onclick="location.href='https://onspider-spg.github.io/spg-home/#logout'">Logout</div>`;
     }
 
     _sidebarBuilt = true;
