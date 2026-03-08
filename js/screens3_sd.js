@@ -1,9 +1,9 @@
-// Version 2.0 | 8 MAR 2026 | Siam Palette Group
+// Version 2.0.1 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
  * screens3_sd.js — S4 Cash + S5 Sale History + S6 Expense History
- * v2.0 — Phase 3: S4 Cash wireframe match
+ * v2.0.1 — Phase 4: S5 table + S6 filter chips
  * ═══════════════════════════════════════════
  */
 
@@ -458,29 +458,63 @@ const Screens3 = (() => {
 
     // Bar chart
     if (chartEl && days.length > 0) {
-      const maxVal = Math.max(...days.map(d => d.total), 1);
+      const maxVal = Math.max(...days.map(d => d.total || 0), 1);
       chartEl.innerHTML = days.map(d => {
-        const pct = Math.max((d.total / maxVal) * 100, 3);
+        const pct = Math.max(((d.total || 0) / maxVal) * 100, 3);
         const isToday = d.date === App.todayStr();
         return `<div class="mini-bar ${isToday ? 'today' : ''}" style="height:${pct}%"
                      title="${App.formatDateShort(d.date)}: ${App.formatMoney(d.total)}"></div>`;
       }).join('');
     }
 
-    // Daily table — clickable
-    tableEl.innerHTML = days.map(d => {
-      const isLocked = d.locked || d.synced;
-      const lockIcon = d.locked ? '🔒' : (d.synced ? '✅' : '');
-      const cursor = isLocked ? 'default' : 'pointer';
-      const click = isLocked ? '' : `onclick="Screens3.s5GoEdit('${d.date}')"`;
+    // Daily table — wireframe style
+    if (days.length === 0) {
+      tableEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--tm)">ไม่มีข้อมูลในช่วงนี้</div>';
+      return;
+    }
 
-      return `
-        <div class="card-flat" style="display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:${cursor}" ${click}>
-          <div style="font-size:12px;color:var(--td);width:60px">${App.formatDateShort(d.date)}</div>
-          <div style="flex:1;font-weight:600;font-size:14px">${App.formatMoney(d.total)}</div>
-          ${lockIcon ? `<span style="font-size:12px">${lockIcon}</span>` : '<span style="font-size:14px;color:var(--tm)">✏️</span>'}
-        </div>`;
-    }).join('') || '<div style="text-align:center;padding:20px;color:var(--tm)">ไม่มีข้อมูลในช่วงนี้</div>';
+    tableEl.innerHTML = `
+      <div style="overflow-x:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th class="hide-m">Cash</th>
+              <th class="hide-m">Card</th>
+              <th class="hide-m">Delivery</th>
+              <th>Total</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${days.map(d => {
+              const isLocked = d.locked;
+              const isSynced = d.synced;
+              const rowStyle = isLocked ? 'opacity:.6' : '';
+              const statusHtml = isLocked
+                ? '<span class="status-badge sts-locked">🔒 Locked</span>'
+                : isSynced
+                  ? '<span class="status-badge sts-synced">✅ Synced</span>'
+                  : '<span class="status-badge sts-pending">Pending</span>';
+              const editHtml = isLocked
+                ? '<span style="font-size:var(--fs-xs);color:var(--tm)">locked</span>'
+                : `<button class="btn btn-sm btn-outline" style="padding:2px 8px;font-size:var(--fs-xs)" onclick="Screens3.s5GoEdit('${d.date}')">✏️ Edit</button>`;
+
+              return `
+                <tr style="${rowStyle}">
+                  <td style="font-weight:600">${App.formatDateShort(d.date)}</td>
+                  <td class="hide-m">${App.formatMoney(d.cash_total || 0)}</td>
+                  <td class="hide-m">${App.formatMoney(d.card_total || 0)}</td>
+                  <td class="hide-m">${App.formatMoney(d.delivery_total || 0)}</td>
+                  <td style="font-weight:700;color:var(--gold)">${App.formatMoney(d.total)}</td>
+                  <td>${statusHtml}</td>
+                  <td>${editHtml}</td>
+                </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>`;
   }
 
   function s5DateRange() {
@@ -568,11 +602,13 @@ const Screens3 = (() => {
             </div>
           </div>
 
-          <!-- View Tabs -->
-          <div class="nav-tabs">
-            <button class="nav-tab" id="s6-tab-category" onclick="Screens3.s6SetView('category')">ตาม Category</button>
-            <button class="nav-tab" id="s6-tab-vendor" onclick="Screens3.s6SetView('vendor')">ตาม Vendor</button>
-            <button class="nav-tab active" id="s6-tab-list" onclick="Screens3.s6SetView('list')">รายการ</button>
+          <!-- Filter Chips -->
+          <div class="chip-group">
+            <button class="filter-chip active" id="s6-chip-all" onclick="Screens3.s6SetFilter('all')">All</button>
+            <button class="filter-chip" id="s6-chip-COGS" onclick="Screens3.s6SetFilter('COGS')">COGS</button>
+            <button class="filter-chip" id="s6-chip-OpEx" onclick="Screens3.s6SetFilter('OpEx')">OpEx</button>
+            <button class="filter-chip" id="s6-chip-cash" onclick="Screens3.s6SetFilter('cash')">Cash</button>
+            <button class="filter-chip" id="s6-chip-card" onclick="Screens3.s6SetFilter('card')">Transfer</button>
           </div>
 
           <!-- Content -->
@@ -609,15 +645,6 @@ const Screens3 = (() => {
     s6RenderView();
   }
 
-  function s6SetView(view) {
-    s6.view = view;
-    ['category', 'vendor', 'list'].forEach(v => {
-      const btn = document.getElementById(`s6-tab-${v}`);
-      if (btn) btn.className = `nav-tab ${v === view ? 'active' : ''}`;
-    });
-    s6RenderView();
-  }
-
   function s6FilterByRange(items, dateField) {
     return items.filter(item => {
       const d = item[dateField];
@@ -628,75 +655,89 @@ const Screens3 = (() => {
     });
   }
 
+  let _s6Filter = 'all';
+
+  function s6SetFilter(filter) {
+    _s6Filter = filter;
+    ['all', 'COGS', 'OpEx', 'cash', 'card'].forEach(f => {
+      const btn = document.getElementById(`s6-chip-${f}`);
+      if (btn) btn.className = `filter-chip ${f === filter ? 'active' : ''}`;
+    });
+    s6RenderView();
+  }
+
   function s6RenderView() {
     const el = document.getElementById('s6-content');
     if (!el || !_s6Data) return;
 
-    if (s6.view === 'category') {
-      const cats = _s6Data.by_category || [];
-      el.innerHTML = cats.map(c => `
-        <div class="card-flat" style="display:flex;align-items:center;gap:10px">
-          <div style="flex:1">
-            <div style="font-weight:600;font-size:13px">${App.esc(c.name)}</div>
-            <div style="font-size:11px;color:var(--td)">${c.count} รายการ</div>
-          </div>
-          <div style="font-weight:700;color:var(--red)">${App.formatMoney(c.total)}</div>
-        </div>`).join('') || '<div class="empty-state"><div class="empty-text">ไม่มีข้อมูล</div></div>';
+    // Merge expenses + invoices, filter by date range
+    const expenses = s6FilterByRange(_s6Data.expenses || [], 'expense_date');
+    const invoices = s6FilterByRange(_s6Data.invoices || [], 'invoice_date');
 
-    } else if (s6.view === 'vendor') {
-      const vendors = _s6Data.by_vendor || [];
-      el.innerHTML = vendors.map((v, i) => `
-        <div class="card-flat" style="display:flex;align-items:center;gap:10px">
-          <div style="font-size:12px;font-weight:700;color:var(--tm);width:24px">#${i + 1}</div>
-          <div style="flex:1">
-            <div style="font-weight:600;font-size:13px">${App.esc(v.name)}</div>
-            <div style="font-size:11px;color:var(--td)">${v.count} รายการ</div>
-          </div>
-          <div style="font-weight:700;color:var(--red)">${App.formatMoney(v.total)}</div>
-        </div>`).join('') || '<div class="empty-state"><div class="empty-text">ไม่มีข้อมูล</div></div>';
+    let all = [
+      ...expenses.map(e => ({ ...e, type: 'expense', date: e.expense_date })),
+      ...invoices.map(i => ({ ...i, type: 'invoice', date: i.invoice_date })),
+    ].sort((a, b) => b.date.localeCompare(a.date));
 
-    } else {
-      // List view — filtered by date range + clickable
-      const expenses = s6FilterByRange(_s6Data.expenses || [], 'expense_date');
-      const invoices = s6FilterByRange(_s6Data.invoices || [], 'invoice_date');
-
-      const all = [
-        ...expenses.map(e => ({ ...e, type: 'expense', date: e.expense_date })),
-        ...invoices.map(i => ({ ...i, type: 'invoice', date: i.invoice_date })),
-      ].sort((a, b) => b.date.localeCompare(a.date));
-
-      el.innerHTML = all.map(item => {
-        const typeTag = item.type === 'invoice'
-          ? `<span class="tag blue" style="font-size:9px">Invoice</span>`
-          : `<span class="tag gray" style="font-size:9px">Expense</span>`;
-        const statusTag = item.type === 'invoice' && item.payment_status === 'unpaid'
-          ? ` <span class="tag red" style="font-size:9px">Unpaid</span>` : '';
-        const syncTag = item.fin_synced
-          ? ' <span style="font-size:10px">🔒</span>' : '';
-
-        const canEdit = !item.fin_synced;
-        const click = canEdit
-          ? (item.type === 'expense'
-            ? `onclick="Screens3.s6GoEditExpense('${item.date}')"`
-            : `onclick="Screens3.s6GoEditInvoice('${item.id}')"`)
-          : '';
-        const cursor = canEdit ? 'cursor:pointer' : '';
-
-        return `
-          <div class="card-flat" style="display:flex;align-items:center;gap:8px;${cursor}" ${click}>
-            <div style="font-size:11px;color:var(--td);width:48px">${App.formatDateShort(item.date)}</div>
-            <div style="flex:1;min-width:0">
-              <div style="font-weight:600;font-size:12px">${App.esc(item.doc_number || item.invoice_no || '—')}</div>
-              <div style="font-size:11px;color:var(--td)">${App.esc(item.vendor_name)} · ${App.esc(item.main_category)}</div>
-            </div>
-            <div style="text-align:right">
-              <div style="font-weight:700;font-size:13px">${App.formatMoney(item.total_amount)}</div>
-              <div>${typeTag}${statusTag}${syncTag}</div>
-            </div>
-            ${canEdit ? '<span style="font-size:12px;color:var(--tm)">✏️</span>' : ''}
-          </div>`;
-      }).join('') || '<div class="empty-state"><div class="empty-text">ไม่มีข้อมูลในช่วงนี้</div></div>';
+    // Apply filter
+    if (_s6Filter === 'COGS' || _s6Filter === 'OpEx') {
+      all = all.filter(i => i.main_category === _s6Filter);
+    } else if (_s6Filter === 'cash') {
+      all = all.filter(i => i.payment_method === 'cash');
+    } else if (_s6Filter === 'card') {
+      all = all.filter(i => i.payment_method === 'card' || i.payment_method === 'transfer');
     }
+
+    if (all.length === 0) {
+      el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--tm)">ไม่มีข้อมูลในช่วงนี้</div>';
+      return;
+    }
+
+    el.innerHTML = `
+      <div style="overflow-x:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Item</th>
+              <th class="hide-m">Category</th>
+              <th class="hide-m">Vendor</th>
+              <th>Amount</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${all.map(item => {
+              const isLocked = item.fin_synced || item.is_locked;
+              const rowStyle = isLocked ? 'opacity:.6' : '';
+              const statusHtml = isLocked
+                ? '<span class="status-badge sts-locked">🔒 Locked</span>'
+                : '<span class="status-badge sts-pending">Pending</span>';
+              const canEdit = !isLocked;
+              const editClick = canEdit
+                ? (item.type === 'expense'
+                  ? `onclick="Screens3.s6GoEditExpense('${item.date}')"`
+                  : `onclick="Screens3.s6GoEditInvoice('${item.id}')"`)
+                : '';
+              const editHtml = canEdit
+                ? `<button class="btn btn-sm btn-outline" style="padding:2px 8px;font-size:var(--fs-xs)" ${editClick}>✏️ Edit</button>`
+                : '<span style="font-size:var(--fs-xs);color:var(--tm)">locked</span>';
+
+              return `
+                <tr style="${rowStyle}">
+                  <td>${App.formatDateShort(item.date)}</td>
+                  <td style="font-weight:600">${App.esc(item.description || item.doc_number || item.invoice_no || '—')}</td>
+                  <td class="hide-m">${App.esc(item.main_category || '—')}</td>
+                  <td class="hide-m">${App.esc(item.vendor_name || '—')}</td>
+                  <td style="color:var(--red);font-weight:700">-${App.formatMoney(item.total_amount)}</td>
+                  <td>${statusHtml}</td>
+                  <td>${editHtml}</td>
+                </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>`;
   }
 
   function s6GoEditExpense(date) {
@@ -751,7 +792,7 @@ const Screens3 = (() => {
 
     // S6 Expense History
     renderExpenseHistory, loadExpenseHistory,
-    s6SetView, s6ChangeMonth, s6DateRange,
+    s6SetFilter, s6ChangeMonth, s6DateRange,
     s6GoEditExpense, s6GoEditInvoice,
   };
 })();

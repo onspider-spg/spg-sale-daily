@@ -1,9 +1,9 @@
-// Version 2.0 | 8 MAR 2026 | Siam Palette Group
+// Version 2.0.1 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
  * screens2_sd.js — S2 Expense (popup) + S3 Invoice
- * v2.0 — Phase 3: S2 Expense inline→popup
+ * v2.0.1 — Phase 4: S3 Invoice wireframe cards
  * ═══════════════════════════════════════════
  */
 
@@ -611,11 +611,16 @@ const Screens2 = (() => {
             <input type="date" class="form-input" style="flex:1;padding:8px 10px;font-size:13px" id="s3-date-to" onchange="Screens2.s3ReloadList()">
           </div>
 
-          <!-- Tabs -->
-          <div class="nav-tabs">
-            <button class="nav-tab active" id="s3-tab-all" onclick="Screens2.s3FilterTab('all')">ทั้งหมด</button>
-            <button class="nav-tab" id="s3-tab-unpaid" onclick="Screens2.s3FilterTab('unpaid')">🔴 Unpaid</button>
-            <button class="nav-tab" id="s3-tab-paid" onclick="Screens2.s3FilterTab('paid')">✅ Paid</button>
+          <!-- Filter Chips -->
+          <div class="chip-group">
+            <button class="filter-chip active" id="s3-tab-all" onclick="Screens2.s3FilterTab('all')">All</button>
+            <button class="filter-chip" id="s3-tab-unpaid" onclick="Screens2.s3FilterTab('unpaid')">Unpaid</button>
+            <button class="filter-chip" id="s3-tab-paid" onclick="Screens2.s3FilterTab('paid')">Paid</button>
+          </div>
+
+          <!-- Add button -->
+          <div style="margin-bottom:var(--sp-sm)">
+            <button class="btn btn-gold" style="width:100%;padding:10px" onclick="Screens2.s3GoAdd()">+ New Invoice →</button>
           </div>
 
           <!-- Summary -->
@@ -624,11 +629,6 @@ const Screens2 = (() => {
           <!-- Invoice List -->
           <div id="s3-list">
             <div style="text-align:center;padding:20px;color:var(--tm)">กำลังโหลด...</div>
-          </div>
-
-          <!-- Add button -->
-          <div style="padding:16px 0">
-            <button class="btn btn-gold" style="width:100%" onclick="Screens2.s3GoAdd()">+ เพิ่ม Invoice</button>
           </div>
         </div>
       </div>`;
@@ -812,7 +812,7 @@ const Screens2 = (() => {
     _s3CurrentTab = tab;
     ['all', 'unpaid', 'paid'].forEach(t => {
       const btn = document.getElementById(`s3-tab-${t}`);
-      if (btn) btn.className = `nav-tab ${t === tab ? 'active' : ''}`;
+      if (btn) btn.className = `filter-chip ${t === tab ? 'active' : ''}`;
     });
     renderS3List(tab);
   }
@@ -873,33 +873,41 @@ const Screens2 = (() => {
     if (filter === 'unpaid') list = list.filter(i => i.payment_status === 'unpaid');
 
     if (list.length === 0) {
-      el.innerHTML = '<div class="card-flat" style="text-align:center;color:var(--tm)">ไม่มี Invoice</div>';
+      el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--tm)">ไม่มี Invoice</div>';
       return;
     }
 
     el.innerHTML = list.map(inv => {
       const isPaid = inv.payment_status === 'paid';
       const isSynced = inv.fin_synced;
-      const statusTag = isPaid
-        ? '<span class="tag green">✅ Paid</span>'
-        : `<span class="tag red">🔴 Unpaid</span>`;
+      const isLocked = isPaid || isSynced;
+      const borderColor = isPaid ? 'var(--green)' : 'var(--red)';
+      const rowOpacity = isLocked ? 'opacity:.6' : '';
+
+      const statusHtml = isPaid
+        ? '<span class="status-badge sts-synced">Paid ✅</span>'
+        : '<span class="status-badge sts-pending">Unpaid</span>';
+
+      const amountColor = isPaid ? 'var(--green)' : 'var(--red)';
       const dueText = !isPaid && inv.due_date ? `Due: ${App.formatDateShort(inv.due_date)}` : '';
-      const canEdit = !isSynced;
-      const click = canEdit ? `onclick="Screens2.s3GoEdit('${inv.id}')"` : '';
-      const cursor = canEdit ? 'cursor:pointer' : '';
+
+      const editHtml = isLocked
+        ? `<div style="font-size:var(--fs-xs);color:var(--tm);margin-top:var(--sp-xs)">🔒 ${isPaid ? 'Paid' : 'Synced'} — locked</div>`
+        : `<div style="display:flex;gap:var(--sp-xs);margin-top:var(--sp-sm)"><button class="btn btn-sm btn-outline" style="padding:3px 10px;font-size:var(--fs-xs)" onclick="Screens2.s3GoEdit('${inv.id}')">✏️ Edit</button></div>`;
 
       return `
-        <div class="card-flat" style="display:flex;align-items:center;gap:10px;${cursor}" ${click}>
-          <div style="flex:1;min-width:0">
-            <div style="font-weight:600;font-size:13px">${App.esc(inv.invoice_no)} · ${App.esc(inv.vendor_name)}</div>
-            <div style="font-size:11px;color:var(--td)">${App.esc(inv.main_category)} > ${App.esc(inv.sub_category)}${inv.issue_date ? ` · ${App.formatDateShort(inv.issue_date)}` : ''}</div>
-            <div style="font-size:10px;margin-top:2px">${statusTag} ${dueText ? `<span style="color:var(--tm);margin-left:4px">${dueText}</span>` : ''} ${isSynced ? '<span style="font-size:10px">🔒</span>' : ''}</div>
+        <div style="padding:12px;background:var(--bg);border:1px solid var(--bd2);border-left:4px solid ${borderColor};border-radius:0 var(--radius-sm) var(--radius-sm) 0;margin-bottom:var(--sp-xs);${rowOpacity}">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div>
+              <div style="font-size:var(--fs-body);font-weight:700">${App.esc(inv.invoice_no)} — ${App.esc(inv.vendor_name)}</div>
+              <div style="font-size:var(--fs-xs);color:var(--tm);margin-top:2px">${App.formatDateShort(inv.issue_date || '')} · ${App.esc(inv.main_category)} > ${App.esc(inv.sub_category)}${dueText ? ` · ${dueText}` : ''}</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:var(--fs-body);font-weight:800;color:${amountColor}">${App.formatMoney(inv.total_amount)}</div>
+              ${statusHtml}
+            </div>
           </div>
-          <div style="text-align:right">
-            <div style="font-weight:700;font-size:14px">${App.formatMoney(inv.total_amount)}</div>
-            ${!isPaid && !isSynced ? `<button class="btn btn-sm btn-gold" style="margin-top:4px;font-size:10px;padding:3px 8px" onclick="event.stopPropagation();Screens2.s3MarkPaid('${inv.id}')">จ่ายแล้ว</button>` : ''}
-          </div>
-          ${canEdit ? '<span style="font-size:12px;color:var(--tm)">✏️</span>' : ''}
+          ${editHtml}
         </div>`;
     }).join('');
   }
