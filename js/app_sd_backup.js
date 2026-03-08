@@ -1,21 +1,29 @@
+// Version 2.0 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
  * app_sd.js — Router + Screen Manager + Utilities
- * v1.0 — Sprint 1
+ * v2.0 — Phase 1 UI Overhaul
  * ═══════════════════════════════════════════
  *
  * Route Map:
  *   loading          → Init / Session validation
  *   no-access        → No permission screen
  *   dashboard        → S0 Home Dashboard
- *   daily-sale       → S1 Daily Sale Input ★
- *   expense          → S2 Expense (Sprint 2)
- *   invoice          → S3 Invoice (Sprint 2)
- *   cash             → S4 Cash On Hand (Sprint 3)
- *   sale-history     → S5 Sale History (Sprint 3)
- *   expense-history  → S6 Expense History (Sprint 3)
- *   settings         → S7 Settings & Admin (Sprint 4)
+ *   daily-sale       → S1 Daily Sale Input
+ *   expense          → S2 Expense
+ *   invoice          → S3 Invoice List
+ *   invoice-form     → S3 Invoice Form
+ *   cash             → S4 Cash On Hand
+ *   sale-history     → S5 Sale History
+ *   expense-history  → S6 Expense History
+ *   settings         → S7 Settings & Admin
+ *   profile          → Profile
+ *   notifications    → Notifications
+ *   tasks            → Tasks / Follow-up
+ *   daily-report     → S8 Daily Report
+ *   report-hub       → Report Hub
+ *   acc-review       → Send to Account (ACC Review)
  * ═══════════════════════════════════════════
  */
 
@@ -50,16 +58,13 @@ const App = (() => {
     'expense-history':  { render: () => Screens3.renderExpenseHistory(),  onLoad: () => Screens3.loadExpenseHistory() },
     // Sprint 4
     'settings':         { render: () => Screens4.renderSettings(),   onLoad: () => Screens4.loadSettings() },
-    // Phase 1: ☰ Menu screens
+    // Menu screens
     'profile':          { render: () => Screens.renderProfile(),     onLoad: null },
-    'vendor-store':     { render: () => Screens4.renderVendorStore(), onLoad: () => Screens4.loadVendorStore() },
-    // Phase 5: Notifications & Announcements
     'notifications':    { render: () => Screens4.renderNotifications(), onLoad: () => Screens4.loadNotifications() },
-    'announcements':    { render: () => Screens4.renderAnnouncementsAdmin(), onLoad: () => Screens4.loadAnnouncementsAdmin() },
-    // v1.5: Tasks + Daily Report
+    // Tasks + Daily Report
     'tasks':            { render: () => Screens5.renderTasks(),       onLoad: () => Screens5.loadTasks() },
     'daily-report':     { render: () => Screens5.renderDailyReport(), onLoad: () => Screens5.loadDailyReport() },
-    // v1.5.2: Hub screens
+    // Hub screens
     'report-hub':       { render: () => Screens6.renderReportHub(),   onLoad: () => Screens6.loadReportHub() },
     'acc-review':       { render: () => Screens6.renderAccReview(),   onLoad: () => Screens6.loadAccReview() },
   };
@@ -94,7 +99,6 @@ const App = (() => {
           }
         });
       } else if (data.branches && data.branches.length > 0) {
-        // For non-admin: attach own branches
         const own = stores.find(st => st.store_id === data.store_id);
         if (own) own.branches = data.branches;
       }
@@ -103,17 +107,13 @@ const App = (() => {
       if (!API.isHQ()) {
         API.setSelectedStore(data.store_id);
       } else {
-        // HQ defaults to first store
         API.setSelectedStore(stores[0].store_id);
       }
 
       go('dashboard');
-      initSidebar(); // ★ v1.4: inject sidebar after session ready
 
-      // ★ v1.5: fetch noti count + task count + show announcement popup
-      refreshNotiBadge().then(function(notiData) {
-        showAnnouncementPopup(notiData);
-      });
+      // Fetch noti + task counts (no announcement popup — L1 removed)
+      refreshNotiBadge();
       refreshTaskBadge();
     } catch (err) {
       console.error('Session validation failed:', err);
@@ -148,16 +148,12 @@ const App = (() => {
     const container = appEl();
     try {
       const html = def.render(params);
-      // ★ v1.3: set currentRoute AFTER render succeeds (prevent cascade crash)
       currentRoute = route;
       currentParams = params;
       container.innerHTML = html;
     } catch (err) {
       console.error(`[go] render failed for "${route}":`, err);
-      // ถ้า render พัง → กลับ dashboard (ไม่ให้ route ติดค้าง)
-      if (route !== 'dashboard') {
-        return go('dashboard');
-      }
+      if (route !== 'dashboard') return go('dashboard');
       return;
     }
 
@@ -167,6 +163,9 @@ const App = (() => {
 
     window.scrollTo(0, 0);
     history.replaceState({ route, params }, '', `#${route}`);
+
+    // Update sidebar active state
+    updateSidebarActive(route);
   }
 
   // ─── TOAST ───
@@ -186,13 +185,15 @@ const App = (() => {
     const el = document.getElementById('loader');
     if (el) el.classList.remove('hidden');
   }
-
   function hideLoader() {
     const el = document.getElementById('loader');
     if (el) el.classList.add('hidden');
   }
 
-  // ─── UTILITIES ───
+  // ═══════════════════════════════════════════
+  // UTILITIES
+  // ═══════════════════════════════════════════
+
   function esc(str) {
     if (!str) return '';
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
@@ -234,7 +235,10 @@ const App = (() => {
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
 
-  // ─── STORE SELECTOR HTML ───
+  // ═══════════════════════════════════════════
+  // STORE SELECTOR
+  // ═══════════════════════════════════════════
+
   function renderStoreSelector() {
     if (!API.isHQ()) return '';
     const selected = API.getSelectedStore();
@@ -244,19 +248,18 @@ const App = (() => {
       <div class="store-selector">
         ${stores.map(s => {
           const isActive = s.store_id === selected;
-          // If store has branches, show a dropdown pill
           if (s.branches && s.branches.length > 0) {
             return `
-              <div class="store-pill-wrap" style="position:relative;display:inline-block">
+              <div style="position:relative;display:inline-block">
                 <button class="store-pill ${isActive ? 'active' : ''}"
                         onclick="App.selectStore('${s.store_id}')">${s.short} ▾</button>
                 ${isActive ? `
-                  <div class="branch-dropdown" style="position:absolute;top:100%;left:0;z-index:50;background:var(--bg);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.1);margin-top:4px;min-width:140px;overflow:hidden">
-                    <button class="branch-opt ${!selectedBranch ? 'active' : ''}" style="display:block;width:100%;text-align:left;padding:8px 12px;border:0;background:${!selectedBranch ? 'var(--gold-bg)' : 'transparent'};font-size:12px;cursor:pointer"
+                  <div class="branch-dropdown" style="position:absolute;top:100%;left:0;z-index:50;background:var(--bg);border:1px solid var(--bd);border-radius:8px;box-shadow:var(--shadow-md);margin-top:4px;min-width:140px;overflow:hidden">
+                    <button class="branch-item ${!selectedBranch ? 'active' : ''}" style="display:block;width:100%;text-align:left;padding:8px 12px;border:0;background:${!selectedBranch ? 'var(--gold-bg)' : 'transparent'};cursor:pointer"
                             onclick="App.selectBranch(null)">📊 ${s.short} (รวม)</button>
                     ${s.branches.map(b => `
-                      <button class="branch-opt ${selectedBranch === b.branch_id ? 'active' : ''}" style="display:block;width:100%;text-align:left;padding:8px 12px;border:0;background:${selectedBranch === b.branch_id ? 'var(--gold-bg)' : 'transparent'};font-size:12px;cursor:pointer"
-                              onclick="App.selectBranch('${b.branch_id}')">${App.esc(b.branch_name)}</button>
+                      <button class="branch-item ${selectedBranch === b.branch_id ? 'active' : ''}" style="display:block;width:100%;text-align:left;padding:8px 12px;border:0;background:${selectedBranch === b.branch_id ? 'var(--gold-bg)' : 'transparent'};cursor:pointer"
+                              onclick="App.selectBranch('${b.branch_id}')">${esc(b.branch_name)}</button>
                     `).join('')}
                   </div>
                 ` : ''}
@@ -281,128 +284,182 @@ const App = (() => {
     go(currentRoute, currentParams);
   }
 
-  // ─── SIDEBAR / ☰ MENU ───
+  // ═══════════════════════════════════════════
+  // SIDEBAR — Slide-out left (Home module pattern)
+  // HTML shell lives in index.html — we populate it here
+  // ═══════════════════════════════════════════
+
+  let _sidebarBuilt = false;
+
   function initSidebar() {
-    // Inject sidebar HTML into body (outside #app)
-    if (document.getElementById('sidebar-overlay')) return; // already injected
     const s = API.getSession();
     if (!s) return;
 
     const initial = (s.display_name || '?').charAt(0).toUpperCase();
-    const isManager = s.tier_level <= 4;
-    const isAdmin = s.tier_level <= 2 || s.store_id === 'HQ';
+    const tierLevel = s.tier_level || parseInt((s.tier_id || 'T9').replace('T', ''));
+    const isAdmin = tierLevel <= 2 || s.store_id === 'HQ';
+    const isManager = tierLevel <= 3;
 
-    const html = `
-      <div id="sidebar-overlay" class="sidebar-overlay" onclick="App.closeSidebar()"></div>
-      <div id="sidebar" class="sidebar">
+    // ─── Header: profile ───
+    const headerEl = document.getElementById('sidebarHeader');
+    if (headerEl) {
+      headerEl.innerHTML = `
         <div class="sidebar-profile">
           <div class="sidebar-avatar">${esc(initial)}</div>
           <div>
             <div class="sidebar-name">${esc(s.display_name)}</div>
-            <div class="sidebar-info">${esc(s.store_name)} · <span style="background:var(--gold-bg2);color:var(--gold-dim);padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600">${esc(s.tier_id)}</span></div>
+            <div class="sidebar-meta">${esc(s.tier_id)} — ${esc(s.store_name || s.store_id || 'HQ')}</div>
           </div>
-        </div>
-        <div class="sidebar-menu">
-          <div class="sidebar-item" onclick="App.goMenu('profile')">👤 โปรไฟล์</div>
-          <div class="sidebar-item" onclick="App.goMenu('notifications')">🔔 แจ้งเตือน <span id="sb-noti-badge" style="background:var(--red);color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;display:none"></span></div>
-          <div class="sidebar-item" onclick="App.goMenu('tasks')">📋 งานติดตาม <span id="sb-task-badge" style="background:var(--orange);color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;display:none"></span></div>
-          ${(isManager && !isAdmin) ? `<div class="sidebar-item" onclick="App.goMenu('vendor-store')">🏪 Vendor ร้านฉัน</div>` : ''}
-          ${isAdmin ? `<div class="sidebar-item" onclick="App.goMenu('announcements')">📢 ประกาศ</div>` : ''}
-          ${isAdmin ? `<div class="sidebar-item" onclick="App.goMenu('settings')">⚙️ ตั้งค่า & จัดการ</div>` : ''}
-          <div style="height:1px;background:var(--s2);margin:8px 20px"></div>
-          <div class="sidebar-item sidebar-logout" onclick="App.logout()">🚪 ออกจากระบบ</div>
-        </div>
-        <div class="sidebar-footer">SPG Sale Daily v1.6</div>
-      </div>`;
+        </div>`;
+    }
 
-    document.body.insertAdjacentHTML('beforeend', html);
+    // ─── Body: navigation sections (tier-based) ───
+    const bodyEl = document.getElementById('sidebarBody');
+    if (bodyEl) {
+      let body = '';
+
+      if (isAdmin) {
+        // T1-T2: Admin layout from wireframe
+        body += sidebarSection('Dashboard', [
+          sbItem('Dashboard', 'dashboard'),
+        ], true);
+
+        body += '<div class="sidebar-divider"></div>';
+
+        body += sidebarSection('History', [
+          sbItem('Sale History', 'sale-history'),
+          sbItem('Expense History', 'expense-history'),
+        ], true);
+
+        body += '<div class="sidebar-divider"></div>';
+
+        body += sidebarSection('Reports', [
+          sbItem('Daily Report', 'daily-report'),
+          sbItem('Report Hub', 'report-hub'),
+          sbItem('Send to Account', 'acc-review'),
+          sbItem('Follow-up', 'tasks'),
+        ], true);
+
+        body += '<div class="sidebar-divider"></div>';
+
+        body += sidebarSection('Settings', [
+          sbItem('Channels', 'settings'),
+          sbItem('Vendors', 'settings'),
+          sbItem('Categories', 'settings'),
+          sbItem('Permissions', 'settings'),
+          sbItem('Audit Log', 'settings'),
+        ], false);
+
+      } else {
+        // T3+ Store-level layout from wireframe
+        body += sidebarSection('Input', [
+          sbItem('Dashboard', 'dashboard'),
+          sbItem('Daily Sale', 'daily-sale'),
+          sbItem('Expense', 'expense'),
+          sbItem('Invoice', 'invoice'),
+          sbItem('Cash On Hand', 'cash'),
+        ], true);
+
+        body += '<div class="sidebar-divider"></div>';
+
+        body += sidebarSection('History', [
+          sbItem('Sale History', 'sale-history'),
+          sbItem('Expense History', 'expense-history'),
+        ], true);
+
+        body += '<div class="sidebar-divider"></div>';
+
+        body += sidebarSection('Report', [
+          sbItem('Daily Report', 'daily-report'),
+          sbItem('Report Hub', 'report-hub'),
+          sbItem('Tasks', 'tasks'),
+        ], false);
+      }
+
+      bodyEl.innerHTML = body;
+    }
+
+    // ─── Footer ───
+    const footerEl = document.getElementById('sidebarFooter');
+    if (footerEl) {
+      footerEl.innerHTML = `
+        <div class="sidebar-footer-item" onclick="App.goSidebar('dashboard')">Home</div>
+        <div class="sidebar-footer-item danger" onclick="App.logout()">Log out</div>`;
+    }
+
+    _sidebarBuilt = true;
   }
 
-  function toggleSidebar() {
-    initSidebar(); // ensure injected
-    const overlay = document.getElementById('sidebar-overlay');
-    const panel = document.getElementById('sidebar');
-    if (!overlay || !panel) return;
-    const isOpen = panel.classList.contains('open');
-    overlay.classList.toggle('open', !isOpen);
-    panel.classList.toggle('open', !isOpen);
+  // Helper: build collapsible section
+  function sidebarSection(title, items, open) {
+    return `
+      <details class="sidebar-section"${open ? ' open' : ''}>
+        <summary>${esc(title)}</summary>
+        <div>${items.join('')}</div>
+      </details>`;
+  }
+
+  // Helper: build sidebar item (no icon — text only per wireframe)
+  function sbItem(label, route) {
+    const isActive = route === currentRoute;
+    return `<div class="sidebar-item${isActive ? ' active' : ''}" data-route="${route}" onclick="App.goSidebar('${route}')">${esc(label)}</div>`;
+  }
+
+  function openSidebar() {
+    if (!_sidebarBuilt) initSidebar();
+    updateSidebarActive(currentRoute);
+    document.getElementById('sidebarOverlay')?.classList.add('open');
+    document.getElementById('sidebarPanel')?.classList.add('open');
   }
 
   function closeSidebar() {
-    const overlay = document.getElementById('sidebar-overlay');
-    const panel = document.getElementById('sidebar');
-    if (overlay) overlay.classList.remove('open');
-    if (panel) panel.classList.remove('open');
+    document.getElementById('sidebarOverlay')?.classList.remove('open');
+    document.getElementById('sidebarPanel')?.classList.remove('open');
   }
 
-  function goMenu(route) {
+  // Alias for backward compat (screens call App.toggleSidebar())
+  function toggleSidebar() { openSidebar(); }
+
+  function goSidebar(route, params) {
     closeSidebar();
-    go(route);
+    go(route, params || {});
   }
 
-  function logout() {
-    closeSidebar();
-    API.clearSession();
-    goHome();
+  // Alias for backward compat (screens call App.goMenu())
+  function goMenu(route) { goSidebar(route); }
+
+  function updateSidebarActive(route) {
+    document.querySelectorAll('.sidebar-item').forEach(el => {
+      const r = el.getAttribute('data-route');
+      if (r === route) {
+        el.classList.add('active');
+      } else {
+        el.classList.remove('active');
+      }
+    });
   }
 
-  // ─── NOTIFICATION BADGE ───
+  // ═══════════════════════════════════════════
+  // NOTIFICATION + TASK BADGES
+  // ═══════════════════════════════════════════
+
   async function refreshNotiBadge() {
     try {
-      const data = await API.getNotifications(1); // minimal fetch just for count
+      const data = await API.getNotifications(1);
       const count = data.unread_count || 0;
-      const badge = document.getElementById('sb-noti-badge');
-      if (badge) {
-        badge.textContent = count > 99 ? '99+' : count;
-        badge.style.display = count > 0 ? '' : 'none';
-      }
-      // Also update ☰ button hint (optional dot)
+      // Update bell dot in topbar (if present)
+      const dot = document.querySelector('.g-tb-bell-dot');
+      if (dot) dot.style.display = count > 0 ? '' : 'none';
       return data;
     } catch (e) { /* silent */ }
     return null;
   }
 
-  // ─── ANNOUNCEMENT POPUP ON ENTRY ───
-  async function showAnnouncementPopup(notiData) {
-    try {
-      const data = notiData || await API.getNotifications(50);
-      const unread = (data.announcements || []).filter(a => !a.is_read);
-      if (unread.length === 0) return;
-
-      // Show latest unread announcement as popup
-      const a = unread[0];
-      const overlay = document.createElement('div');
-      overlay.id = 'announce-popup';
-      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:300;display:flex;align-items:center;justify-content:center;padding:16px;';
-      overlay.innerHTML = `
-        <div style="background:var(--bg);border-radius:var(--radius);padding:24px;width:100%;max-width:400px;max-height:80vh;overflow-y:auto">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-            <span style="font-size:20px">${a.priority === 'urgent' ? '🚨' : '📢'}</span>
-            <span style="font-size:16px;font-weight:700;flex:1">${esc(a.title)}</span>
-            ${unread.length > 1 ? '<span style="font-size:11px;color:var(--tm)">+' + (unread.length - 1) + ' อื่นๆ</span>' : ''}
-          </div>
-          <div style="font-size:14px;line-height:1.6;color:var(--t);white-space:pre-wrap">${esc(a.body)}</div>
-          <div style="font-size:10px;color:var(--tm);margin-top:12px">${new Date(a.created_at).toLocaleString('th-TH')}</div>
-          <button class="btn btn-gold" style="width:100%;margin-top:16px;padding:12px;border-radius:10px;border:none;font-size:14px;cursor:pointer;font-family:inherit"
-                  onclick="App.dismissPopup('${a.id}')">รับทราบ ✓</button>
-        </div>`;
-      document.body.appendChild(overlay);
-    } catch (e) { /* silent */ }
-  }
-
-  async function dismissPopup(announcementId) {
-    document.getElementById('announce-popup')?.remove();
-    try {
-      await API.dismissAnnouncement(announcementId);
-      await refreshNotiBadge();
-    } catch (e) { /* silent */ }
-  }
-
-  // ─── TASK BADGE ───
   async function refreshTaskBadge() {
     try {
       const data = await API.getTasks(null, 'pending');
       const count = data.pending || 0;
+      // Update task badge in sidebar (if present)
       const badge = document.getElementById('sb-task-badge');
       if (badge) {
         badge.textContent = count > 99 ? '99+' : count;
@@ -411,9 +468,15 @@ const App = (() => {
     } catch (e) { /* silent */ }
   }
 
-  // ─── BACK TO HOME ───
+  // ─── LOGOUT ───
+  function logout() {
+    closeSidebar();
+    API.clearSession();
+    goHome();
+  }
+
+  // ─── BACK TO HOME MODULE ───
   function goHome() {
-    // Navigate back to Home module
     const homeUrl = localStorage.getItem('spg_home_url') || 'https://onspider-spg.github.io/spg-home/';
     window.location.href = homeUrl;
   }
@@ -430,12 +493,20 @@ const App = (() => {
     esc, formatMoney, formatMoneyShort, formatDate, formatDateShort,
     todayStr, addDays,
     renderStoreSelector, selectStore, selectBranch,
-    goHome, toggleSidebar, closeSidebar, goMenu, logout,
-    refreshNotiBadge, refreshTaskBadge, dismissPopup,
+    // Sidebar
+    openSidebar, closeSidebar, toggleSidebar, goSidebar, goMenu,
+    // Actions
+    goHome, logout,
+    refreshNotiBadge, refreshTaskBadge,
+    // State
     getStores: () => stores,
     getCurrentRoute: () => currentRoute,
   };
 })();
 
 // Auto-init on load
-document.addEventListener('DOMContentLoaded', () => App.init());
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => App.init());
+} else {
+  App.init();
+}

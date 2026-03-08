@@ -1,9 +1,9 @@
-// Version 2.0 | 8 MAR 2026 | Siam Palette Group
+// Version 2.0.1 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
- * screens6_sd.js — v2.0: Report Hub + Send to Account
- * Phase 5: SPG topbar + wireframe layout
+ * screens6_sd.js — v2.0.1: Report Hub + Daily Detail + Send to Account
+ * Phase 8: Daily Detail page
  * ═══════════════════════════════════════════════════
  */
 
@@ -151,17 +151,182 @@ const Screens6 = (() => {
   }
 
   function rhGoDate(dateStr) {
-    // Set date in Screens5 and navigate
+    // Date click → Daily Detail (wireframe: กดวันที่ → Daily Detail)
+    App.go('daily-detail', { date: dateStr });
+  }
+
+  function rhGoReport(dateStr) {
+    // "กรอกรายงานวันนี้" → Daily Report (S8)
     if (typeof Screens5 !== 'undefined' && Screens5._reportDate !== undefined) {
       Screens5._reportDate = dateStr;
     }
-    // Store in sessionStorage for cross-module
     sessionStorage.setItem('sd_report_date', dateStr);
     App.go('daily-report');
   }
 
   function rhGoToday() {
-    rhGoDate(new Date().toISOString().split('T')[0]);
+    rhGoReport(new Date().toISOString().split('T')[0]);
+  }
+
+
+  // ════════════════════════════════════════
+  // DAILY DETAIL — Phase 8 (read-only drill-down)
+  // ════════════════════════════════════════
+
+  let _ddDate = null;
+
+  function renderDailyDetail(params) {
+    const session = API.getSession();
+    if (!session) return Screens.renderNoAccess();
+
+    _ddDate = params?.date || _ddDate || new Date().toISOString().split('T')[0];
+
+    return `
+      <div class="screen">
+        ${Screens.renderTopbar({ back: 'report-hub', label: 'Daily Detail' })}
+        <div class="screen-body">
+
+          <!-- Date picker -->
+          <div style="display:flex;align-items:center;gap:var(--sp-sm);margin-bottom:var(--sp-sm);font-size:var(--fs-body)">
+            <span style="color:var(--tm)">📅</span>
+            <input type="date" class="form-input" style="flex:1;max-width:160px;padding:var(--sp-xs) var(--sp-sm);font-size:var(--fs-body)" id="dd-date" value="${_ddDate}" onchange="Screens6.ddChangeDate()">
+            <button class="btn btn-sm btn-outline" onclick="Screens6.ddChangeDate()">Go</button>
+          </div>
+
+          <!-- Header: date + store + status -->
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--sp-sm)">
+            <div style="font-size:var(--fs-body);font-weight:700" id="dd-title">—</div>
+            <span class="status-badge sts-pending" id="dd-status">—</span>
+          </div>
+
+          <!-- KPI: Sales / Expense / Net -->
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--sp-xs);margin-bottom:var(--sp-sm)">
+            <div style="padding:var(--sp-sm);background:var(--gold-bg);border-radius:var(--radius-xs);text-align:center">
+              <div style="font-size:var(--fs-xs);color:var(--gold)">Sales</div>
+              <div style="font-size:var(--fs-body);font-weight:800;color:var(--gold)" id="dd-sales">—</div>
+            </div>
+            <div style="padding:var(--sp-sm);background:var(--red-bg);border-radius:var(--radius-xs);text-align:center">
+              <div style="font-size:var(--fs-xs);color:var(--red)">Expense</div>
+              <div style="font-size:var(--fs-body);font-weight:800;color:var(--red)" id="dd-expense">—</div>
+            </div>
+            <div style="padding:var(--sp-sm);background:var(--green-bg);border-radius:var(--radius-xs);text-align:center">
+              <div style="font-size:var(--fs-xs);color:var(--green)">Net</div>
+              <div style="font-size:var(--fs-body);font-weight:800;color:var(--green)" id="dd-net">—</div>
+            </div>
+          </div>
+
+          <!-- Content sections -->
+          <div id="dd-content">
+            <div style="text-align:center;padding:20px;color:var(--tm)">กำลังโหลด...</div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  async function loadDailyDetail(params) {
+    _ddDate = params?.date || _ddDate || new Date().toISOString().split('T')[0];
+    const el = document.getElementById('dd-content');
+    if (!el) return;
+
+    try {
+      App.showLoader();
+      const storeId = API.isHQ() ? API.getSelectedStore() : null;
+      const data = await API.getDailyDetail(storeId, _ddDate);
+
+      // KPIs
+      setTextSafe('dd-sales', '$' + (data.total_sales || 0).toLocaleString());
+      setTextSafe('dd-expense', '$' + (data.total_expense || 0).toLocaleString());
+      setTextSafe('dd-net', '$' + (data.net || 0).toLocaleString());
+
+      // Title
+      const titleEl = document.getElementById('dd-title');
+      if (titleEl) {
+        const d = new Date(_ddDate + 'T00:00:00');
+        const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+        titleEl.textContent = `${days[d.getDay()]} ${d.getDate()} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]} ${d.getFullYear()} — ${data.store_id || ''}`;
+      }
+
+      // Status
+      const statusEl = document.getElementById('dd-status');
+      if (statusEl) {
+        if (data.is_locked) { statusEl.textContent = '🔒 Locked'; statusEl.className = 'status-badge sts-locked'; }
+        else if (data.is_synced) { statusEl.textContent = '✅ Synced'; statusEl.className = 'status-badge sts-synced'; }
+        else { statusEl.textContent = 'Pending Sync'; statusEl.className = 'status-badge sts-pending'; }
+      }
+
+      // Build detail sections
+      let html = '';
+
+      // 💰 Sales channels
+      html += `<div class="card" style="margin-bottom:var(--sp-xs)">
+        <div style="font-weight:700;color:var(--gold);margin-bottom:var(--sp-xs);font-size:var(--fs-sm)">💰 Sales</div>
+        ${data.channels.length > 0 ? data.channels.map(c =>
+          `<div style="display:flex;justify-content:space-between;font-size:var(--fs-sm);padding:2px 0"><span>${App.esc(c.name)}</span><span>$${(c.amount||0).toLocaleString()}</span></div>`
+        ).join('') : '<div style="font-size:var(--fs-xs);color:var(--tm)">ไม่มีข้อมูล</div>'}
+      </div>`;
+
+      // 🧾 Expenses
+      html += `<div class="card" style="margin-bottom:var(--sp-xs)">
+        <div style="font-weight:700;color:var(--red);margin-bottom:var(--sp-xs);font-size:var(--fs-sm)">🧾 Expenses (${data.expenses.length})</div>
+        ${data.expenses.length > 0 ? data.expenses.map(e =>
+          `<div style="display:flex;justify-content:space-between;font-size:var(--fs-sm);padding:2px 0"><span>${App.esc(e.description || e.doc_number)}</span><span style="color:var(--red)">-$${(e.total_amount||0).toLocaleString()}</span></div>`
+        ).join('') : '<div style="font-size:var(--fs-xs);color:var(--tm)">ไม่มีค่าใช้จ่าย</div>'}
+      </div>`;
+
+      // 💵 Cash
+      if (data.cash) {
+        const c = data.cash;
+        const varColor = c.is_matched ? 'var(--green)' : 'var(--red)';
+        html += `<div class="card" style="margin-bottom:var(--sp-xs)">
+          <div style="font-weight:700;color:var(--green);margin-bottom:var(--sp-xs);font-size:var(--fs-sm)">💵 Cash</div>
+          <div style="display:flex;justify-content:space-between;font-size:var(--fs-sm)">
+            <span>Expected $${(c.expected||0).toLocaleString()} · Actual $${(c.actual||0).toLocaleString()}</span>
+            <span style="color:${varColor}">Var ${c.variance >= 0 ? '+' : ''}$${(c.variance||0).toFixed(2)} ${c.is_matched ? '' : '⚠️'}</span>
+          </div>
+          ${c.reason ? `<div style="font-size:var(--fs-xs);color:var(--tm);margin-top:2px">${App.esc(c.reason)}</div>` : ''}
+        </div>`;
+      }
+
+      // 📄 Invoices
+      if (data.invoices.length > 0) {
+        html += `<div class="card" style="margin-bottom:var(--sp-xs)">
+          <div style="font-weight:700;color:var(--blue);margin-bottom:var(--sp-xs);font-size:var(--fs-sm)">📄 Invoices (${data.invoices.length})</div>
+          ${data.invoices.map(inv => {
+            const cn = inv.has_credit_note ? ' <span style="color:var(--green);font-size:var(--fs-xs)">CN</span>' : '';
+            return `<div style="display:flex;justify-content:space-between;font-size:var(--fs-sm);padding:2px 0"><span>${App.esc(inv.invoice_no)} ${App.esc(inv.vendor_name)}${cn}</span><span>$${(inv.total_amount||0).toLocaleString()} ${inv.payment_status === 'paid' ? 'Paid' : 'Unpaid'}</span></div>`;
+          }).join('')}
+        </div>`;
+      }
+
+      // 📝 Report
+      if (data.report) {
+        const r = data.report;
+        const wMap = { sunny: '☀️ แดด', cloudy: '🌤️ ครึ้ม', rain: '🌧️ ฝน', heavy_rain: '⛈️ ฝนหนัก' };
+        const tMap = { above: '📈 ดี', normal: '➡️ ปกติ', below: '📉 ต่ำ' };
+        html += `<div class="card" style="margin-bottom:var(--sp-xs)">
+          <div style="font-weight:700;color:var(--purple);margin-bottom:var(--sp-xs);font-size:var(--fs-sm)">📝 Report</div>
+          <div style="font-size:var(--fs-sm)">${wMap[r.weather]||''} · Traffic ${tMap[r.traffic]||''} · POS ${r.pos_status === 'normal' ? '✅' : '⚠️'}</div>
+          ${r.incidents.length > 0 ? `<div style="font-size:var(--fs-sm);margin-top:2px">⚠️ ${r.incidents.map(i => i.incident_type + ' ×' + i.count).join(' · ')}</div>` : ''}
+          ${r.tasks.length > 0 ? `<div style="font-size:var(--fs-sm);margin-top:2px">📋 ${r.tasks.map(t => t.title).join(' · ')}</div>` : ''}
+          ${r.note ? `<div style="font-size:var(--fs-xs);color:var(--tm);margin-top:2px">📝 ${App.esc(r.note)}</div>` : ''}
+        </div>`;
+      }
+
+      el.innerHTML = html || '<div style="text-align:center;padding:20px;color:var(--tm)">ไม่มีข้อมูลวันนี้</div>';
+
+    } catch (err) {
+      el.innerHTML = `<div style="color:var(--red);padding:16px">${App.esc(err.message)}</div>`;
+    } finally {
+      App.hideLoader();
+    }
+  }
+
+  function ddChangeDate() {
+    const dateEl = document.getElementById('dd-date');
+    if (dateEl) {
+      _ddDate = dateEl.value;
+      App.go('daily-detail', { date: _ddDate });
+    }
   }
 
 
@@ -504,7 +669,9 @@ const Screens6 = (() => {
   return {
     // Report Hub
     renderReportHub, loadReportHub,
-    rhChangeMonth, rhGoDate, rhGoToday,
+    rhChangeMonth, rhGoDate, rhGoReport, rhGoToday,
+    // Daily Detail (Phase 8)
+    renderDailyDetail, loadDailyDetail, ddChangeDate,
     // ACC Review
     renderAccReview, loadAccReview,
     arChangeMonth, arToggle, arToggleAll,

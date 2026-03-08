@@ -1,9 +1,8 @@
-// Version 2.0 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
  * api_sd.js — API Client + Session Bridge
- * v2.0 — Phase 8: add getDailyDetail
+ * v1.0 — Supabase Edge Function
  * ═══════════════════════════════════════════
  * Reuses Home module session token (passed via URL ?token=xxx)
  * Endpoints: EP-01 to EP-26 (Sprint 1: EP-01 to EP-10, EP-26)
@@ -521,9 +520,5 @@ const API = (() => {
 
     batchSync: (store_id, dates) =>
       post('sd_batch_sync', tokenBody({ store_id, dates })),
-
-    // ─── Phase 8: Daily Detail ───
-    getDailyDetail: (store_id, detail_date) =>
-      post('sd_get_daily_detail', tokenBody({ store_id, detail_date })),
   };
 })();

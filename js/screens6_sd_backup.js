@@ -1,7 +1,9 @@
+// Version 2.0 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
- * screens6_sd.js — v1.5.2: Report Hub + ACC Review
+ * screens6_sd.js — v2.0: Report Hub + Send to Account
+ * Phase 5: SPG topbar + wireframe layout
  * ═══════════════════════════════════════════════════
  */
 
@@ -22,14 +24,7 @@ const Screens6 = (() => {
 
     return `
       <div class="screen">
-        <div class="header-bar">
-          <button class="back-btn" onclick="App.go('dashboard')">←</button>
-          <div style="flex:1;min-width:0">
-            <div class="header-title">📝 รายงานประจำวัน</div>
-            <div class="header-sub">Report Hub · ${App.esc(session.store_name)}</div>
-          </div>
-          <button class="back-btn" onclick="App.toggleSidebar()" style="font-size:16px">☰</button>
-        </div>
+        ${Screens.renderTopbar({ back: 'dashboard', label: 'Report Hub' })}
         <div class="screen-body">
           ${API.isHQ() ? App.renderStoreSelector() : ''}
 
@@ -185,14 +180,11 @@ const Screens6 = (() => {
     // T1-T2 only
     if (session.tier_level > 2 && session.store_id !== 'HQ') {
       return `<div class="screen">
-        <div class="header-bar">
-          <button class="back-btn" onclick="App.go('dashboard')">←</button>
-          <div><div class="header-title">🔍 ACC Review</div></div>
-        </div>
+        ${Screens.renderTopbar({ back: 'dashboard', label: 'Send to Account' })}
         <div class="screen-body" style="text-align:center;padding:40px 16px">
           <div style="font-size:48px;margin-bottom:12px">🔒</div>
-          <div style="font-size:16px;font-weight:600">เฉพาะ ACC (T1-T2)</div>
-          <div style="font-size:13px;color:var(--tm);margin-top:4px">ต้องเป็น Admin หรือ Account เท่านั้น</div>
+          <div style="font-size:var(--fs-h2);font-weight:600">เฉพาะ ACC (T1-T2)</div>
+          <div style="font-size:var(--fs-body);color:var(--tm);margin-top:var(--sp-xs)">ต้องเป็น Admin หรือ Account เท่านั้น</div>
         </div>
       </div>`;
     }
@@ -203,14 +195,7 @@ const Screens6 = (() => {
 
     return `
       <div class="screen">
-        <div class="header-bar">
-          <button class="back-btn" onclick="App.go('dashboard')">←</button>
-          <div style="flex:1;min-width:0">
-            <div class="header-title">🔍 ACC Review</div>
-            <div class="header-sub">ตรวจสอบ & Sync → Finance</div>
-          </div>
-          <button class="back-btn" onclick="App.toggleSidebar()" style="font-size:16px">☰</button>
-        </div>
+        ${Screens.renderTopbar({ back: 'dashboard', label: 'Send to Account' })}
         <div class="screen-body">
           ${App.renderStoreSelector()}
 

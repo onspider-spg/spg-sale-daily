@@ -1,4 +1,4 @@
-// Version 2.0 | 8 MAR 2026 | Siam Palette Group
+// Version 2.0.1 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -67,6 +67,8 @@ const App = (() => {
     // Hub screens
     'report-hub':       { render: () => Screens6.renderReportHub(),   onLoad: () => Screens6.loadReportHub() },
     'acc-review':       { render: () => Screens6.renderAccReview(),   onLoad: () => Screens6.loadAccReview() },
+    // Phase 8
+    'daily-detail':     { render: (p) => Screens6.renderDailyDetail(p), onLoad: (p) => Screens6.loadDailyDetail(p) },
   };
 
   // ─── INIT ───
@@ -336,6 +338,7 @@ const App = (() => {
         body += sidebarSection('Reports', [
           sbItem('Daily Report', 'daily-report'),
           sbItem('Report Hub', 'report-hub'),
+          sbItem('Daily Detail', 'daily-detail'),
           sbItem('Send to Account', 'acc-review'),
           sbItem('Follow-up', 'tasks'),
         ], true);
