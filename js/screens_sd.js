@@ -1,4 +1,4 @@
-// Version 2.3.1 | 8 MAR 2026 | Siam Palette Group
+// Version 2.3.2 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -626,11 +626,6 @@ const Screens = (() => {
               <div class="photo-label">Card Summary</div>
               <div class="photo-required">* บังคับ</div>
             </div>
-            <div class="photo-box empty" id="s1-photo-cash" onclick="Screens.s1PickPhoto('cash')">
-              <div class="photo-icon">📸</div>
-              <div class="photo-label">Cash Count</div>
-              <div class="photo-required">* บังคับ</div>
-            </div>
             <div style="flex:1;font-size:var(--fs-xs);color:var(--tm);display:flex;align-items:center">auto compress</div>
           </div>
           <input type="file" id="s1-file-input" accept="image/*" capture="environment" style="display:none"
@@ -768,13 +763,6 @@ const Screens = (() => {
       cardBox.classList.add('filled');
       cardBox.innerHTML = `<img src="${s1.photoCardUrl}" alt="Card" style="width:100%;height:100%;object-fit:cover;border-radius:var(--radius-xs)"><div style="position:absolute;bottom:2px;right:2px;background:var(--green);color:#fff;width:16px;height:16px;border-radius:50%;font-size:10px;display:flex;align-items:center;justify-content:center">✓</div>`;
     }
-
-    const cashBox = document.getElementById('s1-photo-cash');
-    if (cashBox && s1.photoCashUrl) {
-      cashBox.classList.remove('empty');
-      cashBox.classList.add('filled');
-      cashBox.innerHTML = `<img src="${s1.photoCashUrl}" alt="Cash" style="width:100%;height:100%;object-fit:cover;border-radius:var(--radius-xs)"><div style="position:absolute;bottom:2px;right:2px;background:var(--green);color:#fff;width:16px;height:16px;border-radius:50%;font-size:10px;display:flex;align-items:center;justify-content:center">✓</div>`;
-    }
   }
 
   function s1OnChannelInput(channelKey, inputEl) {
@@ -849,8 +837,6 @@ const Screens = (() => {
 
       if (_photoTarget === 'card') {
         s1.photoCardUrl = result.url;
-      } else {
-        s1.photoCashUrl = result.url;
       }
 
       renderS1Photos();
@@ -866,7 +852,6 @@ const Screens = (() => {
 
   async function s1Save() {
     if (!s1.photoCardUrl) { App.toast('กรุณาถ่ายรูป Card Summary', 'error'); return; }
-    if (!s1.photoCashUrl) { App.toast('กรุณาถ่ายรูป Cash Count', 'error'); return; }
 
     const totalAmount = Object.values(s1.amounts).reduce((sum, v) => sum + (parseFloat(v) || 0), 0);
     if (totalAmount <= 0) { App.toast('ยอดขายรวมต้องมากกว่า 0', 'error'); return; }
@@ -885,7 +870,7 @@ const Screens = (() => {
         sale_date: s1.date,
         channels,
         photo_card_url: s1.photoCardUrl,
-        photo_cash_url: s1.photoCashUrl,
+        photo_cash_url: null,
         difference: getVal('s1-difference'),
         cancel_desc: getVal('s1-cancel-desc'),
         cancel_amount: getVal('s1-cancel-amount'),
