@@ -1,4 +1,4 @@
-/* Version 2.0.1 | 8 MAR 2026 | Siam Palette Group */
+/* Version 2.0.2 | 8 MAR 2026 | Siam Palette Group */
 /* ═══════════════════════════════════════════
    SPG Sale Daily Module — styles_sd.css
    Warm Light Theme · IBM Plex Sans Thai
@@ -109,9 +109,7 @@ html, body {
   align-items: center;
   padding: var(--sp-sm) var(--sp-md);
   min-height: var(--topbar-h);
-  background: rgba(253, 250, 244, 0.95);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: #fdfaf4;
   border-bottom: 1px solid var(--bd2);
   position: sticky;
   top: 0;
@@ -202,9 +200,7 @@ html, body {
   padding: var(--sp-sm) var(--sp-md);
   gap: var(--sp-sm);
   border-bottom: 1px solid var(--bd2);
-  background: rgba(253, 250, 244, 0.95);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: #fdfaf4;
   position: sticky;
   top: 0;
   z-index: 100;
