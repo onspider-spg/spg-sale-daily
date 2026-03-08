@@ -1,4 +1,4 @@
-// Version 2.0.1 | 8 MAR 2026 | Siam Palette Group
+// Version 2.1 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -61,6 +61,7 @@ const App = (() => {
     // Menu screens
     'profile':          { render: () => Screens.renderProfile(),     onLoad: null },
     'notifications':    { render: () => Screens4.renderNotifications(), onLoad: () => Screens4.loadNotifications() },
+    'notification-settings': { render: () => Screens4.renderNotificationSettings(), onLoad: () => Screens4.loadNotificationSettings() },
     // Tasks + Daily Report
     'tasks':            { render: () => Screens5.renderTasks(),       onLoad: () => Screens5.loadTasks() },
     'daily-report':     { render: () => Screens5.renderDailyReport(), onLoad: () => Screens5.loadDailyReport() },
@@ -351,6 +352,7 @@ const App = (() => {
           sbItem('Categories', 'settings'),
           sbItem('Permissions', 'settings'),
           sbItem('Audit Log', 'settings'),
+          sbItem('Notification Settings', 'notification-settings'),
         ], false);
 
       } else {

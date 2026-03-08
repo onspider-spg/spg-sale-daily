@@ -1,10 +1,10 @@
-// Version 2.0 | 8 MAR 2026 | Siam Palette Group
+// Version 2.1 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
  * screens4_sd.js — Settings & Admin
- * v2.0 — Phase 6: SPG topbar + wireframe tabs + lean L1/L2
- * Tabs: Channels | Vendors | Settings | Permissions | Audit
+ * v2.1 — Phase 10: Categories tab + Notification Settings
+ * Tabs: Channels | Vendors | Categories | Config | Permissions | Audit
  * ═══════════════════════════════════════════
  */
 
@@ -31,6 +31,7 @@ const Screens4 = (() => {
           <div class="chip-group" style="margin-bottom:var(--sp-md)">
             <button class="filter-chip active" id="s7-tab-channels" onclick="Screens4.setTab('channels')">Channels</button>
             <button class="filter-chip" id="s7-tab-suppliers" onclick="Screens4.setTab('suppliers')">Vendors</button>
+            <button class="filter-chip" id="s7-tab-categories" onclick="Screens4.setTab('categories')">Categories</button>
             <button class="filter-chip" id="s7-tab-settings" onclick="Screens4.setTab('settings')">Config</button>
             <button class="filter-chip" id="s7-tab-permissions" onclick="Screens4.setTab('permissions')">Permissions</button>
             <button class="filter-chip" id="s7-tab-audit" onclick="Screens4.setTab('audit')">Audit Log</button>
@@ -51,7 +52,7 @@ const Screens4 = (() => {
 
   function setTab(tab) {
     _currentTab = tab;
-    ['channels', 'suppliers', 'settings', 'permissions', 'audit'].forEach(t => {
+    ['channels', 'suppliers', 'categories', 'settings', 'permissions', 'audit'].forEach(t => {
       const btn = document.getElementById(`s7-tab-${t}`);
       if (btn) btn.className = `filter-chip ${t === tab ? 'active' : ''}`;
     });
@@ -69,6 +70,7 @@ const Screens4 = (() => {
       switch (tab) {
         case 'channels':    await renderChannelsTab(el); break;
         case 'suppliers':   await renderSuppliersTab(el); break;
+        case 'categories':  await renderCategoriesTab(el); break;
         case 'settings':    await renderSettingsTab(el); break;
         case 'permissions': await renderPermissionsTab(el); break;
         case 'audit':       await renderAuditTab(el); break;
@@ -459,6 +461,198 @@ const Screens4 = (() => {
       await API.adminUpdateSupplier({ vendor_id: vendorId, is_active: newActive });
       App.toast(`${newActive ? 'เปิดใช้งาน' : 'ปิดใช้งาน'} สำเร็จ`, 'success');
       await loadTabContent('suppliers');
+    } catch (err) { App.toast(err.message, 'error'); }
+  }
+
+
+  // ════════════════════════════════════════
+  // TAB: CATEGORIES VISIBILITY (Phase 10)
+  // ════════════════════════════════════════
+
+  let _catTree = null;
+  let _catChanges = [];
+
+  async function renderCategoriesTab(el) {
+    try {
+      const data = await API.getCategoryVisibility();
+      _catTree = data.tree || {};
+      _catChanges = [];
+
+      const storeId = API.isHQ() ? API.getSelectedStore() : (API.getSession()?.store_id || '');
+
+      let html = `
+        <div style="padding:var(--sp-sm);background:var(--blue-bg);border-radius:var(--radius-sm);font-size:var(--fs-sm);color:var(--blue);margin-bottom:var(--sp-sm)">
+          💡 ปิด/เปิด Main+Sub category ที่ร้านจะเห็น · ลดรายการที่ยาวเกินจาก DB
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--sp-sm)">
+          <div style="font-size:var(--fs-sm);font-weight:700">Store: ${App.esc(storeId)}</div>
+          <button class="btn btn-sm btn-gold" id="cat-save-btn" style="display:none" onclick="Screens4.saveCategoryVisibility()">💾 Save (<span id="cat-change-count">0</span>)</button>
+        </div>`;
+
+      // Render tree per transaction_type → main → sub
+      for (const [txType, mains] of Object.entries(_catTree)) {
+        for (const [mainCat, subs] of Object.entries(mains)) {
+          const allVisible = subs.every(s => s.is_visible);
+          html += `
+            <details style="background:var(--bg);border:1px solid var(--bd2);border-radius:var(--radius-sm);margin-bottom:var(--sp-xs)" open>
+              <summary style="display:flex;justify-content:space-between;align-items:center;padding:var(--sp-sm);cursor:pointer">
+                <div style="font-size:var(--fs-body);font-weight:700;color:var(--gold)">▾ ${App.esc(mainCat)}</div>
+                <div style="width:36px;height:20px;background:${allVisible ? 'var(--green)' : 'var(--s2)'};border-radius:10px;position:relative;cursor:pointer" onclick="event.stopPropagation();Screens4.toggleMainCategory('${txType}','${mainCat}')">
+                  <div style="width:16px;height:16px;background:#fff;border-radius:50%;position:absolute;${allVisible ? 'right:2px' : 'left:2px'};top:2px"></div>
+                </div>
+              </summary>
+              <div style="font-size:var(--fs-sm);display:flex;flex-direction:column;gap:2px;padding:0 var(--sp-sm) var(--sp-sm) 20px">
+                ${subs.map(s => {
+                  const vis = s.is_visible;
+                  return `
+                    <div style="display:flex;justify-content:space-between;align-items:center;${!vis ? 'opacity:.5' : ''}">
+                      <span>${App.esc(s.sub_category)}</span>
+                      <div style="width:30px;height:16px;background:${vis ? 'var(--green)' : 'var(--s2)'};border-radius:8px;position:relative;cursor:pointer" onclick="Screens4.toggleSubCategory('${txType}','${mainCat}','${s.sub_category}')">
+                        <div style="width:12px;height:12px;background:#fff;border-radius:50%;position:absolute;${vis ? 'right:2px' : 'left:2px'};top:2px"></div>
+                      </div>
+                    </div>`;
+                }).join('')}
+              </div>
+            </details>`;
+        }
+      }
+
+      el.innerHTML = html || '<div style="text-align:center;padding:20px;color:var(--tm)">ไม่มี category</div>';
+    } catch (err) {
+      el.innerHTML = `<div style="color:var(--red);padding:16px">${App.esc(err.message)}</div>`;
+    }
+  }
+
+  function toggleMainCategory(txType, mainCat) {
+    if (!_catTree || !_catTree[txType] || !_catTree[txType][mainCat]) return;
+    const subs = _catTree[txType][mainCat];
+    const allVis = subs.every(s => s.is_visible);
+    const newVal = !allVis;
+    subs.forEach(s => {
+      s.is_visible = newVal;
+      _catChanges.push({ transaction_type: txType, main_category: mainCat, sub_category: s.sub_category, is_visible: newVal });
+    });
+    updateCatSaveBtn();
+    loadTabContent('categories');
+  }
+
+  function toggleSubCategory(txType, mainCat, subCat) {
+    if (!_catTree || !_catTree[txType] || !_catTree[txType][mainCat]) return;
+    const sub = _catTree[txType][mainCat].find(s => s.sub_category === subCat);
+    if (!sub) return;
+    sub.is_visible = !sub.is_visible;
+    _catChanges.push({ transaction_type: txType, main_category: mainCat, sub_category: subCat, is_visible: sub.is_visible });
+    updateCatSaveBtn();
+    loadTabContent('categories');
+  }
+
+  function updateCatSaveBtn() {
+    const btn = document.getElementById('cat-save-btn');
+    const countEl = document.getElementById('cat-change-count');
+    if (btn) btn.style.display = _catChanges.length > 0 ? '' : 'none';
+    if (countEl) countEl.textContent = _catChanges.length;
+  }
+
+  async function saveCategoryVisibility() {
+    if (_catChanges.length === 0) return;
+    try {
+      App.showLoader();
+      await API.updateCategoryVisibility(null, _catChanges);
+      _catChanges = [];
+      App.toast('บันทึก category visibility สำเร็จ ✓', 'success');
+      await loadTabContent('categories');
+    } catch (err) { App.toast(err.message, 'error'); }
+    finally { App.hideLoader(); }
+  }
+
+
+  // ════════════════════════════════════════
+  // NOTIFICATION SETTINGS (Phase 10 — standalone screen)
+  // ════════════════════════════════════════
+
+  const NOTIF_PREF_ITEMS = [
+    { key: 'daily_reminder', label: 'Daily Report Reminder', desc: 'แจ้งเตือนก่อน deadline 30 นาที' },
+    { key: 'cash_variance', label: 'Cash Variance Alert', desc: 'แจ้งเมื่อ variance เกิน threshold' },
+    { key: 'sales_drop', label: 'Sales Drop Alert', desc: 'แจ้งเมื่อยอดตก > threshold %' },
+    { key: 'sync_status', label: 'Sync Status', desc: 'แจ้งเมื่อ ACC sync/lock' },
+    { key: 'invoice_due', label: 'Invoice Due Reminder', desc: 'แจ้งก่อน invoice ครบกำหนด 3 วัน' },
+    { key: 'daily_summary', label: 'Daily Summary', desc: 'สรุปรายวันส่งให้ admin', isAdmin: true, defaultOff: true },
+  ];
+
+  let _notifPrefs = {};
+
+  function renderNotificationSettings() {
+    const session = API.getSession();
+    if (!session) return Screens.renderNoAccess();
+
+    return `
+      <div class="screen">
+        ${Screens.renderTopbar({ back: 'dashboard', label: 'Notification Settings' })}
+        <div class="screen-body">
+          <div style="font-size:var(--fs-sm);color:var(--tm);margin-bottom:var(--sp-sm)">กด toggle ON/OFF</div>
+
+          <div style="font-size:var(--fs-body);font-weight:700;color:var(--gold);margin-bottom:var(--sp-xs)">📊 Sale Daily Notifications</div>
+          <div id="notif-pref-list">
+            <div style="text-align:center;padding:20px;color:var(--tm)">กำลังโหลด...</div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  async function loadNotificationSettings() {
+    const el = document.getElementById('notif-pref-list');
+    if (!el) return;
+    try {
+      App.showLoader();
+      const data = await API.getNotificationPrefs();
+      _notifPrefs = data.prefs || {};
+      renderNotifPrefList(el);
+    } catch (err) {
+      el.innerHTML = `<div style="color:var(--red);padding:16px">${App.esc(err.message)}</div>`;
+    } finally { App.hideLoader(); }
+  }
+
+  function renderNotifPrefList(el) {
+    const session = API.getSession();
+    const isAdmin = session && (session.tier_level <= 2 || session.store_id === 'HQ');
+
+    const items = NOTIF_PREF_ITEMS.filter(item => !item.isAdmin || isAdmin);
+
+    let html = '<div style="display:flex;flex-direction:column;gap:2px;margin-bottom:var(--sp-sm)">';
+    let lastIsAdmin = false;
+
+    items.forEach(item => {
+      if (item.isAdmin && !lastIsAdmin) {
+        html += `</div><div style="font-size:var(--fs-body);font-weight:700;color:var(--gold);margin:var(--sp-sm) 0 var(--sp-xs)">👑 Admin</div><div style="display:flex;flex-direction:column;gap:2px">`;
+        lastIsAdmin = true;
+      }
+
+      const enabled = _notifPrefs[item.key] !== undefined ? _notifPrefs[item.key] : !item.defaultOff;
+      html += `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:var(--sp-sm) 12px;background:var(--bg);border:1px solid var(--bd2);border-radius:var(--radius-sm)">
+          <div>
+            <div style="font-size:var(--fs-body);font-weight:600">${App.esc(item.label)}</div>
+            <div style="font-size:var(--fs-xs);color:var(--tm)">${App.esc(item.desc)}</div>
+          </div>
+          <div style="width:36px;height:20px;background:${enabled ? 'var(--green)' : 'var(--s2)'};border-radius:10px;position:relative;cursor:pointer" onclick="Screens4.toggleNotifPref('${item.key}')">
+            <div style="width:16px;height:16px;background:#fff;border-radius:50%;position:absolute;${enabled ? 'right:2px' : 'left:2px'};top:2px"></div>
+          </div>
+        </div>`;
+    });
+
+    html += '</div>';
+    el.innerHTML = html;
+  }
+
+  async function toggleNotifPref(key) {
+    const current = _notifPrefs[key] !== undefined ? _notifPrefs[key] : true;
+    _notifPrefs[key] = !current;
+
+    try {
+      await API.updateNotificationPrefs({ [key]: !current });
+      const el = document.getElementById('notif-pref-list');
+      if (el) renderNotifPrefList(el);
+      App.toast(!current ? '🔔 ON' : '🔕 OFF', 'info');
     } catch (err) { App.toast(err.message, 'error'); }
   }
 
@@ -881,9 +1075,13 @@ const Screens4 = (() => {
     filterVendors, toggleVendor, toggleVisibility, toggleAllStores, saveVendorMatrix,
     // Settings
     setSettingToggle, saveSettings,
+    // Categories (Phase 10)
+    toggleMainCategory, toggleSubCategory, saveCategoryVisibility,
     // Permissions (batch)
     togglePermission, toggleGroupAll, toggleGroupNone, savePermissions,
     // Notifications
     renderNotifications, loadNotifications, markAllRead, dismissAnnouncement,
+    // Notification Settings (Phase 10)
+    renderNotificationSettings, loadNotificationSettings, toggleNotifPref,
   };
 })();
