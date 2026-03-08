@@ -1,4 +1,4 @@
-// Version 2.4.2 | 8 MAR 2026 | Siam Palette Group
+// Version 2.4.3 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -201,6 +201,7 @@ const Screens5 = (() => {
     try {
       App.showLoader();
       await API.createTask({
+        store_id: API.isHQ() ? API.getSelectedStore() : null,
         title,
         type: document.getElementById('task-type')?.value || 'follow_up',
         assigned_to: document.getElementById('task-assign')?.value || '',
@@ -932,6 +933,7 @@ const Screens5 = (() => {
     try {
       App.showLoader();
       await API.createTask({
+        store_id: API.isHQ() ? API.getSelectedStore() : null,
         title,
         type,
         assigned_to: isTask ? (document.getElementById('s8-task-assign')?.value || '') : '',
