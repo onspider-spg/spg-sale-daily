@@ -1,4 +1,4 @@
-// Version 2.6.3 | 8 MAR 2026 | Siam Palette Group
+// Version 2.7 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -259,28 +259,21 @@ const Screens4 = (() => {
   // ════════════════════════════════════════
 
   let _vendors = [];
-  let _vendorMatrix = null;
+
 
   async function renderSuppliersTab(el) {
-    const session = API.getSession();
-    const isAdmin = session?.tier_level <= 2;
-
-    if (isAdmin) {
-      await renderVendorMatrixView(el);
-    } else {
-      await renderVendorStoreView(el);
-    }
+    await renderVendorList(el);
   }
 
-  // ── Staff View: Toggle list for own store ──
-  async function renderVendorStoreView(el) {
+  // ── Simple Vendor List (read-only + add) ──
+  async function renderVendorList(el) {
     try {
-      const data = await API.getStoreVendorVisibility();
+      const data = await API.getVendors();
       const allVendors = data.vendors || [];
 
       el.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <div class="section-label" style="margin:0">🏪 Vendor ของร้าน — ${allVendors.length} รายการ</div>
+          <div class="section-label" style="margin:0">🏪 Vendor ทั้งหมด — ${allVendors.length} รายการ</div>
           <button class="btn btn-outline" style="font-size:12px;padding:6px 14px" onclick="Screens4.showAddVendorPopup()">+ เพิ่ม Vendor</button>
         </div>
         <div class="form-group" style="margin-bottom:12px">
@@ -293,71 +286,10 @@ const Screens4 = (() => {
               <div class="card-flat vendor-row" style="display:flex;align-items:center;gap:10px" data-name="${(v.vendor_name || '').toLowerCase()}">
                 <div style="flex:1">
                   <div style="font-weight:600;font-size:13px">${App.esc(v.vendor_name)}</div>
-                  <div style="font-size:10px;color:var(--td)">${App.esc(v.vendor_group || '—')}</div>
+                  <div style="font-size:10px;color:var(--td)">${App.esc(v.vendor_group || v.vendor_type || '—')}</div>
                 </div>
-                <label class="toggle">
-                  <input type="checkbox" ${v.is_visible !== false ? 'checked' : ''} onchange="Screens4.toggleStoreVendor('${v.vendor_id || v.id}', this.checked)">
-                  <span class="toggle-track"></span>
-                  <span class="toggle-thumb"></span>
-                </label>
               </div>
             `).join('')}
-        </div>
-      `;
-    } catch (err) {
-      el.innerHTML = `<div style="color:var(--red);padding:16px">${err.message}</div>`;
-    }
-  }
-
-  // ── Admin View: Vendor × Store matrix (BATCH SAVE) ──
-  let _matrixChanges = {}; // track local changes: { 'vendorId:storeId': newVisible }
-
-  async function renderVendorMatrixView(el) {
-    try {
-      const data = await API.adminGetVendorMatrix();
-      _vendorMatrix = data;
-      _matrixChanges = {}; // reset pending changes
-      const { stores: matStores, vendors: matVendors } = data;
-
-      el.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <div class="section-label" style="margin:0">🏪 Vendor Visibility — ${matVendors.length} vendors × ${matStores.length} stores</div>
-          <div style="display:flex;gap:6px">
-            <button class="btn btn-outline" style="font-size:12px;padding:6px 14px" onclick="Screens4.showAddVendorPopup()">+ เพิ่ม Vendor</button>
-            <button class="btn btn-gold" id="vm-save-btn" style="font-size:12px;padding:6px 14px;display:none"
-                    onclick="Screens4.saveVendorMatrix()">💾 บันทึก (<span id="vm-change-count">0</span>)</button>
-          </div>
-        </div>
-
-        <div class="form-group" style="margin-bottom:12px">
-          <input type="text" class="form-input" id="s7-vendor-search" placeholder="🔍 ค้นหา vendor..."
-                 oninput="Screens4.filterVendors()">
-        </div>
-
-        <div style="overflow-x:auto">
-          <table style="width:100%;border-collapse:collapse;font-size:12px" id="s7-vendor-matrix">
-            <thead>
-              <tr style="background:var(--s1)">
-                <th style="text-align:left;padding:8px;position:sticky;left:0;background:var(--s1);min-width:140px">Vendor</th>
-                ${matStores.map(s => `<th style="text-align:center;padding:8px;min-width:50px">${App.esc(s.store_id)}</th>`).join('')}
-              </tr>
-            </thead>
-            <tbody>
-              ${matVendors.map((v, vi) => `
-                <tr class="vendor-row" data-name="${(v.vendor_name || '').toLowerCase()}" data-vi="${vi}" style="border-bottom:1px solid var(--b1)">
-                  <td style="padding:8px;font-weight:500;position:sticky;left:0;background:var(--bg)">${App.esc(v.vendor_name)}</td>
-                  ${matStores.map((s, si) => {
-                    const vis = v.stores[s.store_id] !== false;
-                    return `<td style="text-align:center;padding:6px">
-                      <button class="btn btn-sm ${vis ? 'btn-gold' : 'btn-outline'}" style="min-width:36px;padding:4px 8px"
-                              id="vm-${vi}-${si}"
-                              onclick="Screens4.toggleVisibility(${vi}, ${si})">${vis ? '✅' : '—'}</button>
-                    </td>`;
-                  }).join('')}
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
         </div>
       `;
     } catch (err) {
@@ -373,101 +305,7 @@ const Screens4 = (() => {
     });
   }
 
-  // Local toggle — no API call
-  function toggleVisibility(vi, si) {
-    if (!_vendorMatrix) return;
-    const v = _vendorMatrix.vendors[vi];
-    const s = _vendorMatrix.stores[si];
-    if (!v || !s) return;
-
-    const current = v.stores[s.store_id] !== false;
-    const newVal = !current;
-    v.stores[s.store_id] = newVal;
-
-    // Track change
-    const key = v.vendor_id + ':' + s.store_id;
-    _matrixChanges[key] = { vendor_id: v.vendor_id, store_id: s.store_id, is_visible: newVal };
-
-    // Update button UI
-    const btn = document.getElementById('vm-' + vi + '-' + si);
-    if (btn) {
-      btn.className = 'btn btn-sm ' + (newVal ? 'btn-gold' : 'btn-outline');
-      btn.textContent = newVal ? '✅' : '—';
-      btn.style.outline = '2px solid var(--gold)'; // highlight changed
-    }
-
-    updateSaveButton();
-  }
-
-  // Toggle ALL stores for one vendor
-  function toggleAllStores(vi) {
-    if (!_vendorMatrix) return;
-    const v = _vendorMatrix.vendors[vi];
-    if (!v) return;
-
-    // If all are visible → set all hidden; otherwise → set all visible
-    const allVisible = _vendorMatrix.stores.every(s => v.stores[s.store_id] !== false);
-    const newVal = !allVisible;
-
-    _vendorMatrix.stores.forEach((s, si) => {
-      v.stores[s.store_id] = newVal;
-      const key = v.vendor_id + ':' + s.store_id;
-      _matrixChanges[key] = { vendor_id: v.vendor_id, store_id: s.store_id, is_visible: newVal };
-
-      const btn = document.getElementById('vm-' + vi + '-' + si);
-      if (btn) {
-        btn.className = 'btn btn-sm ' + (newVal ? 'btn-gold' : 'btn-outline');
-        btn.textContent = newVal ? '✅' : '—';
-        btn.style.outline = '2px solid var(--gold)';
-      }
-    });
-
-    updateSaveButton();
-  }
-
-  function updateSaveButton() {
-    const count = Object.keys(_matrixChanges).length;
-    const btn = document.getElementById('vm-save-btn');
-    const countEl = document.getElementById('vm-change-count');
-    if (btn) btn.style.display = count > 0 ? '' : 'none';
-    if (countEl) countEl.textContent = count;
-  }
-
-  // Batch save all pending changes — group by store
-  async function saveVendorMatrix() {
-    const changes = Object.values(_matrixChanges);
-    if (changes.length === 0) return;
-
-    try {
-      App.showLoader();
-
-      // Group changes by store_id
-      const byStore = {};
-      changes.forEach(c => {
-        if (!byStore[c.store_id]) byStore[c.store_id] = [];
-        byStore[c.store_id].push({ vendor_id: c.vendor_id, is_visible: c.is_visible });
-      });
-
-      // Send one batch per store
-      const storeIds = Object.keys(byStore);
-      for (let i = 0; i < storeIds.length; i++) {
-        await API.batchVendorVisibility(storeIds[i], byStore[storeIds[i]]);
-      }
-
-      _matrixChanges = {};
-      App.toast('บันทึก ' + changes.length + ' รายการ สำเร็จ ✓', 'success');
-      await loadTabContent('suppliers');
-    } catch (err) {
-      App.toast(err.message, 'error');
-    } finally {
-      App.hideLoader();
-    }
-  }
-
-  async function toggleVendor(vendorId, newActive) {
-    try {
-      await API.adminUpdateSupplier({ vendor_id: vendorId, is_active: newActive });
-      App.toast(`${newActive ? 'เปิดใช้งาน' : 'ปิดใช้งาน'} สำเร็จ`, 'success');
+  // ─── Add Vendor Popup ───
       await loadTabContent('suppliers');
     } catch (err) { App.toast(err.message, 'error'); }
   }
@@ -1156,20 +994,7 @@ const Screens4 = (() => {
   }
 
 
-  // ─── Add Vendor Popup (used from Settings + Expense + Invoice) ───
-
-  async function toggleStoreVendor(vendorId, isVisible) {
-    try {
-      const storeId = API.isHQ() ? API.getSelectedStore() : API.getSession()?.store_id;
-      await API.toggleVendorVisibility(vendorId, storeId, isVisible);
-      App.toast(isVisible ? '✅ เปิด vendor' : '❌ ปิด vendor', 'success');
-    } catch (err) {
-      App.toast('บันทึกไม่สำเร็จ: ' + err.message, 'error');
-      // Reload to reset toggle state
-      const el = document.getElementById('s7-content');
-      if (el) await renderVendorStoreView(el);
-    }
-  }
+  // ─── Add Vendor Popup ───
 
   function showAddVendorPopup() {
     const exist = document.getElementById('add-vendor-overlay');
@@ -1220,9 +1045,8 @@ const Screens4 = (() => {
     // Channels
     toggleChannel, editChannel, saveChannelEdit,
     showAddChannel, saveNewChannel,
-    // Vendors (batch matrix)
-    filterVendors, toggleVendor, toggleVisibility, toggleAllStores, saveVendorMatrix,
-    showAddVendorPopup, doAddVendor, toggleStoreVendor,
+    // Vendors (read-only list + add)
+    filterVendors, showAddVendorPopup, doAddVendor,
     // Settings
     setSettingToggle, saveSettings,
     // Categories (Phase 10)
