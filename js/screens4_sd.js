@@ -1,4 +1,4 @@
-// Version 2.4 | 8 MAR 2026 | Siam Palette Group
+// Version 2.5 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend

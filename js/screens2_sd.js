@@ -1,4 +1,4 @@
-// Version 2.4 | 8 MAR 2026 | Siam Palette Group
+// Version 2.5 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -202,6 +202,7 @@ const Screens2 = (() => {
     date: null,
     expenses: [],
     photoUrl: null,
+    extraPhotos: [],
     editId: null,
   };
 
@@ -399,6 +400,8 @@ const Screens2 = (() => {
               <div class="photo-label">ถ่ายใบเสร็จ</div>
             </div>
           </div>
+          <div id="s2-extra-photos" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"></div>
+          <button type="button" class="btn btn-sm btn-outline" onclick="Screens2.s2PickPhoto('extra')" style="margin-top:4px;font-size:var(--fs-xs)">+ เพิ่มรูป</button>
         </div>
 
         <div style="display:flex;gap:var(--sp-sm);margin-top:var(--sp-md)">
@@ -468,7 +471,9 @@ const Screens2 = (() => {
     if (el) el.value = App.formatMoney(amt + gst);
   }
 
-  function s2PickPhoto() {
+  let _s2PhotoTarget = 'main';
+  function s2PickPhoto(target) {
+    _s2PhotoTarget = target || 'main';
     document.getElementById('s2-file-input')?.click();
   }
 
@@ -478,12 +483,17 @@ const Screens2 = (() => {
     try {
       App.showLoader();
       const result = await API.uploadPhoto(file, 'expense');
-      s2.photoUrl = result.url;
 
-      const box = document.getElementById('s2-photo-box');
-      if (box) {
-        box.classList.add('has-photo');
-        box.innerHTML = `<img src="${result.url}" alt="Receipt"><div class="photo-check">✓</div>`;
+      if (_s2PhotoTarget === 'extra') {
+        s2.extraPhotos.push(result.url);
+        s2RenderExtraPhotos();
+      } else {
+        s2.photoUrl = result.url;
+        const box = document.getElementById('s2-photo-box');
+        if (box) {
+          box.classList.add('has-photo');
+          box.innerHTML = `<img src="${result.url}" alt="Receipt"><div class="photo-check">✓</div>`;
+        }
       }
       App.toast('อัพโหลดสำเร็จ ✓', 'success');
     } catch (err) {
@@ -492,6 +502,22 @@ const Screens2 = (() => {
       App.hideLoader();
       event.target.value = '';
     }
+  }
+
+  function s2RenderExtraPhotos() {
+    const el = document.getElementById('s2-extra-photos');
+    if (!el) return;
+    el.innerHTML = s2.extraPhotos.map((url, i) =>
+      `<div style="position:relative;width:50px;height:50px;border-radius:6px;overflow:hidden;border:1px solid var(--bd)">
+        <img src="${url}" style="width:100%;height:100%;object-fit:cover">
+        <div style="position:absolute;top:0;right:0;background:var(--red);color:#fff;width:14px;height:14px;border-radius:50%;font-size:9px;display:flex;align-items:center;justify-content:center;cursor:pointer" onclick="Screens2.s2RemoveExtra(${i})">×</div>
+      </div>`
+    ).join('');
+  }
+
+  function s2RemoveExtra(index) {
+    s2.extraPhotos.splice(index, 1);
+    s2RenderExtraPhotos();
   }
 
   async function s2Save() {
@@ -524,6 +550,7 @@ const Screens2 = (() => {
         description, amount_ex_gst, gst,
         payment_method: _s2PaymentMethod,
         photo_url: s2.photoUrl,
+        extra_photos: s2.extraPhotos.length > 0 ? s2.extraPhotos : null,
         expense_id: s2.editId,
       });
 
@@ -589,6 +616,7 @@ const Screens2 = (() => {
   let s3 = {
     invoices: [],
     photoUrl: null,
+    extraPhotos: [],
     editId: null,
     paymentStatus: 'unpaid',
   };
@@ -770,6 +798,8 @@ const Screens2 = (() => {
                   </div>
                 </div>
               </label>
+              <div id="s3-extra-photos" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"></div>
+              <button type="button" class="btn btn-sm btn-outline" onclick="Screens2.s3PickExtraPhoto()" style="margin-top:4px;font-size:var(--fs-xs)">+ เพิ่มรูป</button>
             </div>
           </div>
           <div style="display:flex;gap:8px;margin-top:16px;padding-bottom:20px">
@@ -1076,6 +1106,41 @@ const Screens2 = (() => {
     finally { App.hideLoader(); event.target.value = ''; }
   }
 
+  function s3PickExtraPhoto() {
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = 'image/*'; inp.capture = 'environment'; inp.style.display = 'none';
+    inp.onchange = async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      try {
+        App.showLoader();
+        const result = await API.uploadPhoto(file, 'invoice');
+        s3.extraPhotos.push(result.url);
+        s3RenderExtraPhotos();
+        App.toast('อัพโหลดสำเร็จ ✓', 'success');
+      } catch (err) { App.toast('อัพโหลดไม่สำเร็จ', 'error'); }
+      finally { App.hideLoader(); inp.remove(); }
+    };
+    document.body.appendChild(inp);
+    inp.click();
+  }
+
+  function s3RenderExtraPhotos() {
+    const el = document.getElementById('s3-extra-photos');
+    if (!el) return;
+    el.innerHTML = s3.extraPhotos.map((url, i) =>
+      `<div style="position:relative;width:50px;height:50px;border-radius:6px;overflow:hidden;border:1px solid var(--bd)">
+        <img src="${url}" style="width:100%;height:100%;object-fit:cover">
+        <div style="position:absolute;top:0;right:0;background:var(--red);color:#fff;width:14px;height:14px;border-radius:50%;font-size:9px;display:flex;align-items:center;justify-content:center;cursor:pointer" onclick="Screens2.s3RemoveExtra(${i})">×</div>
+      </div>`
+    ).join('');
+  }
+
+  function s3RemoveExtra(index) {
+    s3.extraPhotos.splice(index, 1);
+    s3RenderExtraPhotos();
+  }
+
   async function s3Save() {
     const issue_date = document.getElementById('s3-issue-date')?.value || null;
     const invoice_no = document.getElementById('s3-invoice-no')?.value?.trim();
@@ -1122,6 +1187,7 @@ const Screens2 = (() => {
         payment_date: null,
         due_date,
         photo_url: s3.photoUrl,
+        extra_photos: s3.extraPhotos.length > 0 ? s3.extraPhotos : null,
         invoice_id: s3.editId,
         // Credit Note (Phase 9)
         has_credit_note: _s3HasCR,
@@ -1210,7 +1276,7 @@ const Screens2 = (() => {
     // S2 Expense
     renderExpense, loadExpense,
     showExpensePopup, s2EditExpense, s2DeleteExpense,
-    s2SetPayment, s2CalcTotal, s2PickPhoto, s2HandlePhoto,
+    s2SetPayment, s2CalcTotal, s2PickPhoto, s2HandlePhoto, s2RemoveExtra,
     s2Save, s2ClearForm, s2ChangeDate, s2GoToday,
 
     // S3 Invoice
@@ -1219,7 +1285,7 @@ const Screens2 = (() => {
     s3FilterTab, s3ReloadList, s3EditInvoice,
     s3GoAdd, s3GoEdit,
     s3SetStatus, s3SetPayMethod, s3CalcTotal, s3ToggleCR,
-    s3PickPhoto, s3HandlePhoto, s3Save, s3ClearForm,
+    s3PickPhoto, s3HandlePhoto, s3PickExtraPhoto, s3RemoveExtra, s3Save, s3ClearForm,
     s3MarkPaid,
   };
 })();

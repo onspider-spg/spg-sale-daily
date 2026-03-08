@@ -1,4 +1,4 @@
-// Version 2.1 | 8 MAR 2026 | Siam Palette Group
+// Version 2.2 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -54,13 +54,13 @@ const Screens5 = (() => {
     if (!el) return;
     try {
       App.showLoader();
-      // For suggestion: load all then filter by type client-side
-      const isSuggestion = _taskFilter === 'suggestion';
-      const status = (_taskFilter === 'all' || isSuggestion) ? undefined : _taskFilter;
-      const data = await API.getTasks(API.isHQ() ? API.getSelectedStore() : null, status);
+      // Type filters: equipment, follow_up, suggestion → filter client-side
+      const isTypeFilter = ['suggestion', 'equipment', 'follow_up'].includes(_taskFilter);
+      const status = (_taskFilter === 'all' || _taskFilter === 'done' || _taskFilter === 'pending') ? _taskFilter : undefined;
+      const data = await API.getTasks(API.isHQ() ? API.getSelectedStore() : null, status === 'all' ? undefined : status);
       _tasks = data.tasks || [];
-      if (isSuggestion) {
-        _tasks = _tasks.filter(t => t.type === 'suggestion');
+      if (isTypeFilter) {
+        _tasks = _tasks.filter(t => t.type === _taskFilter);
       }
       renderTaskList(el);
     } catch (err) {
@@ -168,6 +168,7 @@ const Screens5 = (() => {
           <label class="form-label">ประเภท</label>
           <select class="form-input" id="task-type">
             <option value="follow_up">📋 Follow-up</option>
+            <option value="equipment">🔧 Equipment</option>
             <option value="suggestion">💡 Suggestion</option>
           </select>
         </div>

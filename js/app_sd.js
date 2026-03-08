@@ -1,4 +1,4 @@
-// Version 2.4 | 8 MAR 2026 | Siam Palette Group
+// Version 2.5 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -62,7 +62,7 @@ const App = (() => {
     // Sprint 4
     'settings':         { render: () => Screens4.renderSettings(),   onLoad: (p) => Screens4.loadSettings(p) },
     // Menu screens
-    'profile':          { render: () => Screens.renderProfile(),     onLoad: null },
+    // profile is now popup via Screens.showProfilePopup()
     'notifications':    { render: () => Screens4.renderNotifications(), onLoad: () => Screens4.loadNotifications() },
     'notification-settings': { render: () => Screens4.renderNotificationSettings(), onLoad: () => Screens4.loadNotificationSettings() },
     // Tasks + Daily Report
@@ -392,6 +392,17 @@ const App = (() => {
           sbItem('Follow-up', 'tasks'),
           sbItem('Report Hub', 'report-hub'),
         ], false);
+
+        // T3+ Settings — show items based on permissions
+        const perms = API.getSession()?.permissions || {};
+        const settingsItems = [];
+        if (perms.manage_suppliers || tierLevel <= 4) settingsItems.push(sbItem('Vendors', 'settings', { tab: 'suppliers' }));
+        if (perms.manage_channel_config || tierLevel <= 4) settingsItems.push(sbItem('Channels', 'settings', { tab: 'channels' }));
+        settingsItems.push(sbItem('Notification Settings', 'notification-settings'));
+        if (settingsItems.length > 0) {
+          body += '<div class="sidebar-divider"></div>';
+          body += sidebarSection('Settings', settingsItems, false);
+        }
       }
 
       bodyEl.innerHTML = body;

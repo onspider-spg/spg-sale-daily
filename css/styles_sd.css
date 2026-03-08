@@ -1,4 +1,4 @@
-/* Version 2.0.5 | 8 MAR 2026 | Siam Palette Group */
+/* Version 2.1 | 8 MAR 2026 | Siam Palette Group */
 /* ═══════════════════════════════════════════
    SPG Sale Daily Module — styles_sd.css
    Warm Light Theme · IBM Plex Sans Thai
@@ -972,7 +972,21 @@ td {
   .sidebar-item { font-size: var(--fs-body); padding: 10px var(--sp-md); }
 }
 
-/* ═══ 27. SCROLLBAR ═══ */
+/* ═══ 27. PILL SELECTOR (weather/traffic/pos) ═══ */
+.pill-group { display: flex; gap: 4px; flex-wrap: wrap; }
+.pill {
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1.5px solid var(--bd);
+  background: var(--bg);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  transition: all .15s;
+}
+.pill:hover { border-color: var(--gold); }
+.pill.active { background: var(--gold); color: #fff; border-color: var(--gold); }
+
+/* ═══ 28. SCROLLBAR ═══ */
 ::-webkit-scrollbar { width: 3px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--bd); border-radius: 2px; }

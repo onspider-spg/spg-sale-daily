@@ -1,4 +1,4 @@
-// Version 2.4 | 8 MAR 2026 | Siam Palette Group
+// Version 2.5 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -38,7 +38,7 @@ const Screens = (() => {
         <div class="g-tb-logo" onclick="location.href='/spg-home/#dashboard'" style="cursor:pointer">SPG</div>
         <div class="g-tb-title">${titleText}<div class="g-tb-sub">Sale Daily</div></div>
         <div class="g-tb-bell" onclick="App.go('notifications')">🔔<span class="g-tb-bell-dot" id="tb-bell-dot" style="display:none"></span></div>
-        <div class="g-tb-avatar" onclick="App.go('profile')" style="cursor:pointer">${App.esc(initial)}</div>
+        <div class="g-tb-avatar" onclick="Screens.showProfilePopup()" style="cursor:pointer">${App.esc(initial)}</div>
       </div>`;
   }
 
@@ -551,6 +551,7 @@ const Screens = (() => {
     amounts: {},
     photoCardUrl: null,
     photoCashUrl: null,
+    extraPhotos: [],
     existingSale: null,
     isLocked: false,
   };
@@ -628,6 +629,8 @@ const Screens = (() => {
             </div>
             <div style="flex:1;font-size:var(--fs-xs);color:var(--tm);display:flex;align-items:center">auto compress</div>
           </div>
+          <div id="s1-extra-photos" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"></div>
+          <button type="button" class="btn btn-sm btn-outline" onclick="Screens.s1PickPhoto('extra')" style="margin-top:4px;font-size:var(--fs-xs)">+ เพิ่มรูป</button>
           <input type="file" id="s1-file-input" accept="image/*" capture="environment" style="display:none"
                  onchange="Screens.s1HandlePhoto(event)">
         </div>
@@ -837,9 +840,21 @@ const Screens = (() => {
 
       if (_photoTarget === 'card') {
         s1.photoCardUrl = result.url;
+      } else if (_photoTarget === 'extra') {
+        s1.extraPhotos.push(result.url);
       }
 
       renderS1Photos();
+      // Render extra thumbnails
+      const extraEl = document.getElementById('s1-extra-photos');
+      if (extraEl) {
+        extraEl.innerHTML = s1.extraPhotos.map((url, i) =>
+          `<div style="position:relative;width:60px;height:60px;border-radius:6px;overflow:hidden;border:1px solid var(--bd)">
+            <img src="${url}" style="width:100%;height:100%;object-fit:cover">
+            <div style="position:absolute;top:0;right:0;background:var(--red);color:#fff;width:16px;height:16px;border-radius:50%;font-size:10px;display:flex;align-items:center;justify-content:center;cursor:pointer" onclick="Screens.s1RemoveExtra(${i})">×</div>
+          </div>`
+        ).join('');
+      }
       App.toast('อัพโหลดสำเร็จ ✓', 'success');
     } catch (err) {
       console.error('Photo upload error:', err);
@@ -847,6 +862,19 @@ const Screens = (() => {
     } finally {
       App.hideLoader();
       event.target.value = '';
+    }
+  }
+
+  function s1RemoveExtra(index) {
+    s1.extraPhotos.splice(index, 1);
+    const extraEl = document.getElementById('s1-extra-photos');
+    if (extraEl) {
+      extraEl.innerHTML = s1.extraPhotos.map((url, i) =>
+        `<div style="position:relative;width:60px;height:60px;border-radius:6px;overflow:hidden;border:1px solid var(--bd)">
+          <img src="${url}" style="width:100%;height:100%;object-fit:cover">
+          <div style="position:absolute;top:0;right:0;background:var(--red);color:#fff;width:16px;height:16px;border-radius:50%;font-size:10px;display:flex;align-items:center;justify-content:center;cursor:pointer" onclick="Screens.s1RemoveExtra(${i})">×</div>
+        </div>`
+      ).join('');
     }
   }
 
@@ -871,6 +899,7 @@ const Screens = (() => {
         channels,
         photo_card_url: s1.photoCardUrl,
         photo_cash_url: null,
+        extra_photos: s1.extraPhotos.length > 0 ? s1.extraPhotos : null,
         difference: getVal('s1-difference'),
         cancel_desc: getVal('s1-cancel-desc'),
         cancel_amount: getVal('s1-cancel-amount'),
@@ -911,49 +940,35 @@ const Screens = (() => {
   // PROFILE
   // ════════════════════════════════════════
 
-  function renderProfile() {
+  function showProfilePopup() {
     const s = API.getSession();
-    if (!s) return renderNoAccess();
+    if (!s) return;
+    // Remove existing popup
+    const exist = document.getElementById('profile-popup-overlay');
+    if (exist) { exist.remove(); return; }
 
     const initial = (s.display_name || '?').charAt(0).toUpperCase();
-    const tierNames = {
-      'T1': 'Super Admin', 'T2': 'Admin', 'T3': 'Senior Manager',
-      'T4': 'Manager', 'T5': 'Senior Staff', 'T6': 'Junior Staff', 'T7': 'Viewer'
-    };
+    const tierNames = { 'T1': 'Super Admin', 'T2': 'Admin', 'T3': 'Senior Manager', 'T4': 'Manager', 'T5': 'Senior Staff', 'T6': 'Junior Staff', 'T7': 'Viewer' };
     const tierName = tierNames[s.tier_id] || s.tier_id;
 
-    return `
-      <div class="screen">
-        ${renderTopbar({ back: 'dashboard', label: 'Profile' })}
-        <div class="screen-body">
-          <div style="max-width:400px;margin:0 auto">
-            <div style="text-align:center;margin-bottom:var(--sp-md)">
-              <div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,var(--gold-bg2),#f9e8c0);border:2px solid var(--gold);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:var(--gold);margin:0 auto">${App.esc(initial)}</div>
-              <div style="font-size:var(--fs-body);font-weight:700;margin-top:var(--sp-sm)">${App.esc(s.display_name)}</div>
-              <div style="font-size:var(--fs-sm);color:var(--tm)">${App.esc(s.tier_id)} · ${App.esc(s.store_name)} · ${App.esc(s.dept_id || '')}</div>
-            </div>
-
-            <div class="card">
-              <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--bd2)">
-                <span style="color:var(--td);font-size:var(--fs-sm)">Account ID</span>
-                <span style="font-size:var(--fs-sm);font-weight:500">${App.esc(s.account_id)}</span>
-              </div>
-              <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--bd2)">
-                <span style="color:var(--td);font-size:var(--fs-sm)">Store</span>
-                <span style="font-size:var(--fs-sm);font-weight:500">${App.esc(s.store_name)} (${App.esc(s.store_id)})</span>
-              </div>
-              <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--bd2)">
-                <span style="color:var(--td);font-size:var(--fs-sm)">Tier</span>
-                <span style="font-size:var(--fs-sm);font-weight:500">${App.esc(s.tier_id)} — ${App.esc(tierName)}</span>
-              </div>
-              <div style="display:flex;justify-content:space-between;padding:12px 0">
-                <span style="color:var(--td);font-size:var(--fs-sm)">Access</span>
-                <span class="tag ${s.access_level === 'super_admin' || s.access_level === 'admin' ? 'gold' : 'gray'}">${App.esc(s.access_level)}</span>
-              </div>
-            </div>
-          </div>
+    const overlay = document.createElement('div');
+    overlay.id = 'profile-popup-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.3)';
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+    overlay.innerHTML = `
+      <div style="position:absolute;top:60px;right:12px;width:280px;background:var(--bg);border-radius:var(--radius);box-shadow:var(--shadow-md);padding:16px;animation:fadeIn .15s">
+        <div style="text-align:center;margin-bottom:12px">
+          <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--gold-bg2),#f9e8c0);border:2px solid var(--gold);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:var(--gold);margin:0 auto">${App.esc(initial)}</div>
+          <div style="font-size:var(--fs-body);font-weight:700;margin-top:6px">${App.esc(s.display_name)}</div>
+          <div style="font-size:var(--fs-xs);color:var(--tm)">${App.esc(s.tier_id)} — ${App.esc(tierName)}</div>
+        </div>
+        <div style="font-size:var(--fs-sm);border-top:1px solid var(--bd2);padding-top:10px">
+          <div style="display:flex;justify-content:space-between;padding:6px 0"><span style="color:var(--tm)">Store</span><span style="font-weight:500">${App.esc(s.store_name || s.store_id)}</span></div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0"><span style="color:var(--tm)">Access</span><span class="tag ${s.access_level === 'super_admin' || s.access_level === 'admin' ? 'gold' : 'gray'}">${App.esc(s.access_level)}</span></div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0"><span style="color:var(--tm)">Account</span><span style="font-size:var(--fs-xs)">${App.esc(s.account_id)}</span></div>
         </div>
       </div>`;
+    document.body.appendChild(overlay);
   }
 
 
@@ -969,13 +984,13 @@ const Screens = (() => {
     renderDashboard, loadDashboard,
 
     // Profile
-    renderProfile,
+    showProfilePopup,
 
     // S1 Daily Sale
     renderDailySale, loadDailySale,
     s1ChangeDate, s1GoToday,
     s1OnChannelInput, s1RecalcTotal,
-    s1PickPhoto, s1HandlePhoto,
+    s1PickPhoto, s1HandlePhoto, s1RemoveExtra,
     syncSale, unlockSale,
     s1Save,
   };
