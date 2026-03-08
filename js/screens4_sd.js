@@ -1,4 +1,4 @@
-// Version 2.5.1 | 8 MAR 2026 | Siam Palette Group
+// Version 2.5.2 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -1175,14 +1175,6 @@ const Screens4 = (() => {
           <label class="form-label">ชื่อ Vendor <span class="req">*</span></label>
           <input type="text" class="form-input" id="s4-new-vendor-name" placeholder="ชื่อ vendor">
         </div>
-        <div class="form-group">
-          <label class="form-label">กลุ่ม</label>
-          <input type="text" class="form-input" id="s4-new-vendor-group" placeholder="เช่น Food, Packaging">
-        </div>
-        <div class="form-group">
-          <label class="form-label">ประเภท</label>
-          <input type="text" class="form-input" id="s4-new-vendor-type" placeholder="เช่น Supplier, Service">
-        </div>
         <div style="display:flex;gap:8px;margin-top:16px">
           <button class="btn btn-gold" style="flex:1" onclick="Screens4.doAddVendor()">สร้าง</button>
           <button class="btn btn-outline" style="flex:0.5" onclick="document.getElementById('add-vendor-overlay')?.remove()">ยกเลิก</button>
@@ -1193,13 +1185,11 @@ const Screens4 = (() => {
 
   async function doAddVendor() {
     const name = document.getElementById('s4-new-vendor-name')?.value?.trim();
-    const group = document.getElementById('s4-new-vendor-group')?.value?.trim();
-    const type = document.getElementById('s4-new-vendor-type')?.value?.trim();
     if (!name) { App.toast('กรุณาใส่ชื่อ Vendor', 'error'); return; }
 
     try {
       App.showLoader();
-      await API.createVendor(name, group || null, type || null);
+      await API.createVendor(name, null, null);
       App.toast('สร้าง Vendor สำเร็จ ✓', 'success');
       document.getElementById('add-vendor-overlay')?.remove();
       // Refresh current tab
