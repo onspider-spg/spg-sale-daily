@@ -1,4 +1,4 @@
-// Version 2.3.2 | 8 MAR 2026 | Siam Palette Group
+// Version 2.4 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -38,7 +38,7 @@ const Screens = (() => {
         <div class="g-tb-logo" onclick="location.href='/spg-home/#dashboard'" style="cursor:pointer">SPG</div>
         <div class="g-tb-title">${titleText}<div class="g-tb-sub">Sale Daily</div></div>
         <div class="g-tb-bell" onclick="App.go('notifications')">🔔<span class="g-tb-bell-dot" id="tb-bell-dot" style="display:none"></span></div>
-        <div class="g-tb-avatar">${App.esc(initial)}</div>
+        <div class="g-tb-avatar" onclick="App.go('profile')" style="cursor:pointer">${App.esc(initial)}</div>
       </div>`;
   }
 

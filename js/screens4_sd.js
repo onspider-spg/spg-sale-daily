@@ -1,4 +1,4 @@
-// Version 2.3 | 8 MAR 2026 | Siam Palette Group
+// Version 2.4 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -502,7 +502,7 @@ const Screens4 = (() => {
         for (const [mainCat, subs] of Object.entries(mains)) {
           const allVisible = subs.every(s => s.is_visible);
           html += `
-            <details style="background:var(--bg);border:1px solid var(--bd2);border-radius:var(--radius-sm);margin-bottom:var(--sp-xs)" open>
+            <details style="background:var(--bg);border:1px solid var(--bd2);border-radius:var(--radius-sm);margin-bottom:var(--sp-xs)">
               <summary style="display:flex;justify-content:space-between;align-items:center;padding:var(--sp-sm);cursor:pointer">
                 <div style="font-size:var(--fs-body);font-weight:700;color:var(--gold)">▾ ${App.esc(mainCat)}</div>
                 <div style="width:36px;height:20px;background:${allVisible ? 'var(--green)' : 'var(--s2)'};border-radius:10px;position:relative;cursor:pointer" onclick="event.stopPropagation();Screens4.toggleMainCategory('${txType}','${mainCat}')">
@@ -541,7 +541,9 @@ const Screens4 = (() => {
       _catChanges.push({ transaction_type: txType, main_category: mainCat, sub_category: s.sub_category, is_visible: newVal });
     });
     updateCatSaveBtn();
-    loadTabContent('categories');
+    // Re-render categories tab
+    const el = document.getElementById('s7-content');
+    if (el) renderCategoriesTab(el);
   }
 
   function toggleSubCategory(txType, mainCat, subCat) {
@@ -551,7 +553,9 @@ const Screens4 = (() => {
     sub.is_visible = !sub.is_visible;
     _catChanges.push({ transaction_type: txType, main_category: mainCat, sub_category: subCat, is_visible: sub.is_visible });
     updateCatSaveBtn();
-    loadTabContent('categories');
+    // Re-render categories tab
+    const el = document.getElementById('s7-content');
+    if (el) renderCategoriesTab(el);
   }
 
   function updateCatSaveBtn() {

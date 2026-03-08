@@ -1,4 +1,4 @@
-// Version 2.3.1 | 8 MAR 2026 | Siam Palette Group
+// Version 2.4 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -33,11 +33,14 @@ const App = (() => {
   let currentParams = {};
 
   // Store list for HQ selector
-  let stores = [
+  let stores = []; // populated from initBundle API
+
+  // Fallback if API doesn't return stores
+  const _defaultStores = [
     { store_id: 'MNG', label: 'Mango Coco', short: 'MNG' },
     { store_id: 'ISH', label: 'Issho Cafe', short: 'ISH' },
     { store_id: 'GB',  label: 'Golden Brown', short: 'GB' },
-    { store_id: 'RW',  label: 'Red Wok', short: 'RW', branches: [] },
+    { store_id: 'RW',  label: 'Red Wok', short: 'RW' },
     { store_id: 'TMC', label: 'Melting Cheese', short: 'TMC' },
     { store_id: 'SPG', label: 'Siam Palette Group', short: 'SPG' },
   ];
@@ -89,6 +92,13 @@ const App = (() => {
       showLoader();
       const data = await API.initBundle();
       API.saveSession({ token: session.token, ...data });
+
+      // Populate stores from API (dynamic — not hardcoded)
+      if (data.all_stores && data.all_stores.length > 0) {
+        stores = data.all_stores;
+      } else {
+        stores = _defaultStores;
+      }
 
       // Store dashboard data for loadDashboard to use without API call
       window._sdDashboardCache = data._dashboard;

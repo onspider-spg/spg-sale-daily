@@ -1,4 +1,4 @@
-// Version 2.0 | 8 MAR 2026 | Siam Palette Group
+// Version 2.1 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -166,7 +166,7 @@ const Screens5 = (() => {
         </div>
         <div class="form-group">
           <label class="form-label">ประเภท</label>
-          <select class="form-select" id="task-type">
+          <select class="form-input" id="task-type">
             <option value="follow_up">📋 Follow-up</option>
             <option value="suggestion">💡 Suggestion</option>
           </select>
@@ -177,7 +177,7 @@ const Screens5 = (() => {
         </div>
         <div class="form-group">
           <label class="form-label">ระดับ</label>
-          <select class="form-select" id="task-priority">
+          <select class="form-input" id="task-priority">
             <option value="normal">📋 Normal</option>
             <option value="urgent">🚨 Urgent</option>
           </select>
@@ -691,7 +691,7 @@ const Screens5 = (() => {
         <input class="form-input" id="s8-task-title" placeholder="เช่น ช่างซ่อมเครื่องน้ำแข็ง..." style="margin-bottom:8px">
         <div style="display:flex;gap:8px">
           <input class="form-input" id="s8-task-assign" placeholder="มอบหมายให้..." style="flex:1">
-          <select class="form-select" id="s8-task-priority" style="width:100px">
+          <select class="form-input" id="s8-task-priority" style="width:100px">
             <option value="normal">📋 ปกติ</option>
             <option value="urgent">🚨 ด่วน</option>
           </select>

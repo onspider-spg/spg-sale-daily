@@ -1,4 +1,4 @@
-// Version 2.2 | 8 MAR 2026 | Siam Palette Group
+// Version 2.4 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -47,7 +47,7 @@ const Screens2 = (() => {
           <button class="btn btn-sm btn-outline" onclick="App.go('settings')" title="จัดการ Vendor" style="padding:8px;min-width:36px">⚙</button>
         </div>
         <div style="margin-top:4px">
-          <button class="btn btn-sm btn-outline" onclick="Screens2.showNewVendorModal('${id}')">+ เพิ่ม Vendor ใหม่</button>
+          ${(API.getSession()?.tier_level || 9) <= 4 ? `<button class="btn btn-sm btn-outline" onclick="Screens2.showNewVendorModal('${id}')">+ เพิ่ม Vendor ใหม่</button>` : ''}
         </div>
       </div>`;
   }
@@ -101,7 +101,7 @@ const Screens2 = (() => {
       `<option value="${App.esc(m)}" ${m === value ? 'selected' : ''}>${App.esc(m)}</option>`
     ).join('');
     return `
-      <select class="form-select" id="${id}" onchange="${onchangeFn}">
+      <select class="form-input" id="${id}" onchange="${onchangeFn}">
         <option value="">— เลือก Main —</option>
         ${opts}
       </select>`;
@@ -113,7 +113,7 @@ const Screens2 = (() => {
       `<option value="${App.esc(s)}" ${s === value ? 'selected' : ''}>${App.esc(s)}</option>`
     ).join('');
     return `
-      <select class="form-select" id="${id}">
+      <select class="form-input" id="${id}">
         <option value="">— เลือก Sub —</option>
         ${opts}
       </select>`;
@@ -745,45 +745,31 @@ const Screens2 = (() => {
               </div>
             </div>
 
-            <div class="section-label" style="color:var(--red);margin-top:0">💳 Payment Status</div>
-            <div class="form-group">
-              <div style="display:flex;gap:8px">
-                <button class="btn btn-sm btn-outline" id="s3-status-paid" onclick="Screens2.s3SetStatus('paid')" style="flex:1">✅ Paid</button>
-                <button class="btn btn-sm btn-gold" id="s3-status-unpaid" onclick="Screens2.s3SetStatus('unpaid')" style="flex:1">🔴 Unpaid</button>
-              </div>
+            <div class="divider"></div>
+
+            <!-- Auto Unpaid (no toggle — edit-until-paid deferred to Finance) -->
+            <div style="padding:var(--sp-sm);background:var(--red-bg);border-radius:var(--radius-sm);margin-bottom:var(--sp-sm);display:flex;justify-content:space-between">
+              <span style="font-size:var(--fs-sm);font-weight:700;color:var(--red)">💳 Payment Status</span>
+              <span class="status-badge sts-pending">Unpaid (auto)</span>
             </div>
-            <div id="s3-unpaid-fields">
+            <div>
               <div class="form-group">
                 <label class="form-label">Due Date <span class="req">*</span></label>
                 <input type="date" class="form-input" id="s3-due-date">
               </div>
             </div>
-            <div id="s3-paid-fields" style="display:none">
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-                <div class="form-group">
-                  <label class="form-label">Payment Date</label>
-                  <input type="date" class="form-input" id="s3-payment-date">
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Payment Method</label>
-                  <div style="display:flex;gap:6px">
-                    <button class="btn btn-sm btn-outline" id="s3-pay-cash" onclick="Screens2.s3SetPayMethod('cash')" style="flex:1">💵</button>
-                    <button class="btn btn-sm btn-outline" id="s3-pay-card" onclick="Screens2.s3SetPayMethod('card')" style="flex:1">💳</button>
-                    <button class="btn btn-sm btn-outline" id="s3-pay-transfer" onclick="Screens2.s3SetPayMethod('transfer')" style="flex:1">🏦</button>
-                  </div>
-                </div>
-              </div>
-            </div>
             <div class="form-group" style="margin-top:12px">
               <label class="form-label">📸 ถ่ายหน้า Invoice <span class="req">*</span></label>
-              <div class="photo-grid" style="grid-template-columns:1fr">
-                <div class="photo-box" id="s3-photo-box" onclick="Screens2.s3PickPhoto()" style="min-height:80px">
-                  <div class="photo-icon">📸</div>
-                  <div class="photo-label">ถ่าย Invoice</div>
-                  <div class="photo-required">* บังคับ</div>
-                </div>
-              </div>
               <input type="file" id="s3-file-input" accept="image/*" capture="environment" style="display:none" onchange="Screens2.s3HandlePhoto(event)">
+              <label for="s3-file-input" style="cursor:pointer">
+                <div class="photo-grid" style="grid-template-columns:1fr">
+                  <div class="photo-box" id="s3-photo-box" style="min-height:80px">
+                    <div class="photo-icon">📸</div>
+                    <div class="photo-label">ถ่าย Invoice</div>
+                    <div class="photo-required">* บังคับ</div>
+                  </div>
+                </div>
+              </label>
             </div>
           </div>
           <div style="display:flex;gap:8px;margin-top:16px;padding-bottom:20px">
@@ -1111,8 +1097,7 @@ const Screens2 = (() => {
     if (amount_ex_gst <= 0) return App.toast('Amount ต้อง > 0', 'error');
     if (!s3.photoUrl) return App.toast('กรุณาถ่ายรูป Invoice', 'error');
 
-    if (s3.paymentStatus === 'unpaid' && !due_date) return App.toast('กรุณาใส่ Due Date', 'error');
-    if (s3.paymentStatus === 'paid' && !_s3PayMethod) return App.toast('กรุณาเลือก Payment Method', 'error');
+    if (!due_date) return App.toast('กรุณาใส่ Due Date', 'error');
 
     // Credit Note validation
     if (_s3HasCR) {
@@ -1132,9 +1117,9 @@ const Screens2 = (() => {
       const result = await API.saveInvoice({
         issue_date, invoice_no, vendor_name, main_category, sub_category,
         description, amount_ex_gst, gst,
-        payment_status: s3.paymentStatus,
-        payment_method: s3.paymentStatus === 'paid' ? _s3PayMethod : null,
-        payment_date,
+        payment_status: 'unpaid',
+        payment_method: null,
+        payment_date: null,
         due_date,
         photo_url: s3.photoUrl,
         invoice_id: s3.editId,
