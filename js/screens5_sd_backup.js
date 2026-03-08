@@ -1,10 +1,8 @@
-// Version 2.0 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
- * screens5_sd.js — v2.0
+ * screens5_sd.js — v1.5.2
  * Tasks + S8 Daily Report (3 tabs) + Admin Dashboard
- * Phase 5: SPG topbar + wireframe filter chips
  * ═══════════════════════════════════════════════════
  */
 
@@ -24,24 +22,24 @@ const Screens5 = (() => {
 
     return `
       <div class="screen">
-        ${Screens.renderTopbar({ back: 'dashboard', label: 'Follow-up' })}
+        <div class="header-bar">
+          <button class="back-btn" onclick="App.go('dashboard')">←</button>
+          <div style="flex:1;min-width:0">
+            <div class="header-title">📋 งานติดตาม</div>
+            <div class="header-sub">Tasks & Follow-up · ${App.esc(session.store_name)}</div>
+          </div>
+          ${canCreate ? `<div class="header-right">
+            <button class="btn btn-gold" style="font-size:12px;padding:6px 14px" onclick="Screens5.showCreateTask()">+ เพิ่ม</button>
+          </div>` : ''}
+        </div>
         <div class="screen-body">
           ${API.isHQ() ? App.renderStoreSelector() : ''}
-
-          <!-- Status chips -->
-          <div class="chip-group">
-            <button class="filter-chip ${_taskFilter === 'pending' ? 'active' : ''}" onclick="Screens5.filterTasks('pending')">Open</button>
-            <button class="filter-chip ${_taskFilter === 'done' ? 'active' : ''}" onclick="Screens5.filterTasks('done')">Done</button>
+          <div style="display:flex;gap:0;background:var(--s1);border-radius:12px;padding:3px;margin-bottom:12px">
+            <button class="tab-pill ${_taskFilter === 'pending' ? 'active' : ''}" onclick="Screens5.filterTasks('pending')">⏳ ค้าง</button>
+            <button class="tab-pill ${_taskFilter === 'done' ? 'active' : ''}" onclick="Screens5.filterTasks('done')">✅ เสร็จ</button>
+            <button class="tab-pill ${_taskFilter === 'suggestion' ? 'active' : ''}" onclick="Screens5.filterTasks('suggestion')">💡 Suggestion</button>
+            <button class="tab-pill ${_taskFilter === 'all' ? 'active' : ''}" onclick="Screens5.filterTasks('all')">📋 ทั้งหมด</button>
           </div>
-
-          <!-- Type chips -->
-          <div class="chip-group">
-            <button class="filter-chip ${_taskFilter === 'all' || _taskFilter === 'pending' || _taskFilter === 'done' ? 'active' : ''}" onclick="Screens5.filterTasks(_taskFilter === 'done' ? 'done' : 'pending')">All</button>
-            <button class="filter-chip ${_taskFilter === 'equipment' ? 'active' : ''}" onclick="Screens5.filterTasks('equipment')">🔧 Equipment</button>
-            <button class="filter-chip ${_taskFilter === 'follow_up' ? 'active' : ''}" onclick="Screens5.filterTasks('follow_up')">📋 Tasks</button>
-            <button class="filter-chip ${_taskFilter === 'suggestion' ? 'active' : ''}" onclick="Screens5.filterTasks('suggestion')">💡 Suggestion</button>
-          </div>
-
           <div id="task-list">
             <div style="text-align:center;padding:20px;color:var(--tm)">กำลังโหลด...</div>
           </div>
@@ -80,21 +78,23 @@ const Screens5 = (() => {
       const isDone = t.status === 'done';
       const isUrgent = t.priority === 'urgent';
       const isSuggestion = t.type === 'suggestion';
-      const isEquip = t.type === 'equipment';
-
-      const borderColor = isDone ? 'var(--green)' : isEquip ? 'var(--red)' : isSuggestion ? 'var(--purple)' : isUrgent ? 'var(--red)' : 'var(--orange)';
-      const typeLabel = isEquip ? 'Equipment' : isSuggestion ? 'Suggestion' : 'Tasks';
+      const icon = isSuggestion ? '💡' : (isDone ? '✅' : (isUrgent ? '🚨' : '⏳'));
+      const borderColor = isDone ? 'var(--green)' : (isUrgent ? 'var(--red)' : (isSuggestion ? 'var(--purple)' : 'var(--gold)'));
 
       return `
-        <div style="padding:var(--sp-sm) 12px;background:var(--bg);border:1px solid var(--bd2);border-left:4px solid ${borderColor};border-radius:0 var(--radius-sm) var(--radius-sm) 0;margin-bottom:var(--sp-xs);${isDone ? 'opacity:.6' : ''}">
-          <div style="font-size:var(--fs-body);font-weight:700">${App.esc(typeLabel)} : ${App.esc(t.title)}</div>
-          <div style="font-size:var(--fs-xs);color:var(--tm);margin-top:2px">
-            ${t.note ? App.esc(t.note) + ' · ' : ''}${isUrgent ? '🚨 ด่วนมาก · ' : ''}${t.assigned_to ? '👤 ' + App.esc(t.assigned_to) + ' · ' : ''}${new Date(t.created_at).toLocaleDateString('th-TH')}
-          </div>
-          <div style="display:flex;gap:var(--sp-xs);margin-top:var(--sp-sm);align-items:center">
-            <span class="status-badge ${isDone ? 'sts-synced' : 'sts-pending'}">${isDone ? 'Done' : 'Open'}</span>
-            ${canEdit && !isDone ? `<button class="btn btn-sm btn-outline" onclick="Screens5.toggleTask('${t.id}','done')">✏️</button>` : ''}
-            ${canEdit && !isDone ? `<span style="font-size:var(--fs-xs);color:var(--green);background:var(--green-bg);padding:2px 8px;border-radius:4px;cursor:pointer" onclick="Screens5.toggleTask('${t.id}','done')">กดเสร็จ ✓</span>` : ''}
+        <div class="card" style="margin-bottom:8px;border-left:3px solid ${borderColor};${isDone ? 'opacity:0.6' : ''}">
+          <div style="display:flex;align-items:flex-start;gap:10px">
+            ${canEdit ? `<div style="font-size:18px;cursor:pointer;padding-top:2px" onclick="Screens5.toggleTask('${t.id}', '${isDone ? 'pending' : 'done'}')">${icon}</div>` : `<div style="font-size:18px;padding-top:2px">${icon}</div>`}
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:600;font-size:13px;${isDone ? 'text-decoration:line-through' : ''}">${App.esc(t.title)}</div>
+              ${t.note ? `<div style="font-size:12px;color:var(--td);margin-top:2px">${App.esc(t.note)}</div>` : ''}
+              <div style="font-size:10px;color:var(--tm);margin-top:4px;display:flex;gap:8px;flex-wrap:wrap">
+                ${t.assigned_to ? `<span>👤 ${App.esc(t.assigned_to)}</span>` : ''}
+                ${isSuggestion ? '<span style="background:var(--purple-bg);color:var(--purple);font-size:9px;padding:1px 6px;border-radius:4px">💡 Suggestion</span>' : ''}
+                <span>${new Date(t.created_at).toLocaleDateString('th-TH')}</span>
+                ${isDone && t.completed_at ? `<span style="color:var(--green)">เสร็จ ${new Date(t.completed_at).toLocaleDateString('th-TH')}</span>` : ''}
+              </div>
+            </div>
           </div>
         </div>`;
     }).join('');
@@ -280,7 +280,14 @@ const Screens5 = (() => {
 
     return `
       <div class="screen">
-        ${Screens.renderTopbar({ back: 'report-hub', label: 'Daily Report' })}
+        <div class="header-bar">
+          <button class="back-btn" onclick="App.go('report-hub')">←</button>
+          <div style="flex:1;min-width:0">
+            <div class="header-title">📝 Daily Report</div>
+            <div class="header-sub">S8 สรุปรายงาน · ${App.esc(session.store_name)}</div>
+          </div>
+          <button class="back-btn" onclick="App.toggleSidebar()" style="font-size:16px">☰</button>
+        </div>
         <div class="screen-body">
 
           <!-- Date picker -->
@@ -323,7 +330,14 @@ const Screens5 = (() => {
     _reportDate = _reportDate || App.todayStr();
     return `
       <div class="screen">
-        ${Screens.renderTopbar({ back: 'report-hub', label: 'Report Dashboard' })}
+        <div class="header-bar">
+          <button class="back-btn" onclick="App.go('report-hub')">←</button>
+          <div style="flex:1;min-width:0">
+            <div class="header-title">📊 S8 Report Dashboard</div>
+            <div class="header-sub">ภาพรวมเหตุการณ์ · ${App.esc(session.store_name)}</div>
+          </div>
+          <button class="back-btn" onclick="App.toggleSidebar()" style="font-size:16px">☰</button>
+        </div>
         <div class="screen-body">
           ${App.renderStoreSelector ? App.renderStoreSelector() : ''}
 
