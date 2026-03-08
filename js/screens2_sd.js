@@ -1,4 +1,4 @@
-// Version 2.6 | 8 MAR 2026 | Siam Palette Group
+// Version 2.6.1 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -34,7 +34,7 @@ const Screens2 = (() => {
 
   function renderVendorDropdown(id, value) {
     const perms = API.getSession()?.permissions || {};
-    const canAdd = perms.manage_suppliers || (API.getSession()?.tier_level || 9) <= 4;
+    const canAdd = true; // backend handles permission check
     return `
       <div class="vendor-search-wrap" style="position:relative">
         <div style="display:flex;gap:6px;align-items:center">
@@ -353,9 +353,8 @@ const Screens2 = (() => {
           <div id="s2-vendor-wrap">${renderVendorDropdown('s2-vendor', editData?.vendor_name || '')}</div>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-          <div class="form-group">
-            <label class="form-label">Description <span class="req">*</span></label>
+        <div class="form-group">
+          <label class="form-label">Description <span class="req">*</span></label>
           <input type="text" class="form-input" id="s2-desc" placeholder="อธิบายสั้นๆ" value="${App.esc(editData?.description || '')}">
         </div>
 
