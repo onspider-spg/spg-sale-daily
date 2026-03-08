@@ -1,4 +1,4 @@
-// Version 2.7.3 | 8 MAR 2026 | Siam Palette Group
+// Version 2.7.4 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -844,7 +844,8 @@ const Screens2 = (() => {
 
     // Load into form
     const setVal = (elId, val) => { const el = document.getElementById(elId); if (el) el.value = val || ''; };
-    setVal('s3-issue-date', inv.issue_date || '');
+    const setDate = (elId, val) => { const el = document.getElementById(elId); if (el) el.value = (val || '').substring(0, 10); };
+    setDate('s3-issue-date', inv.issue_date);
     setVal('s3-invoice-no', inv.invoice_no);
     setVal('s3-vendor', inv.vendor_name);
 
@@ -855,8 +856,8 @@ const Screens2 = (() => {
     setVal('s3-gst', inv.gst);
     s3CalcTotal();
 
-    setVal('s3-due-date', inv.due_date || '');
-    setVal('s3-payment-date', inv.payment_date || '');
+    setDate('s3-due-date', inv.due_date);
+    setDate('s3-payment-date', inv.payment_date);
 
     s3.paymentStatus = inv.payment_status || 'unpaid';
     _s3PayMethod = inv.payment_method || '';
@@ -1092,6 +1093,7 @@ const Screens2 = (() => {
     if (!s3.photoUrl) return App.toast('กรุณาถ่ายรูป Invoice', 'error');
 
     if (!due_date) return App.toast('กรุณาใส่ Due Date', 'error');
+    if (due_date < issue_date) return App.toast('Due Date ต้องไม่ก่อน Issue Date', 'error');
 
     // Credit Note — must answer Yes or No
     if (!_s3CRAnswered) return App.toast('กรุณาเลือก Credit Note (Yes / No)', 'error');
