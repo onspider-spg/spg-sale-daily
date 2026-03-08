@@ -1,4 +1,4 @@
-// Version 2.5 | 8 MAR 2026 | Siam Palette Group
+// Version 2.6 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -237,11 +237,6 @@ const Screens = (() => {
             <div class="quick-btn" onclick="App.go('settings',{tab:'suppliers'})">
               <div class="q-icon" style="background:var(--blue-bg);color:var(--blue)">🏪</div>
               <div><div class="q-label">Vendors</div><div class="q-sub">รายชื่อ supplier</div></div>
-              <div class="q-arrow">→</div>
-            </div>
-            <div class="quick-btn" onclick="App.go('settings',{tab:'categories'})">
-              <div class="q-icon" style="background:var(--orange-bg);color:var(--orange)">🏷️</div>
-              <div><div class="q-label">Categories</div><div class="q-sub">หมวดหมู่</div></div>
               <div class="q-arrow">→</div>
             </div>
           </div>

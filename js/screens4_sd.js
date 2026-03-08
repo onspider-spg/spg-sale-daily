@@ -1,4 +1,4 @@
-// Version 2.5.2 | 8 MAR 2026 | Siam Palette Group
+// Version 2.6 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -31,7 +31,6 @@ const Screens4 = (() => {
           <div class="chip-group" style="margin-bottom:var(--sp-md)">
             <button class="filter-chip active" id="s7-tab-channels" onclick="Screens4.setTab('channels')">Channels</button>
             <button class="filter-chip" id="s7-tab-suppliers" onclick="Screens4.setTab('suppliers')">Vendors</button>
-            <button class="filter-chip" id="s7-tab-categories" onclick="Screens4.setTab('categories')">Categories</button>
             <button class="filter-chip" id="s7-tab-settings" onclick="Screens4.setTab('settings')">Config</button>
             <button class="filter-chip" id="s7-tab-alerts" onclick="Screens4.setTab('alerts')">Alert Rules</button>
             <button class="filter-chip" id="s7-tab-permissions" onclick="Screens4.setTab('permissions')">Permissions</button>
@@ -50,7 +49,7 @@ const Screens4 = (() => {
     const tab = (params && params.tab) || 'channels';
     _currentTab = tab;
     // Update chip active state
-    ['channels', 'suppliers', 'categories', 'settings', 'alerts', 'permissions', 'audit'].forEach(t => {
+    ['channels', 'suppliers', 'settings', 'alerts', 'permissions', 'audit'].forEach(t => {
       const btn = document.getElementById(`s7-tab-${t}`);
       if (btn) btn.className = `filter-chip ${t === tab ? 'active' : ''}`;
     });
@@ -59,7 +58,7 @@ const Screens4 = (() => {
 
   function setTab(tab) {
     _currentTab = tab;
-    ['channels', 'suppliers', 'categories', 'settings', 'alerts', 'permissions', 'audit'].forEach(t => {
+    ['channels', 'suppliers', 'settings', 'alerts', 'permissions', 'audit'].forEach(t => {
       const btn = document.getElementById(`s7-tab-${t}`);
       if (btn) btn.className = `filter-chip ${t === tab ? 'active' : ''}`;
     });
@@ -77,7 +76,6 @@ const Screens4 = (() => {
       switch (tab) {
         case 'channels':    await renderChannelsTab(el); break;
         case 'suppliers':   await renderSuppliersTab(el); break;
-        case 'categories':  await renderCategoriesTab(el); break;
         case 'settings':    await renderSettingsTab(el); break;
         case 'alerts':      await renderAlertRulesTab(el); break;
         case 'permissions': await renderPermissionsTab(el); break;

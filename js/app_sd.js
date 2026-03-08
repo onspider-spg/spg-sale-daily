@@ -1,4 +1,4 @@
-// Version 2.5 | 8 MAR 2026 | Siam Palette Group
+// Version 2.6 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -362,7 +362,6 @@ const App = (() => {
           sbItem('Send to Account', 'acc-review'),
           sbItem('Channels', 'settings', { tab: 'channels' }),
           sbItem('Vendors', 'settings', { tab: 'suppliers' }),
-          sbItem('Categories', 'settings', { tab: 'categories' }),
           sbItem('Permissions', 'settings', { tab: 'permissions' }),
           sbItem('Audit Log', 'settings', { tab: 'audit' }),
           sbItem('Notification Settings', 'notification-settings'),

@@ -1,4 +1,4 @@
-// Version 2.5.1 | 8 MAR 2026 | Siam Palette Group
+// Version 2.6 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -294,13 +294,13 @@ const Screens2 = (() => {
     }
 
     el.innerHTML = s2.expenses.map(e => {
-      const borderColor = e.main_category === 'COGS' ? 'var(--red)' : 'var(--orange)';
+      const borderColor = 'var(--orange)';
       return `
         <div style="padding:12px;background:var(--bg);border:1px solid var(--bd2);border-left:4px solid ${borderColor};border-radius:0 var(--radius-sm) var(--radius-sm) 0;margin-bottom:var(--sp-xs)">
           <div style="display:flex;justify-content:space-between">
             <div>
               <div style="font-size:var(--fs-body);font-weight:700">${App.esc(e.description || e.doc_number)}</div>
-              <div style="font-size:var(--fs-xs);color:var(--tm);margin-top:2px">${App.esc(e.main_category)} > ${App.esc(e.sub_category)} · ${App.esc(e.vendor_name || '—')} · ${e.payment_method === 'cash' ? 'Cash' : 'Card'}</div>
+              <div style="font-size:var(--fs-xs);color:var(--tm);margin-top:2px">${App.esc(e.vendor_name || '—')} · ${e.payment_method === 'cash' ? 'Cash' : 'Card'}</div>
             </div>
             <div style="font-size:var(--fs-body);font-weight:800;color:var(--red)">-${App.formatMoney(e.total_amount)}</div>
           </div>
@@ -355,17 +355,7 @@ const Screens2 = (() => {
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
           <div class="form-group">
-            <label class="form-label">Main Category <span class="req">*</span></label>
-            <div id="s2-main-wrap">${renderMainCategoryDropdown('s2-main', editData?.main_category || '', "Screens2.onMainCategoryChange('s2-main','s2-sub')")}</div>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Sub Category <span class="req">*</span></label>
-            <div id="s2-sub-wrap">${renderSubCategoryDropdown('s2-sub', editData?.sub_category || '', editData?.main_category || '')}</div>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Description <span class="req">*</span></label>
+            <label class="form-label">Description <span class="req">*</span></label>
           <input type="text" class="form-input" id="s2-desc" placeholder="อธิบายสั้นๆ" value="${App.esc(editData?.description || '')}">
         </div>
 
@@ -525,8 +515,8 @@ const Screens2 = (() => {
   async function s2Save() {
     const doc_number = document.getElementById('s2-doc-number')?.value?.trim();
     const vendor_name = document.getElementById('s2-vendor')?.value;
-    const main_category = document.getElementById('s2-main')?.value;
-    const sub_category = document.getElementById('s2-sub')?.value;
+    const main_category = null;
+    const sub_category = null;
     const description = document.getElementById('s2-desc')?.value?.trim();
     const amount_ex_gst = parseFloat(document.getElementById('s2-amount')?.value) || 0;
     const gst = parseFloat(document.getElementById('s2-gst')?.value) || 0;
@@ -534,8 +524,6 @@ const Screens2 = (() => {
     // Quick validation
     if (!doc_number) return App.toast('กรุณาใส่ Doc Number (❶)', 'error');
     if (!vendor_name) return App.toast('กรุณาเลือก Vendor (❷)', 'error');
-    if (!main_category) return App.toast('กรุณาเลือก Main Category (❸)', 'error');
-    if (!sub_category) return App.toast('กรุณาเลือก Sub Category (❹)', 'error');
     if (!description) return App.toast('กรุณาใส่ Description (❺)', 'error');
     if (amount_ex_gst <= 0) return App.toast('Amount ต้อง > 0 (❻)', 'error');
     if (!_s2PaymentMethod) return App.toast('กรุณาเลือก Payment Method (❽)', 'error');
@@ -584,10 +572,6 @@ const Screens2 = (() => {
     });
     const vendor = document.getElementById('s2-vendor');
     if (vendor) vendor.value = '';
-    const main = document.getElementById('s2-main');
-    if (main) main.value = '';
-    const subWrap = document.getElementById('s2-sub-wrap');
-    if (subWrap) subWrap.innerHTML = renderSubCategoryDropdown('s2-sub', '', '');
 
     s2.photoUrl = null;
     s2.editId = null;
@@ -693,16 +677,6 @@ const Screens2 = (() => {
             <div class="form-group">
               <label class="form-label">Vendor Name <span class="req">*</span></label>
               <div id="s3-vendor-wrap">${renderVendorDropdown('s3-vendor', '')}</div>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-              <div class="form-group">
-                <label class="form-label">Main Category <span class="req">*</span></label>
-                <div id="s3-main-wrap">${renderMainCategoryDropdown('s3-main', '', "Screens2.onMainCategoryChange('s3-main','s3-sub')")}</div>
-              </div>
-              <div class="form-group">
-                <label class="form-label">Sub Category <span class="req">*</span></label>
-                <div id="s3-sub-wrap">${renderSubCategoryDropdown('s3-sub', '', '')}</div>
-              </div>
             </div>
             <div class="form-group">
               <label class="form-label">Description <span class="req">*</span></label>
@@ -836,8 +810,6 @@ const Screens2 = (() => {
       // Re-render dropdowns
       const vw = document.getElementById('s3-vendor-wrap');
       if (vw) vw.innerHTML = renderVendorDropdown('s3-vendor', '');
-      const mw = document.getElementById('s3-main-wrap');
-      if (mw) mw.innerHTML = renderMainCategoryDropdown('s3-main', '', "Screens2.onMainCategoryChange('s3-main','s3-sub')");
       // Auto-fill if editing
       if (s3.editId) {
         const data = await API.getInvoices({});
@@ -898,11 +870,8 @@ const Screens2 = (() => {
     setVal('s3-issue-date', inv.issue_date || '');
     setVal('s3-invoice-no', inv.invoice_no);
     setVal('s3-vendor', inv.vendor_name);
-    setVal('s3-main', inv.main_category);
 
     // Trigger sub category reload
-    const sw = document.getElementById('s3-sub-wrap');
-    if (sw) sw.innerHTML = renderSubCategoryDropdown('s3-sub', inv.main_category, inv.sub_category);
 
     setVal('s3-desc', inv.description);
     setVal('s3-amount', inv.amount_ex_gst);
@@ -995,7 +964,7 @@ const Screens2 = (() => {
           <div style="display:flex;justify-content:space-between;align-items:flex-start">
             <div>
               <div style="font-size:var(--fs-body);font-weight:700">${App.esc(inv.invoice_no)} — ${App.esc(inv.vendor_name)}${cnBadge}</div>
-              <div style="font-size:var(--fs-xs);color:var(--tm);margin-top:2px">${App.formatDateShort(inv.issue_date || '')} · ${App.esc(inv.main_category)} > ${App.esc(inv.sub_category)}${dueText ? ` · ${dueText}` : ''}</div>
+              <div style="font-size:var(--fs-xs);color:var(--tm);margin-top:2px">${App.formatDateShort(inv.issue_date || '')} · ${dueText ? ` · ${dueText}` : ''}</div>
               ${crDetail}
             </div>
             <div style="text-align:right">
@@ -1147,8 +1116,8 @@ const Screens2 = (() => {
     const issue_date = document.getElementById('s3-issue-date')?.value || null;
     const invoice_no = document.getElementById('s3-invoice-no')?.value?.trim();
     const vendor_name = document.getElementById('s3-vendor')?.value;
-    const main_category = document.getElementById('s3-main')?.value;
-    const sub_category = document.getElementById('s3-sub')?.value;
+    const main_category = null;
+    const sub_category = null;
     const description = document.getElementById('s3-desc')?.value?.trim();
     const amount_ex_gst = parseFloat(document.getElementById('s3-amount')?.value) || 0;
     const gst = parseFloat(document.getElementById('s3-gst')?.value) || 0;
@@ -1158,8 +1127,6 @@ const Screens2 = (() => {
     if (!issue_date) return App.toast('กรุณาเลือก Issue Date', 'error');
     if (!invoice_no) return App.toast('กรุณาใส่ Invoice No', 'error');
     if (!vendor_name) return App.toast('กรุณาเลือก Vendor', 'error');
-    if (!main_category) return App.toast('กรุณาเลือก Main Category', 'error');
-    if (!sub_category) return App.toast('กรุณาเลือก Sub Category', 'error');
     if (!description) return App.toast('กรุณาใส่ Description', 'error');
     if (amount_ex_gst <= 0) return App.toast('Amount ต้อง > 0', 'error');
     if (!s3.photoUrl) return App.toast('กรุณาถ่ายรูป Invoice', 'error');
@@ -1239,9 +1206,6 @@ const Screens2 = (() => {
       if (el) el.value = '';
     });
     const v = document.getElementById('s3-vendor'); if (v) v.value = '';
-    const m = document.getElementById('s3-main'); if (m) m.value = '';
-    const sw = document.getElementById('s3-sub-wrap');
-    if (sw) sw.innerHTML = renderSubCategoryDropdown('s3-sub', '', '');
 
     s3.photoUrl = null; s3.editId = null;
     s3.paymentStatus = 'unpaid'; _s3PayMethod = '';
