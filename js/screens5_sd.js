@@ -1,4 +1,4 @@
-// Version 2.3 | 8 MAR 2026 | Siam Palette Group
+// Version 2.4 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -560,11 +560,40 @@ const Screens5 = (() => {
     const r = _reportData || {};
     const s = _s8Summary || {};
 
-    // S1/S2 summary
+    // S1/S2 summary with channel detail
     const sale = s.sale;
     const saleTotal = sale ? (sale.total_sales || 0) : 0;
-    const expTotal = s.expense_total || 0;
-    const expCount = (s.expenses || []).length;
+    const channels = s.channels || [];
+    const expenses = s.expenses || [];
+    const expTotal = expenses.reduce(function(sum, e) { return sum + (e.total_amount || 0); }, 0);
+    const expCount = expenses.length;
+
+    // Channel rows
+    const chHtml = channels.length > 0 ? channels.map(function(c) {
+      return '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span>' + App.esc(c.name) + '</span><span style="font-weight:600">$' + (c.amount || 0).toLocaleString(undefined, {minimumFractionDigits:2}) + '</span></div>';
+    }).join('') : '<div style="font-size:11px;color:var(--tm)">ยังไม่มีข้อมูล</div>';
+
+    // Expense rows
+    const expHtml = expenses.length > 0 ? expenses.map(function(e) {
+      return '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span>' + App.esc(e.vendor_name || e.description || '—') + '</span><span style="font-weight:600;color:var(--red)">-$' + (e.total_amount || 0).toLocaleString(undefined, {minimumFractionDigits:2}) + '</span></div>';
+    }).join('') : '<div style="font-size:11px;color:var(--tm)">ไม่มี</div>';
+
+    el.innerHTML = `
+      <!-- S1 ยอดขาย (ดึงจาก S1 อัตโนมัติ) -->
+      <div class="section-label" style="margin-top:0">💰 ยอดขาย (ดึงจาก S1 อัตโนมัติ)</div>
+      <div class="card" style="margin-bottom:8px">
+        ${chHtml}
+        <div style="display:flex;justify-content:space-between;padding:6px 0 0;border-top:1px solid var(--s2);margin-top:4px;font-weight:700">
+          <span>Total</span><span style="color:var(--gold-dim)">$${saleTotal.toLocaleString(undefined, {minimumFractionDigits:2})}</span>
+        </div>
+      </div>
+
+      <!-- S2 ค่าใช้จ่าย (ดึงจาก S2 อัตโนมัติ) -->
+      <div class="section-label">🧾 ค่าใช้จ่าย (ดึงจาก S2 อัตโนมัติ)</div>
+      <div class="card" style="margin-bottom:16px">
+        ${expHtml}
+        ${expCount > 0 ? '<div style="display:flex;justify-content:space-between;padding:6px 0 0;border-top:1px solid var(--s2);margin-top:4px;font-weight:700"><span>รวม ' + expCount + ' รายการ</span><span style="color:var(--red)">-$' + expTotal.toLocaleString(undefined, {minimumFractionDigits:2}) + '</span></div>' : ''}
+      </div>`;
 
     const weathers = [
       { key: 'sunny', label: '☀️ แดด' }, { key: 'cloudy', label: '🌤️ ครึ้ม' },
@@ -578,22 +607,7 @@ const Screens5 = (() => {
       { key: 'ok', label: '✅ ปกติ' }, { key: 'issue', label: '⚠️ มีปัญหา' },
     ];
 
-    el.innerHTML = `
-      <!-- S1/S2 Auto-pull -->
-      <div class="section-label" style="margin-top:0">💰 ยอดขาย / ค่าใช้จ่ายวันนี้</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
-        <div class="card" style="text-align:center;padding:14px;border-left:3px solid var(--gold)">
-          <div style="font-size:11px;color:var(--td)">💰 S1 ยอดขาย</div>
-          <div style="font-size:20px;font-weight:700;color:var(--gold-dim);margin:4px 0">${saleTotal > 0 ? '$' + saleTotal.toLocaleString() : '—'}</div>
-          <div style="font-size:10px;color:var(--tm)">${sale ? (sale.fin_synced ? '✅ synced' : '📝 draft') : 'ยังไม่ได้กรอก'}</div>
-        </div>
-        <div class="card" style="text-align:center;padding:14px;border-left:3px solid var(--red)">
-          <div style="font-size:11px;color:var(--td)">🧾 S2 ค่าใช้จ่าย</div>
-          <div style="font-size:20px;font-weight:700;color:var(--red);margin:4px 0">${expTotal > 0 ? '$' + expTotal.toLocaleString() : '—'}</div>
-          <div style="font-size:10px;color:var(--tm)">${expCount > 0 ? expCount + ' รายการ' : 'ยังไม่มี'}</div>
-        </div>
-      </div>
-
+    el.innerHTML += `
       <!-- Store Context -->
       <div class="section-label">🌤️ สภาพร้านวันนี้</div>
       <div class="card">
@@ -733,12 +747,46 @@ const Screens5 = (() => {
   function renderTasksTab(el) {
     const session = API.getSession();
     const pending = _s8Tasks.filter(t => t.status === 'pending');
+    const equipTasks = _s8Tasks.filter(t => t.type === 'equipment');
 
     el.innerHTML = `
-      <!-- Add Task -->
-      <div class="section-label" style="margin-top:0">📋 เพิ่มงานติดตาม</div>
+      <!-- Equipment Repair Report -->
+      <div class="section-label" style="margin-top:0">🔧 Equipment Repair Report</div>
       <div class="card" style="margin-bottom:12px">
-        <input class="form-input" id="s8-task-title" placeholder="เช่น ช่างซ่อมเครื่องน้ำแข็ง..." style="margin-bottom:8px">
+        <div class="form-group" style="margin-bottom:8px">
+          <div class="form-label">ชื่ออุปกรณ์ / เครื่อง</div>
+          <input class="form-input" id="s8-eq-name" placeholder="เช่น เครื่องทำน้ำแข็ง, เตาอบ...">
+        </div>
+        <div class="form-group" style="margin-bottom:8px">
+          <div class="form-label">อาการ</div>
+          <input class="form-input" id="s8-eq-symptom" placeholder="เช่น ไม่ทำความเย็น, มีเสียงดัง...">
+        </div>
+        <div class="form-group" style="margin-bottom:8px">
+          <div class="form-label">ความเร่งด่วน</div>
+          <select class="form-input" id="s8-eq-urgency">
+            <option value="">— เลือก —</option>
+            <option value="critical">🔴 ใช้งานไม่ได้ ต้องซ่อมทันที</option>
+            <option value="high">🟠 ควรซ่อมเร็ว</option>
+            <option value="low">🟡 ไม่รีบ ซ่อมเมื่อมีเวลา</option>
+            <option value="dispose">⚫ ไม่ซ่อม — ทิ้ง</option>
+          </select>
+        </div>
+        <button class="btn btn-gold" style="width:100%" onclick="Screens5.s8AddEquipment()">+ แจ้งซ่อม</button>
+      </div>
+
+      ${equipTasks.length > 0 ? `
+        <div style="font-size:12px;font-weight:600;margin-bottom:6px;color:var(--td)">🔧 รายการแจ้งซ่อม (${equipTasks.length})</div>
+        ${equipTasks.map(t => {
+          const uMap = { critical: '🔴', high: '🟠', low: '🟡', dispose: '⚫' };
+          const icon = uMap[t.priority] || '🔧';
+          return '<div class="card" style="margin-bottom:6px;padding:10px;border-left:3px solid var(--orange)"><div style="font-size:13px;font-weight:500">' + icon + ' ' + App.esc(t.title) + '</div>' + (t.note ? '<div style="font-size:11px;color:var(--td);margin-top:2px">' + App.esc(t.note) + '</div>' : '') + '</div>';
+        }).join('')}
+      ` : ''}
+
+      <!-- Add Task -->
+      <div class="section-label">📋 เพิ่มงานติดตาม</div>
+      <div class="card" style="margin-bottom:12px">
+        <input class="form-input" id="s8-task-title" placeholder="เช่น โทรสั่ง stock เพิ่ม, นัดประชุมทีม..." style="margin-bottom:8px">
         <div style="display:flex;gap:8px">
           <input class="form-input" id="s8-task-assign" placeholder="มอบหมายให้..." style="flex:1">
           <select class="form-input" id="s8-task-priority" style="width:100px">
@@ -752,7 +800,7 @@ const Screens5 = (() => {
       <!-- Add Suggestion -->
       <div class="section-label">💡 เพิ่ม Suggestion</div>
       <div class="card" style="margin-bottom:16px">
-        <input class="form-input" id="s8-sug-title" placeholder="เช่น ลองเพิ่มเมนูใหม่..." style="margin-bottom:8px">
+        <input class="form-input" id="s8-sug-title" placeholder="เช่น ลองเพิ่มเมนูใหม่, ปรับ layout..." style="margin-bottom:8px">
         <button class="btn btn-outline" style="width:100%" onclick="Screens5.s8AddTask('suggestion')">+ เพิ่ม Suggestion</button>
       </div>
 
@@ -846,6 +894,34 @@ const Screens5 = (() => {
     _activeTab = tab;
     const el = document.getElementById('s8-content');
     if (el) renderS8Tab(el);
+  }
+
+  async function s8AddEquipment() {
+    const name = document.getElementById('s8-eq-name')?.value?.trim();
+    const symptom = document.getElementById('s8-eq-symptom')?.value?.trim();
+    const urgency = document.getElementById('s8-eq-urgency')?.value;
+    if (!name) return App.toast('กรุณาใส่ชื่ออุปกรณ์', 'error');
+    if (!symptom) return App.toast('กรุณาใส่อาการ', 'error');
+    if (!urgency) return App.toast('กรุณาเลือกความเร่งด่วน', 'error');
+
+    try {
+      const storeId = API.isHQ() ? API.getSelectedStore() : null;
+      const priority = urgency === 'critical' ? 'urgent' : 'normal';
+      await API.createTask({
+        store_id: storeId,
+        title: '🔧 ' + name,
+        note: symptom + ' [' + urgency + ']',
+        type: 'equipment',
+        priority: priority,
+        report_date: _reportDate,
+      });
+      App.toast('แจ้งซ่อมสำเร็จ ✓', 'success');
+      // Reload tasks
+      const taskData = await API.getTasks(storeId);
+      _s8Tasks = taskData.tasks || [];
+      const el = document.getElementById('s8-content');
+      if (el) renderTasksTab(el);
+    } catch (err) { App.toast(err.message, 'error'); }
   }
 
   async function s8AddTask(type) {
@@ -1111,7 +1187,7 @@ const Screens5 = (() => {
     incAdj, incNote,
     s8Save, s8CopyReport,
     s8WasteAnswer, s8OpenWaste,
-    s8AddTask, s8CompleteTask,
+    s8AddEquipment, s8AddTask, s8CompleteTask,
     // Leftover
     addLeftoverRow, removeLeftoverRow, leftoverName, leftoverQty, leftoverLevel,
   };

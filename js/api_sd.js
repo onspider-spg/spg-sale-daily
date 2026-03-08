@@ -1,4 +1,4 @@
-// Version 2.4.2 | 8 MAR 2026 | Siam Palette Group
+// Version 2.4.3 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -509,8 +509,8 @@ const API = (() => {
     saveDailyReport: (data) =>
       post('sd_save_daily_report', tokenBody(data)),
 
-    getS8Summary: (store_id, report_date) =>
-      post('sd_get_s8_summary', tokenBody({ store_id, report_date })),
+    getS8Summary: (store_id, detail_date) =>
+      post('sd_get_s8_summary', tokenBody({ store_id, detail_date })),
 
     syncSale: (store_id, sale_date) =>
       post('sd_sync_sale', tokenBody({ store_id, sale_date })),
