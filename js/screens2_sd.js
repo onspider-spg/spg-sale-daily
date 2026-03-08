@@ -1,9 +1,9 @@
-// Version 2.1 | 8 MAR 2026 | Siam Palette Group
+// Version 2.2 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
  * screens2_sd.js — S2 Expense (popup) + S3 Invoice + Credit Note
- * v2.1 — Phase 9: Invoice Credit Note
+ * v2.1 — Phase 13: QA fixes
  * ═══════════════════════════════════════════
  */
 
@@ -332,6 +332,7 @@ const Screens2 = (() => {
     const overlay = document.createElement('div');
     overlay.id = 's2-popup';
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px;';
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
     overlay.innerHTML = `
       <div style="background:var(--bg);border-radius:var(--radius);padding:16px;width:100%;max-width:440px;max-height:85vh;overflow-y:auto;box-shadow:var(--shadow-md)">
         <div style="display:flex;justify-content:space-between;margin-bottom:var(--sp-sm)">
@@ -1112,6 +1113,16 @@ const Screens2 = (() => {
 
     if (s3.paymentStatus === 'unpaid' && !due_date) return App.toast('กรุณาใส่ Due Date', 'error');
     if (s3.paymentStatus === 'paid' && !_s3PayMethod) return App.toast('กรุณาเลือก Payment Method', 'error');
+
+    // Credit Note validation
+    if (_s3HasCR) {
+      const crReason = document.getElementById('s3-cr-reason')?.value;
+      const crDesc = document.getElementById('s3-cr-desc')?.value?.trim();
+      const crAmt = parseFloat(document.getElementById('s3-cr-amount')?.value) || 0;
+      if (!crReason) return App.toast('กรุณาเลือก CR Reason', 'error');
+      if (!crDesc) return App.toast('กรุณาใส่ CR Description', 'error');
+      if (crAmt <= 0) return App.toast('CR Amount ต้อง > 0', 'error');
+    }
 
     try {
       App.showLoader();

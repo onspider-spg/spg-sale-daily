@@ -1,4 +1,4 @@
-// Version 2.2 | 8 MAR 2026 | Siam Palette Group
+// Version 2.3 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -46,9 +46,15 @@ const Screens4 = (() => {
       </div>`;
   }
 
-  async function loadSettings() {
-    _currentTab = 'channels';
-    await loadTabContent('channels');
+  async function loadSettings(params) {
+    const tab = (params && params.tab) || 'channels';
+    _currentTab = tab;
+    // Update chip active state
+    ['channels', 'suppliers', 'categories', 'settings', 'alerts', 'permissions', 'audit'].forEach(t => {
+      const btn = document.getElementById(`s7-tab-${t}`);
+      if (btn) btn.className = `filter-chip ${t === tab ? 'active' : ''}`;
+    });
+    await loadTabContent(tab);
   }
 
   function setTab(tab) {

@@ -1,4 +1,4 @@
-// Version 2.1 | 8 MAR 2026 | Siam Palette Group
+// Version 2.2 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -57,7 +57,7 @@ const App = (() => {
     'sale-history':     { render: () => Screens3.renderSaleHistory(),     onLoad: () => Screens3.loadSaleHistory() },
     'expense-history':  { render: () => Screens3.renderExpenseHistory(),  onLoad: () => Screens3.loadExpenseHistory() },
     // Sprint 4
-    'settings':         { render: () => Screens4.renderSettings(),   onLoad: () => Screens4.loadSettings() },
+    'settings':         { render: () => Screens4.renderSettings(),   onLoad: (p) => Screens4.loadSettings(p) },
     // Menu screens
     'profile':          { render: () => Screens.renderProfile(),     onLoad: null },
     'notifications':    { render: () => Screens4.renderNotifications(), onLoad: () => Screens4.loadNotifications() },
@@ -347,11 +347,11 @@ const App = (() => {
         body += '<div class="sidebar-divider"></div>';
 
         body += sidebarSection('Settings', [
-          sbItem('Channels', 'settings'),
-          sbItem('Vendors', 'settings'),
-          sbItem('Categories', 'settings'),
-          sbItem('Permissions', 'settings'),
-          sbItem('Audit Log', 'settings'),
+          sbItem('Channels', 'settings', { tab: 'channels' }),
+          sbItem('Vendors', 'settings', { tab: 'suppliers' }),
+          sbItem('Categories', 'settings', { tab: 'categories' }),
+          sbItem('Permissions', 'settings', { tab: 'permissions' }),
+          sbItem('Audit Log', 'settings', { tab: 'audit' }),
           sbItem('Notification Settings', 'notification-settings'),
         ], false);
 
@@ -405,9 +405,10 @@ const App = (() => {
   }
 
   // Helper: build sidebar item (no icon — text only per wireframe)
-  function sbItem(label, route) {
+  function sbItem(label, route, params) {
     const isActive = route === currentRoute;
-    return `<div class="sidebar-item${isActive ? ' active' : ''}" data-route="${route}" onclick="App.goSidebar('${route}')">${esc(label)}</div>`;
+    const paramsStr = params ? encodeURIComponent(JSON.stringify(params)) : '';
+    return `<div class="sidebar-item${isActive ? ' active' : ''}" data-route="${route}" onclick="App.goSidebar('${route}','${paramsStr}')">${esc(label)}</div>`;
   }
 
   function openSidebar() {
@@ -425,9 +426,11 @@ const App = (() => {
   // Alias for backward compat (screens call App.toggleSidebar())
   function toggleSidebar() { openSidebar(); }
 
-  function goSidebar(route, params) {
+  function goSidebar(route, paramsStr) {
     closeSidebar();
-    go(route, params || {});
+    let params = {};
+    if (paramsStr) { try { params = JSON.parse(decodeURIComponent(paramsStr)); } catch(e) {} }
+    go(route, params);
   }
 
   // Alias for backward compat (screens call App.goMenu())
