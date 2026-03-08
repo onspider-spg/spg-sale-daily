@@ -1,4 +1,4 @@
-// Version 2.4.1 | 8 MAR 2026 | Siam Palette Group
+// Version 2.4.2 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -520,6 +520,9 @@ const API = (() => {
 
     getReportHub: (store_id, month) =>
       post('sd_get_report_hub', tokenBody({ store_id, month })),
+
+    getReportDashboard: (store_id, month) =>
+      post('sd_get_report_dashboard', tokenBody({ store_id, month })),
 
     getAccReview: (store_id, month) =>
       post('sd_get_acc_review', tokenBody({ store_id, month })),

@@ -1,4 +1,4 @@
-// Version 2.2 | 8 MAR 2026 | Siam Palette Group
+// Version 2.3 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -318,23 +318,28 @@ const Screens5 = (() => {
       </div>`;
   }
 
-  // ─── ADMIN DASHBOARD VIEW ───
+  // ─── ADMIN DASHBOARD VIEW (monthly aggregate — wireframe v1.5.1) ───
+
+  let _dashMonth = new Date().toISOString().substring(0, 7);
+  const WEATHER_ICONS = { sunny: '☀️', cloudy: '🌤️', rain: '🌧️', heavy_rain: '⛈️', unknown: '❓' };
+  const INC_COLORS = { food_quality: 'var(--red)', contamination: 'var(--orange)', service_delay: 'var(--blue)', wrong_order: 'var(--purple)', complaint: '#999', waste_abnormal: 'var(--gold)', equipment: 'var(--green)', staff_issue: '#E44' };
 
   function renderAdminDashboard(session) {
-    _reportDate = _reportDate || App.todayStr();
+    var monthLabel = (function() {
+      var p = _dashMonth.split('-');
+      var months = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return months[parseInt(p[1])] + ' ' + p[0];
+    })();
     return `
       <div class="screen">
-        ${Screens.renderTopbar({ back: 'report-hub', label: 'Report Dashboard' })}
+        ${Screens.renderTopbar({ back: 'dashboard', label: 'Report Dashboard' })}
         <div class="screen-body">
           ${App.renderStoreSelector ? App.renderStoreSelector() : ''}
-
-          <!-- Date range -->
-          <div style="display:flex;align-items:center;justify-content:center;gap:12px;padding:8px 0 12px;font-size:14px;font-weight:600">
-            <span style="cursor:pointer;font-size:20px;padding:4px 8px;border-radius:8px;background:var(--s1)" onclick="Screens5.s8ChangeDate(-1)">‹</span>
-            <span>📅 ${App.formatDate(_reportDate)}</span>
-            <span style="cursor:pointer;font-size:20px;padding:4px 8px;border-radius:8px;background:var(--s1)" onclick="Screens5.s8ChangeDate(1)">›</span>
+          <div style="display:flex;align-items:center;justify-content:center;gap:12px;padding:8px 0 16px;font-size:15px;font-weight:600">
+            <span style="cursor:pointer;font-size:20px;padding:4px 8px;border-radius:8px;background:var(--s1)" onclick="Screens5.dashMonthNav(-1)">‹</span>
+            <span>📅 ${monthLabel}</span>
+            <span style="cursor:pointer;font-size:20px;padding:4px 8px;border-radius:8px;background:var(--s1)" onclick="Screens5.dashMonthNav(1)">›</span>
           </div>
-
           <div id="admin-dashboard-content">
             <div style="text-align:center;padding:20px;color:var(--tm)">กำลังโหลด...</div>
           </div>
@@ -342,94 +347,138 @@ const Screens5 = (() => {
       </div>`;
   }
 
+  function dashMonthNav(delta) {
+    var p = _dashMonth.split('-');
+    var d = new Date(parseInt(p[0]), parseInt(p[1]) - 1 + delta, 1);
+    _dashMonth = d.toISOString().substring(0, 7);
+    App.go('daily-report');
+  }
+
   async function loadAdminDashboard() {
-    const el = document.getElementById('admin-dashboard-content');
+    var el = document.getElementById('admin-dashboard-content');
     if (!el) return;
     try {
       App.showLoader();
-      const storeId = API.isHQ() ? API.getSelectedStore() : null;
-      const [reportData, summaryData, taskData] = await Promise.all([
-        API.getDailyReport(storeId, _reportDate),
-        API.getS8Summary(storeId, _reportDate),
-        API.getTasks(storeId),
-      ]);
+      var storeId = API.isHQ() ? API.getSelectedStore() : API.getSession()?.store_id;
+      var data = await API.getReportDashboard(storeId, _dashMonth);
+      var k = data.kpis;
+      var monthLabel = _dashMonth;
 
-      const r = reportData.report;
-      const s = summaryData;
-      const incidents = reportData.incidents || [];
-      const leftovers = reportData.leftovers || [];
-      const tasks = taskData.tasks || [];
-      const pendingTasks = tasks.filter(t => t.status === 'pending');
-
-      const wMap = { sunny: '☀️ แดด', cloudy: '🌤️ ครึ้ม', rain: '🌧️ ฝน', heavy_rain: '⛈️ ฝนหนัก' };
-      const tMap = { above: '📈 ดี', normal: '➡️ ปกติ', below: '📉 ต่ำ' };
-
-      // KPI Cards
-      const totalInc = incidents.reduce((s, i) => s + (i.count || 0), 0);
-      const saleTotal = s.sale ? (s.sale.total_sales || 0) : 0;
-      const expTotal = s.expense_total || 0;
-
-      // Incident breakdown
-      const incHtml = incidents.filter(i => i.count > 0).map(i => {
-        const cat = INCIDENT_CATS.find(c => c.key === i.category) || {};
-        return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--s2)">
-          <span style="font-size:16px">${cat.icon || '⚠️'}</span>
-          <span style="flex:1;font-size:13px;font-weight:500">${cat.name || i.category}</span>
-          <span style="font-weight:700;font-size:14px;color:var(--gold-dim)">×${i.count}</span>
-        </div>`;
-      }).join('') || '<div style="text-align:center;color:var(--tm);padding:12px;font-size:12px">ไม่มีเหตุการณ์</div>';
-
-      // Leftover summary
-      const lvMap = { little: '🟢', half: '🟡', almost_full: '🔴', full: '⚫' };
-      const lftHtml = leftovers.map(l =>
-        `<span style="background:var(--s1);padding:3px 8px;border-radius:6px;font-size:11px">${lvMap[l.level] || '🟡'} ${App.esc(l.item_name)} ×${l.quantity}</span>`
-      ).join(' ') || '<span style="font-size:12px;color:var(--tm)">ไม่มีรายการ</span>';
-
-      el.innerHTML = `
-        <!-- KPI -->
+      // ═══ 1. KPI OVERVIEW ═══
+      var kpiHtml = `
+        <div style="font-size:14px;font-weight:700;color:var(--gold-dim);margin-bottom:10px">📈 ภาพรวม — ${monthLabel}</div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">
-          <div class="card" style="text-align:center;padding:14px 8px">
-            <div style="font-size:10px;color:var(--td)">💰 ยอดขาย</div>
-            <div style="font-size:18px;font-weight:700;color:var(--gold-dim)">${saleTotal > 0 ? '$' + saleTotal.toLocaleString() : '—'}</div>
+          <div class="card" style="text-align:center;padding:12px 6px">
+            <div style="font-size:10px;color:var(--td)">📝 รีพอร์ต</div>
+            <div style="font-size:22px;font-weight:700">${k.reports_submitted}<span style="font-size:12px;color:var(--td)"> / ${data.days_in_month}</span></div>
+            <div style="font-size:10px;color:${k.reports_submitted >= data.days_in_month ? 'var(--green)' : 'var(--tm)'}">${k.reports_submitted >= data.days_in_month ? '✅ ครบ' : 'ยังไม่ครบ'}</div>
           </div>
-          <div class="card" style="text-align:center;padding:14px 8px">
-            <div style="font-size:10px;color:var(--td)">🧾 ค่าใช้จ่าย</div>
-            <div style="font-size:18px;font-weight:700;color:var(--red)">${expTotal > 0 ? '$' + expTotal.toLocaleString() : '—'}</div>
-          </div>
-          <div class="card" style="text-align:center;padding:14px 8px">
+          <div class="card" style="text-align:center;padding:12px 6px">
             <div style="font-size:10px;color:var(--td)">⚠️ เหตุการณ์</div>
-            <div style="font-size:18px;font-weight:700;color:${totalInc > 0 ? 'var(--orange)' : 'var(--green)'}">${totalInc}</div>
+            <div style="font-size:22px;font-weight:700;color:var(--red)">${k.total_incidents}</div>
+            <div style="font-size:10px;color:var(--tm)">เฉลี่ย ${k.avg_incidents_per_day}/วัน</div>
           </div>
-        </div>
-
-        <!-- Store Context -->
-        ${r ? `<div class="card" style="margin-bottom:12px">
-          <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:12px">
-            <span style="background:var(--s1);padding:4px 10px;border-radius:6px">${wMap[r.weather] || '—'}</span>
-            <span style="background:var(--s1);padding:4px 10px;border-radius:6px">Traffic: ${tMap[r.traffic] || '—'}</span>
-            <span style="background:var(--s1);padding:4px 10px;border-radius:6px">POS: ${r.pos_status === 'ok' ? '✅' : '⚠️'}</span>
+          <div class="card" style="text-align:center;padding:12px 6px">
+            <div style="font-size:10px;color:var(--td)">🍞 ของเหลือ</div>
+            <div style="font-size:22px;font-weight:700">${k.total_leftovers}</div>
+            <div style="font-size:10px;color:var(--tm)">ชิ้น</div>
           </div>
-          ${r.overview_note ? `<div style="font-size:12px;color:var(--td);margin-top:8px">📝 ${App.esc(r.overview_note)}</div>` : ''}
-        </div>` : '<div style="padding:16px;text-align:center;color:var(--tm);font-size:12px;background:var(--s1);border-radius:10px;margin-bottom:12px">ยังไม่มีรีพอร์ตวันนี้</div>'}
+          <div class="card" style="text-align:center;padding:12px 6px">
+            <div style="font-size:10px;color:var(--td)">📋 Tasks ค้าง</div>
+            <div style="font-size:22px;font-weight:700;color:var(--purple)">${k.pending_tasks}</div>
+            <div style="font-size:10px;color:${k.urgent_tasks > 0 ? 'var(--red)' : 'var(--tm)'}">${k.urgent_tasks > 0 ? '🚨 ' + k.urgent_tasks + ' urgent' : '—'}</div>
+          </div>
+          <div class="card" style="text-align:center;padding:12px 6px;grid-column:span 2">
+            <div style="font-size:10px;color:var(--td)">✅ Task Completion</div>
+            <div style="font-size:22px;font-weight:700;color:var(--green)">${k.completion_pct}%</div>
+            <div style="height:6px;background:var(--s2);border-radius:3px;margin-top:6px;overflow:hidden"><div style="height:100%;width:${k.completion_pct}%;background:var(--green);border-radius:3px"></div></div>
+          </div>
+        </div>`;
 
-        <!-- Incidents -->
-        <div class="section-label">⚠️ เหตุการณ์</div>
-        <div class="card" style="margin-bottom:12px">${incHtml}</div>
+      // ═══ 2. INCIDENT BREAKDOWN ═══
+      var cats = data.incident_by_category || [];
+      var maxCat = cats.length > 0 ? cats[0].count : 1;
+      var catBarsHtml = cats.map(function(c) {
+        var cat = INCIDENT_CATS.find(function(ic) { return ic.key === c.category; }) || { icon: '⚠️', name: c.category };
+        var pct = Math.max((c.count / maxCat) * 100, 5);
+        var color = INC_COLORS[c.category] || 'var(--gold)';
+        return '<div style="display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:6px">'
+          + '<div style="width:90px;text-align:right;flex-shrink:0;font-weight:500">' + cat.icon + ' ' + cat.name.split(' ')[0] + '</div>'
+          + '<div style="flex:1;height:22px;background:var(--s2);border-radius:6px;overflow:hidden">'
+          + '<div style="height:100%;width:' + pct + '%;background:' + color + ';border-radius:6px;display:flex;align-items:center;padding-left:6px;font-size:10px;font-weight:600;color:#fff">' + (pct > 20 ? c.count : '') + '</div></div>'
+          + '<div style="width:30px;text-align:right;font-weight:600">' + c.count + '</div></div>';
+      }).join('');
+      var incBreakdownHtml = cats.length > 0
+        ? '<div style="font-size:14px;font-weight:700;color:var(--gold-dim);margin-bottom:10px">⚠️ Incident Breakdown</div><div class="card" style="margin-bottom:16px">' + catBarsHtml + '</div>'
+        : '';
 
-        <!-- Leftovers -->
-        <div class="section-label">🍚 อาหารเหลือ</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">${lftHtml}</div>
+      // ═══ 3. INCIDENT TREND 7 DAYS ═══
+      var trend = data.incident_trend || [];
+      var maxTrend = Math.max.apply(null, trend.map(function(t) { return t.count; }).concat([1]));
+      var trendBarsHtml = trend.map(function(t) {
+        var h = Math.max((t.count / maxTrend) * 120, 4);
+        var dayNum = t.date.substring(8, 10);
+        var isToday = t.date === App.todayStr();
+        return '<div style="flex:1;text-align:center">'
+          + '<div style="background:' + (isToday ? 'var(--gold)' : 'var(--gold-bg2)') + ';height:' + h + 'px;border-radius:4px 4px 0 0;margin:0 auto;width:70%"></div>'
+          + '<div style="font-size:10px;color:var(--tm);margin-top:4px">' + dayNum + '</div>'
+          + '<div style="font-size:10px;font-weight:600' + (isToday ? ';color:var(--gold)' : '') + '">' + t.count + '</div></div>';
+      }).join('');
+      var trendHtml = trend.length > 0
+        ? '<div style="font-size:14px;font-weight:700;color:var(--gold-dim);margin-bottom:10px">📈 Incident Trend — 7 วัน</div><div class="card" style="margin-bottom:16px"><div style="display:flex;align-items:flex-end;gap:6px;height:150px;padding-top:12px">' + trendBarsHtml + '</div></div>'
+        : '';
 
-        <!-- Tasks -->
-        <div class="section-label">📋 งานค้าง (${pendingTasks.length})</div>
-        <div class="card">
-          <div id="admin-task-list"></div>
-        </div>
-      `;
+      // ═══ 4. CROSS-STORE ═══
+      var cross = data.cross_store || [];
+      var maxCross = cross.length > 0 ? cross[0].count : 1;
+      var storeColors = ['var(--gold)', 'var(--blue)', 'var(--green)', 'var(--purple)', 'var(--orange)', 'var(--red)'];
+      var crossBarsHtml = cross.map(function(c, i) {
+        var pct = Math.max((c.count / maxCross) * 100, 5);
+        return '<div style="display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:6px">'
+          + '<div style="width:60px;text-align:right;font-weight:600">' + c.store_id + '</div>'
+          + '<div style="flex:1;height:22px;background:var(--s2);border-radius:6px;overflow:hidden">'
+          + '<div style="height:100%;width:' + pct + '%;background:' + storeColors[i % storeColors.length] + ';border-radius:6px;display:flex;align-items:center;padding-left:6px;font-size:10px;font-weight:600;color:#fff">' + (pct > 20 ? c.count : '') + '</div></div>'
+          + '<div style="width:30px;text-align:right;font-weight:600">' + c.count + '</div></div>';
+      }).join('');
+      var crossHtml = cross.length > 1
+        ? '<div style="font-size:14px;font-weight:700;color:var(--gold-dim);margin-bottom:10px">🏢 เปรียบเทียบร้าน — Incidents</div><div class="card" style="margin-bottom:16px">' + crossBarsHtml + '</div>'
+        : '';
 
-      // Render embedded task list
-      const taskEl = document.getElementById('admin-task-list');
-      if (taskEl) renderTaskListEmbedded(taskEl, pendingTasks.slice(0, 10));
+      // ═══ 5. LEFTOVER PATTERNS ═══
+      var topLft = data.top_leftovers || [];
+      var lftRowsHtml = topLft.map(function(l, i) {
+        return '<tr><td>' + (i + 1) + '</td><td style="font-weight:600">' + App.esc(l.item_name) + '</td><td style="text-align:center">' + l.times + '</td><td style="text-align:center">' + l.total_qty + '</td></tr>';
+      }).join('');
+      var lftHtml = topLft.length > 0
+        ? '<div style="font-size:14px;font-weight:700;color:var(--gold-dim);margin-bottom:10px">🍞 Leftover Patterns</div>'
+          + '<div class="card" style="margin-bottom:16px;overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">'
+          + '<thead><tr style="border-bottom:2px solid var(--s2)"><th style="padding:6px;text-align:left;font-size:11px;color:var(--td)">#</th><th style="padding:6px;text-align:left;font-size:11px;color:var(--td)">เมนู</th><th style="padding:6px;text-align:center;font-size:11px;color:var(--td)">ครั้ง</th><th style="padding:6px;text-align:center;font-size:11px;color:var(--td)">จำนวนรวม</th></tr></thead>'
+          + '<tbody>' + lftRowsHtml + '</tbody></table></div>'
+        : '';
+
+      // ═══ 6. WEATHER CORRELATION ═══
+      var wCorr = data.weather_correlation || [];
+      var wCardsHtml = wCorr.map(function(w) {
+        return '<div style="display:flex;align-items:center;gap:12px;padding:10px;border:1px solid var(--s2);border-radius:10px;flex:1;min-width:120px">'
+          + '<span style="font-size:26px">' + (WEATHER_ICONS[w.weather] || '❓') + '</span>'
+          + '<div style="text-align:center;flex:1"><div style="font-size:18px;font-weight:700">' + w.avg + '</div><div style="font-size:10px;color:var(--td)">avg incidents</div><div style="font-size:10px;color:var(--tm)">' + w.days + ' วัน</div></div></div>';
+      }).join('');
+      var wHtml = wCorr.length > 0
+        ? '<div style="font-size:14px;font-weight:700;color:var(--gold-dim);margin-bottom:10px">🌤️ Weather vs Incidents</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">' + wCardsHtml + '</div>'
+        : '';
+
+      // ═══ 7. TASK COMPLETION ═══
+      var ts = data.task_stats;
+      var taskHtml = '<div style="font-size:14px;font-weight:700;color:var(--gold-dim);margin-bottom:10px">📋 Task Completion</div>'
+        + '<div class="card" style="margin-bottom:16px">'
+        + '<div style="display:flex;align-items:center;gap:16px">'
+        + '<div style="width:70px;height:70px;border-radius:50%;background:conic-gradient(var(--green) 0% ' + ts.completion_pct + '%, var(--s2) ' + ts.completion_pct + '% 100%);display:flex;align-items:center;justify-content:center">'
+        + '<div style="width:50px;height:50px;border-radius:50%;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700">' + ts.completion_pct + '%</div></div>'
+        + '<div style="flex:1;font-size:12px"><div style="margin-bottom:4px">✅ เสร็จ: <strong>' + ts.done + '</strong></div><div style="margin-bottom:4px">⏳ ค้าง: <strong>' + ts.pending + '</strong></div><div>📊 รวม: <strong>' + ts.total + '</strong></div></div>'
+        + '</div></div>';
+
+      // ═══ ASSEMBLE ═══
+      el.innerHTML = kpiHtml + incBreakdownHtml + trendHtml + crossHtml + lftHtml + wHtml + taskHtml;
 
     } catch (err) {
       el.innerHTML = '<div style="color:var(--red);padding:16px">' + App.esc(err.message) + '</div>';
@@ -1057,6 +1106,7 @@ const Screens5 = (() => {
     showCreateTask, saveNewTask,
     // S8 Daily Report
     renderDailyReport, loadDailyReport,
+    dashMonthNav,
     s8ChangeDate, s8Tab, s8Pill,
     incAdj, incNote,
     s8Save, s8CopyReport,
