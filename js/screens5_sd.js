@@ -1,4 +1,4 @@
-// Version 2.6.1 | 9 MAR 2026 | Siam Palette Group
+// Version 2.6.2 | 9 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -519,8 +519,13 @@ const Screens5 = (() => {
       (reportData.incidents || []).forEach(i => {
         const cnt = i.count || 0;
         let notes = [];
-        if (Array.isArray(i.notes)) { notes = i.notes; }
-        else if (i.note) { notes = [i.note]; }
+        if (Array.isArray(i.notes)) {
+          notes = i.notes;
+        } else if (i.note) {
+          // Try parse JSON array from backend note column
+          try { const parsed = JSON.parse(i.note); if (Array.isArray(parsed)) notes = parsed; else notes = [i.note]; }
+          catch(e) { notes = [i.note]; }
+        }
         while (notes.length < cnt) notes.push('');
         _incidentState[i.category] = { count: cnt, notes: notes.slice(0, cnt) };
       });
@@ -533,6 +538,27 @@ const Screens5 = (() => {
       }));
 
       renderS8Tab(el);
+
+      // Restore waste answer from saved report
+      if (_reportData && _reportData.has_waste != null) {
+        _reportData.has_waste = _reportData.has_waste;
+        // Set buttons if we're on overview tab
+        const yesBtn = document.getElementById('s8-waste-yes');
+        const noBtn = document.getElementById('s8-waste-no');
+        const link = document.getElementById('s8-waste-link');
+        const noMsg = document.getElementById('s8-waste-no-msg');
+        if (_reportData.has_waste === true) {
+          if (yesBtn) { yesBtn.className = 'btn btn-gold'; yesBtn.style.flex = '1'; }
+          if (noBtn) { noBtn.className = 'btn btn-outline'; noBtn.style.flex = '1'; }
+          if (link) link.style.display = '';
+          if (noMsg) noMsg.style.display = 'none';
+        } else if (_reportData.has_waste === false) {
+          if (noBtn) { noBtn.className = 'btn btn-gold'; noBtn.style.flex = '1'; }
+          if (yesBtn) { yesBtn.className = 'btn btn-outline'; yesBtn.style.flex = '1'; }
+          if (link) link.style.display = 'none';
+          if (noMsg) noMsg.style.display = '';
+        }
+      }
 
     } catch (err) {
       el.innerHTML = '<div style="color:var(--red);padding:16px">' + App.esc(err.message) + '</div>';
