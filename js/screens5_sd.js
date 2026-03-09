@@ -515,19 +515,9 @@ const Screens5 = (() => {
 
       // Init incidents
       _incidentState = {};
-      INCIDENT_CATS.forEach(c => { _incidentState[c.key] = { count: 0, notes: [] }; });
+      INCIDENT_CATS.forEach(c => { _incidentState[c.key] = { count: 0, note: '' }; });
       (reportData.incidents || []).forEach(i => {
-        const cnt = i.count || 0;
-        // Backward compat: old data has single note string → split into array
-        let notes = [];
-        if (Array.isArray(i.notes)) {
-          notes = i.notes;
-        } else if (i.note) {
-          notes = [i.note];
-        }
-        // Ensure notes array matches count
-        while (notes.length < cnt) notes.push('');
-        _incidentState[i.category] = { count: cnt, notes: notes.slice(0, cnt) };
+        _incidentState[i.category] = { count: i.count || 0, note: i.note || '' };
       });
 
       // Init leftovers
@@ -725,19 +715,9 @@ const Screens5 = (() => {
   function renderIncidentsTab(el) {
     let totalCount = 0;
     const catHtml = INCIDENT_CATS.map(c => {
-      const st = _incidentState[c.key] || { count: 0, notes: [] };
+      const st = _incidentState[c.key] || { count: 0, note: '' };
       const isActive = st.count > 0;
       totalCount += st.count;
-      // Build note inputs: 1 per count
-      let notesHtml = '';
-      if (isActive) {
-        for (let i = 0; i < st.count; i++) {
-          const val = App.esc((st.notes && st.notes[i]) || '');
-          notesHtml += `<input class="form-input" style="font-size:12px;padding:6px 10px;margin-bottom:4px" 
-                   placeholder="รายการที่ ${i + 1}: รายละเอียด..." value="${val}"
-                   oninput="Screens5.incNote('${c.key}',${i},this.value)">`;
-        }
-      }
       return `
         <div class="card" style="padding:12px;margin-bottom:8px;border-left:3px solid ${isActive ? 'var(--gold)' : 'var(--b1)'}">
           <div style="display:flex;align-items:center;gap:10px">
@@ -753,7 +733,9 @@ const Screens5 = (() => {
             </div>
           </div>
           <div style="margin-top:8px;${isActive ? '' : 'display:none'}" id="inc-note-wrap-${c.key}">
-            ${notesHtml}
+            <input class="form-input" style="font-size:12px;padding:6px 10px" id="inc-note-${c.key}"
+                   placeholder="note: รายละเอียด..." value="${App.esc(st.note)}"
+                   oninput="Screens5.incNote('${c.key}',this.value)">
           </div>
         </div>`;
     }).join('');
@@ -950,7 +932,8 @@ const Screens5 = (() => {
     if (!urgency) return App.toast('กรุณาเลือกความเร่งด่วน', 'error');
 
     try {
-      const storeId = API.isHQ() ? API.getSelectedStore() : null;
+      App.showLoader();
+      const storeId = API.isHQ() ? API.getSelectedStore() : (API.getSession()?.store_id || null);
       const priority = urgency === 'critical' ? 'urgent' : 'normal';
       await API.createTask({
         store_id: storeId,
@@ -961,12 +944,17 @@ const Screens5 = (() => {
         report_date: _reportDate,
       });
       App.toast('แจ้งซ่อมสำเร็จ ✓', 'success');
+      // Clear inputs
+      const nameEl = document.getElementById('s8-eq-name'); if (nameEl) nameEl.value = '';
+      const symEl = document.getElementById('s8-eq-symptom'); if (symEl) symEl.value = '';
+      const urgEl = document.getElementById('s8-eq-urgency'); if (urgEl) urgEl.value = '';
       // Reload tasks
       const taskData = await API.getTasks(storeId);
       _s8Tasks = taskData.tasks || [];
       const el = document.getElementById('s8-content');
       if (el) renderTasksTab(el);
-    } catch (err) { App.toast(err.message, 'error'); }
+    } catch (err) { App.toast('แจ้งซ่อมไม่สำเร็จ: ' + err.message, 'error'); console.error('s8AddEquipment error:', err); }
+    finally { App.hideLoader(); }
   }
 
   async function s8AddTask(type) {
@@ -977,8 +965,9 @@ const Screens5 = (() => {
 
     try {
       App.showLoader();
+      const storeId = API.isHQ() ? API.getSelectedStore() : (API.getSession()?.store_id || null);
       await API.createTask({
-        store_id: API.isHQ() ? API.getSelectedStore() : null,
+        store_id: storeId,
         title,
         type,
         assigned_to: isTask ? (document.getElementById('s8-task-assign')?.value || '') : '',
@@ -996,12 +985,12 @@ const Screens5 = (() => {
       }
 
       // Reload tasks
-      const data = await API.getTasks(null);
+      const data = await API.getTasks(storeId);
       _s8Tasks = data.tasks || [];
       const el = document.getElementById('s8-content');
       if (el) renderTasksTab(el);
       await App.refreshTaskBadge();
-    } catch (err) { App.toast(err.message, 'error'); }
+    } catch (err) { App.toast('เพิ่มไม่สำเร็จ: ' + err.message, 'error'); console.error('s8AddTask error:', err); }
     finally { App.hideLoader(); }
   }
 
@@ -1024,6 +1013,8 @@ const Screens5 = (() => {
   }
 
   function s8WasteAnswer(isYes) {
+    if (!_reportData) _reportData = {};
+    _reportData.has_waste = isYes;
     const link = document.getElementById('s8-waste-link');
     const noMsg = document.getElementById('s8-waste-no-msg');
     const yesBtn = document.getElementById('s8-waste-yes');
@@ -1049,39 +1040,18 @@ const Screens5 = (() => {
   }
 
   function incAdj(key, delta) {
-    if (!_incidentState[key]) _incidentState[key] = { count: 0, notes: [] };
-    const st = _incidentState[key];
-    // Collect current note values from DOM before re-render
-    const noteWrap = document.getElementById('inc-note-wrap-' + key);
-    if (noteWrap) {
-      const inputs = noteWrap.querySelectorAll('input');
-      inputs.forEach((inp, i) => { if (i < st.notes.length) st.notes[i] = inp.value; });
-    }
-    const newCount = Math.max(0, st.count + delta);
-    // Adjust notes array
-    while (st.notes.length < newCount) st.notes.push('');
-    if (newCount < st.notes.length) st.notes.length = newCount;
-    st.count = newCount;
-    // Re-render this category's note area
+    if (!_incidentState[key]) _incidentState[key] = { count: 0, note: '' };
+    _incidentState[key].count = Math.max(0, _incidentState[key].count + delta);
     const cntEl = document.getElementById('inc-cnt-' + key);
-    if (cntEl) cntEl.textContent = st.count;
-    if (noteWrap) {
-      noteWrap.style.display = st.count > 0 ? '' : 'none';
-      let html = '';
-      for (let i = 0; i < st.count; i++) {
-        html += `<input class="form-input" style="font-size:12px;padding:6px 10px;margin-bottom:4px"
-                   placeholder="รายการที่ ${i + 1}: รายละเอียด..." value="${App.esc(st.notes[i] || '')}"
-                   oninput="Screens5.incNote('${key}',${i},this.value)">`;
-      }
-      noteWrap.innerHTML = html;
-    }
+    if (cntEl) cntEl.textContent = _incidentState[key].count;
+    const noteWrap = document.getElementById('inc-note-wrap-' + key);
+    if (noteWrap) noteWrap.style.display = _incidentState[key].count > 0 ? '' : 'none';
     updateIncSummary();
   }
 
-  function incNote(key, idx, val) {
-    if (!_incidentState[key]) _incidentState[key] = { count: 0, notes: [] };
-    if (!_incidentState[key].notes) _incidentState[key].notes = [];
-    _incidentState[key].notes[idx] = val;
+  function incNote(key, val) {
+    if (!_incidentState[key]) _incidentState[key] = { count: 0, note: '' };
+    _incidentState[key].note = val;
   }
 
   function updateIncSummary() {
@@ -1107,28 +1077,32 @@ const Screens5 = (() => {
       if (el) _reportData['customer_' + f] = el.value;
     });
     INCIDENT_CATS.forEach(c => {
-      const noteWrap = document.getElementById('inc-note-wrap-' + c.key);
-      if (noteWrap && _incidentState[c.key]) {
-        const inputs = noteWrap.querySelectorAll('input');
-        const notes = [];
-        inputs.forEach(inp => notes.push(inp.value));
-        _incidentState[c.key].notes = notes;
-      }
+      const noteEl = document.getElementById('inc-note-' + c.key);
+      if (noteEl && _incidentState[c.key]) _incidentState[c.key].note = noteEl.value;
     });
   }
 
   async function s8Save(isSubmit) {
     collectFormState();
     const r = _reportData || {};
-    const incidents = INCIDENT_CATS.map(c => {
-      const st = _incidentState[c.key] || { count: 0, notes: [] };
-      return {
-        category: c.key,
-        count: st.count || 0,
-        note: (st.notes || []).filter(n => n).join(' | '),
-        notes: st.notes || [],
-      };
-    }).filter(i => i.count > 0);
+
+    // Validate: ถ้า incident count > 0 ต้องมี note
+    for (const c of INCIDENT_CATS) {
+      const st = _incidentState[c.key];
+      if (st && st.count > 0) {
+        const note = (st.note || '').trim();
+        if (!note) {
+          App.toast(`⚠️ กรุณาใส่รายละเอียด "${c.name}" (มี ${st.count} รายการ)`, 'error');
+          return;
+        }
+      }
+    }
+
+    const incidents = INCIDENT_CATS.map(c => ({
+      category: c.key,
+      count: _incidentState[c.key]?.count || 0,
+      note: _incidentState[c.key]?.note || '',
+    })).filter(i => i.count > 0);
 
     try {
       App.showLoader();
@@ -1144,6 +1118,7 @@ const Screens5 = (() => {
         customer_afternoon: r.customer_afternoon,
         customer_evening: r.customer_evening,
         customer_night: r.customer_night,
+        has_waste: r.has_waste != null ? r.has_waste : null,
         is_submitted: isSubmit,
         incidents,
         leftovers: _leftoverItems.filter(l => (l.item_name || '').trim()),
@@ -1161,7 +1136,8 @@ const Screens5 = (() => {
     const r = _reportData || {};
     const session = API.getSession();
     const storeName = session?.store_name || '';
-    const displayName = session?.display_name || session?.account_id || '';
+    // ข้อ 4: ใช้ full_name หรือ display_name จาก user (ไม่ใช่ account)
+    const displayName = session?.full_name || session?.display_name || session?.user_id || '';
     const s = _s8Summary || {};
     const channels = s.channels || [];
     const channelSum = channels.reduce(function(sum, c) { return sum + (c.amount || 0); }, 0);
@@ -1206,8 +1182,11 @@ const Screens5 = (() => {
     text += `\n`;
 
     // Weather/Traffic
-    text += `🌤️ อากาศ: ${wMap[r.weather] || '—'} | Traffic: ${tMap[r.traffic] || '—'} | POS: ${pMap[r.pos_status] || '—'}\n`;
-    if (r.overview_note) text += `📝 ภาพรวม: ${r.overview_note}\n`;
+    text += `🌤️ สภาพร้าน\n`;
+    text += `  อากาศ: ${wMap[r.weather] || '—'}\n`;
+    text += `  Traffic: ${tMap[r.traffic] || '—'}\n`;
+    text += `  POS: ${pMap[r.pos_status] || '—'}\n`;
+    if (r.overview_note) text += `  📝 ภาพรวม: ${r.overview_note}\n`;
     text += `\n`;
 
     // Customer insights
@@ -1217,17 +1196,14 @@ const Screens5 = (() => {
       ['🌙 ค่ำ', r.customer_night],
     ].filter(c => c[1]);
     if (custs.length > 0) {
-      text += '🧑‍🤝‍🧑 กลุ่มลูกค้า:\n';
+      text += '🧑‍🤝‍🧑 กลุ่มลูกค้า\n';
       custs.forEach(c => { text += `  ${c[0]}: ${c[1]}\n`; });
       text += '\n';
     }
 
-    // Waste
-    const wasteYes = document.getElementById('s8-waste-yes');
-    const wasteNo = document.getElementById('s8-waste-no');
-    const hasWaste = wasteYes && wasteYes.className.includes('btn-gold');
-    const noWaste = wasteNo && wasteNo.className.includes('btn-gold');
-    text += `🍞 Waste: ${hasWaste ? '✅ มี waste' : noWaste ? '❌ ไม่มี waste' : '— ยังไม่ตอบ'}\n\n`;
+    // Waste — ข้อ 6: ใช้ state จาก _reportData แทน DOM
+    const hasWaste = r.has_waste;
+    text += `🍞 Waste: ${hasWaste === true ? '✅ มี waste' : hasWaste === false ? '❌ ไม่มี waste' : '— ยังไม่ตอบ'}\n\n`;
 
     // Incidents
     const activeInc = INCIDENT_CATS.filter(c => (_incidentState[c.key]?.count || 0) > 0);
@@ -1236,8 +1212,7 @@ const Screens5 = (() => {
       text += `⚠️ เหตุการณ์ (${total} รายการ)\n`;
       activeInc.forEach(c => {
         const st = _incidentState[c.key];
-        text += `  ${c.icon} ${c.name} ×${st.count}\n`;
-        (st.notes || []).forEach((n, i) => { if (n) text += `    ${i + 1}. ${n}\n`; });
+        text += `  ${c.icon} ${c.name} ×${st.count}${st.note ? ' — ' + st.note : ''}\n`;
       });
       text += '\n';
     }
@@ -1246,7 +1221,7 @@ const Screens5 = (() => {
     const activeLft = _leftoverItems.filter(l => (l.item_name || '').trim());
     if (activeLft.length > 0) {
       const lvMap = { little: '🟢 นิดหน่อย', half: '🟡 ครึ่งนึง', almost_full: '🔴 เกือบหมด', full: '⚫ ทั้งจาน' };
-      text += '🍚 อาหารเหลือ:\n';
+      text += '🍚 อาหารเหลือ\n';
       activeLft.forEach(l => { text += `  ${l.item_name} ×${l.quantity} (${lvMap[l.level] || l.level})\n`; });
       text += '\n';
     }
@@ -1284,7 +1259,7 @@ const Screens5 = (() => {
       document.execCommand('copy'); document.body.removeChild(ta);
     }
 
-    // Auto-save (no lock) + notify copy
+    // Auto-save (no lock)
     try {
       await s8Save(false);
       App.toast('📋 Copy แล้ว! วางใน LINE ได้เลย', 'success');
