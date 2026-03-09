@@ -1,4 +1,4 @@
-// Version 2.7.8 | 10 MAR 2026 | Siam Palette Group
+// Version 2.7.9 | 10 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -1144,10 +1144,9 @@ const Screens2 = (() => {
       });
 
       App.toast('บันทึกสำเร็จ ✓', 'success');
-      s3ClearForm();
 
-      // Go back to invoice list
-      setTimeout(() => App.go('invoice'), 500);
+      // Go back to invoice list (clearForm not needed — page will re-render)
+      setTimeout(() => { s3ClearForm(); App.go('invoice'); }, 400);
 
     } catch (err) {
       App.toast('บันทึกไม่สำเร็จ: ' + err.message, 'error');
