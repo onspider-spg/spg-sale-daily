@@ -1,4 +1,4 @@
-// Version 2.6.2 | 9 MAR 2026 | Siam Palette Group
+// Version 2.6.3 | 9 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -522,9 +522,15 @@ const Screens5 = (() => {
         if (Array.isArray(i.notes)) {
           notes = i.notes;
         } else if (i.note) {
-          // Try parse JSON array from backend note column
-          try { const parsed = JSON.parse(i.note); if (Array.isArray(parsed)) notes = parsed; else notes = [i.note]; }
-          catch(e) { notes = [i.note]; }
+          // Parse JSON — handle double-encode safely
+          let raw = i.note;
+          try {
+            let parsed = JSON.parse(raw);
+            // If still string (double-encoded), parse again
+            if (typeof parsed === 'string') parsed = JSON.parse(parsed);
+            if (Array.isArray(parsed)) notes = parsed;
+            else notes = [String(parsed)];
+          } catch(e) { notes = [raw]; }
         }
         while (notes.length < cnt) notes.push('');
         _incidentState[i.category] = { count: cnt, notes: notes.slice(0, cnt) };
@@ -883,15 +889,17 @@ const Screens5 = (() => {
         listEl.innerHTML = pending.map(t => {
           const isSug = t.type === 'suggestion';
           const icon = isSug ? '💡' : (t.priority === 'urgent' ? '🚨' : '⏳');
+          const borderColor = isSug ? 'var(--purple)' : (t.priority === 'urgent' ? 'var(--red)' : 'var(--gold)');
           return `
-            <div class="card" style="margin-bottom:6px;padding:12px;cursor:pointer;border-left:3px solid ${isSug ? 'var(--purple)' : (t.priority === 'urgent' ? 'var(--red)' : 'var(--gold)')}" onclick="Screens5.s8CompleteTask('${t.id}')">
+            <div class="card" style="margin-bottom:6px;padding:12px;border-left:3px solid ${borderColor}">
               <div style="display:flex;align-items:center;gap:10px">
                 <span style="font-size:16px">${icon}</span>
                 <div style="flex:1;min-width:0">
                   <div style="font-size:13px;font-weight:500">${App.esc(t.title)}</div>
-                  ${t.assigned_to ? `<div style="font-size:10px;color:var(--tm)">👤 ${App.esc(t.assigned_to)}</div>` : ''}
+                  ${t.note ? `<div style="font-size:11px;color:var(--td);margin-top:2px">${App.esc(t.note)}</div>` : ''}
+                  ${t.assigned_to ? `<div style="font-size:10px;color:var(--tm);margin-top:2px">👤 ${App.esc(t.assigned_to)}</div>` : ''}
                 </div>
-                <span style="font-size:11px;color:var(--green);font-weight:600">กดเสร็จ ✓</span>
+                <button class="cnt-btn" style="color:var(--green);border-color:var(--green);font-size:16px;width:32px;height:32px" onclick="event.stopPropagation();Screens5.s8CompleteTask('${t.id}')">✓</button>
               </div>
             </div>`;
         }).join('');
@@ -972,11 +980,12 @@ const Screens5 = (() => {
     try {
       App.showLoader();
       const storeId = API.isHQ() ? API.getSelectedStore() : (API.getSession()?.store_id || null);
+      const urgencyMap = { critical: '🔴 ซ่อมทันที', high: '🟠 ควรซ่อมเร็ว', low: '🟡 ไม่รีบ', dispose: '⚫ ทิ้ง' };
       const priority = urgency === 'critical' ? 'urgent' : 'normal';
       await API.createTask({
         store_id: storeId,
         title: '🔧 ' + name,
-        note: symptom + ' [' + urgency + ']',
+        note: symptom + ' [' + (urgencyMap[urgency] || urgency) + ']',
         type: 'equipment',
         priority: priority,
         report_date: _reportDate,
@@ -1188,14 +1197,16 @@ const Screens5 = (() => {
         customer_evening: r.customer_evening,
         customer_night: r.customer_night,
         has_waste: r.has_waste != null ? r.has_waste : null,
-        is_submitted: isSubmit,
+        is_submitted: isSubmit === true,
         incidents,
         leftovers: _leftoverItems.filter(l => (l.item_name || '').trim()),
       });
       App.toast('✅ บันทึกแล้ว', 'success');
 
-      // Go to report hub
-      setTimeout(() => App.go('report-hub'), 500);
+      // Go to report hub (unless called with redirect=false from copy)
+      if (isSubmit !== 'no_redirect') {
+        setTimeout(() => App.go('report-hub'), 500);
+      }
     } catch (err) { App.toast(err.message, 'error'); }
     finally { App.hideLoader(); }
   }
@@ -1329,9 +1340,9 @@ const Screens5 = (() => {
       document.execCommand('copy'); document.body.removeChild(ta);
     }
 
-    // Auto-save (no lock)
+    // Auto-save (no redirect)
     try {
-      await s8Save(false);
+      await s8Save('no_redirect');
       App.toast('📋 Copy แล้ว! วางใน LINE ได้เลย', 'success');
     } catch (e) {
       App.toast('📋 Copy แล้ว แต่บันทึกไม่สำเร็จ', 'warning');
