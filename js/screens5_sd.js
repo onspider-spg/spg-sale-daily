@@ -1,4 +1,4 @@
-// Version 2.6.3 | 9 MAR 2026 | Siam Palette Group
+// Version 2.6.4 | 9 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -36,7 +36,7 @@ const Screens5 = (() => {
 
           <!-- Type chips -->
           <div class="chip-group">
-            <button class="filter-chip ${_taskFilter === 'all' || _taskFilter === 'pending' || _taskFilter === 'done' ? 'active' : ''}" onclick="Screens5.filterTasks(_taskFilter === 'done' ? 'done' : 'pending')">All</button>
+            <button class="filter-chip ${_taskFilter === 'pending' || _taskFilter === 'done' ? 'active' : ''}" onclick="Screens5.filterTasks(_taskFilter === 'done' ? 'done' : 'pending')">All</button>
             <button class="filter-chip ${_taskFilter === 'equipment' ? 'active' : ''}" onclick="Screens5.filterTasks('equipment')">🔧 Equipment</button>
             <button class="filter-chip ${_taskFilter === 'follow_up' ? 'active' : ''}" onclick="Screens5.filterTasks('follow_up')">📋 Tasks</button>
             <button class="filter-chip ${_taskFilter === 'suggestion' ? 'active' : ''}" onclick="Screens5.filterTasks('suggestion')">💡 Suggestion</button>
@@ -93,8 +93,7 @@ const Screens5 = (() => {
           </div>
           <div style="display:flex;gap:var(--sp-xs);margin-top:var(--sp-sm);align-items:center">
             <span class="status-badge ${isDone ? 'sts-synced' : 'sts-pending'}">${isDone ? 'Done' : 'Open'}</span>
-            ${canEdit && !isDone ? `<button class="btn btn-sm btn-outline" onclick="Screens5.toggleTask('${t.id}','done')">✏️</button>` : ''}
-            ${canEdit && !isDone ? `<span style="font-size:var(--fs-xs);color:var(--green);background:var(--green-bg);padding:2px 8px;border-radius:4px;cursor:pointer" onclick="Screens5.toggleTask('${t.id}','done')">กดเสร็จ ✓</span>` : ''}
+            ${canEdit && !isDone ? `<button class="cnt-btn" style="color:var(--green);border-color:var(--green);font-size:16px;width:32px;height:32px" onclick="Screens5.toggleTask('${t.id}','done')">✓</button>` : ''}
           </div>
         </div>`;
     }).join('');
@@ -817,8 +816,10 @@ const Screens5 = (() => {
 
   function renderTasksTab(el) {
     const session = API.getSession();
+    // Equipment: เฉพาะวันที่เลือก
+    const equipTasks = _s8Tasks.filter(t => t.type === 'equipment' && t.report_date === _reportDate);
+    // Pending: ทุกวัน ทุกประเภท ที่ยังไม่เสร็จ
     const pending = _s8Tasks.filter(t => t.status === 'pending');
-    const equipTasks = _s8Tasks.filter(t => t.type === 'equipment');
 
     el.innerHTML = `
       <!-- Equipment Repair Report -->
