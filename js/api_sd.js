@@ -1,4 +1,4 @@
-// Version 2.4.5 | 9 MAR 2026 | Siam Palette Group
+// Version 2.5 | 10 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -380,7 +380,15 @@ const API = (() => {
         payment_date: data.payment_date || null,
         due_date: data.due_date || null,
         photo_url: data.photo_url,
+        extra_photos: data.extra_photos || null,
+        note: data.note || null,
         invoice_id: data.invoice_id || null,
+        has_credit_note: data.has_credit_note || false,
+        cr_no: data.cr_no || null,
+        cr_reason: data.cr_reason || null,
+        cr_description: data.cr_description || null,
+        cr_amount_ex_gst: data.cr_amount_ex_gst || 0,
+        cr_gst: data.cr_gst || 0,
       })),
 
     // EP-16: Update Invoice Payment (Unpaid → Paid)
