@@ -1,4 +1,4 @@
-// Version 2.7.6 | 9 MAR 2026 | Siam Palette Group
+// Version 2.7.7 | 9 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -930,7 +930,7 @@ const Screens2 = (() => {
       const cnBadge = hasCR ? ' <span style="padding:1px 5px;background:var(--green-bg);color:var(--green);border-radius:4px;font-size:9px;font-weight:600">CN</span>' : '';
       const displayAmount = hasCR
         ? `<div style="font-size:var(--fs-xs);color:var(--tm);text-decoration:line-through">${App.formatMoney(inv.total_amount)}</div>
-           <div style="font-size:var(--fs-body);font-weight:800;color:var(--orange)">${App.formatMoney(inv.net_payable || inv.total_amount)}</div>`
+           <div style="font-size:var(--fs-body);font-weight:800;color:var(--orange)">${App.formatMoney((inv.total_amount || 0) - (inv.cr_total || 0))}</div>`
         : `<div style="font-size:var(--fs-body);font-weight:800;color:var(--gold)">${App.formatMoney(inv.total_amount)}</div>`;
 
       const crDetail = hasCR ? `<div style="font-size:var(--fs-xs);color:var(--green);margin-top:2px">CR: ${App.esc(inv.cr_no || '')} -${App.formatMoney(inv.cr_total || 0)} (${App.esc(inv.cr_reason || '')})</div>` : '';
