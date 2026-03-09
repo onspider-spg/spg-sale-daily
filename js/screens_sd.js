@@ -1,4 +1,4 @@
-// Version 2.6.4 | 8 MAR 2026 | Siam Palette Group
+// Version 2.6.5 | 9 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -600,20 +600,12 @@ const Screens = (() => {
             <summary style="font-size:var(--fs-body);font-weight:600;color:var(--td);cursor:pointer">▸ Cancel / ผลต่าง (ถ้ามี)</summary>
             <div style="padding-top:var(--sp-sm)">
               <div class="form-group">
-                <label class="form-label">Cancel Amount</label>
+                <label class="form-label">💰 ยอด Cancel</label>
                 <input type="number" step="0.01" class="form-input" id="s1-cancel-amount" placeholder="0.00">
               </div>
               <div class="form-group">
-                <label class="form-label">Reason</label>
-                <input type="text" class="form-input" id="s1-cancel-reason" placeholder="เหตุผล">
-              </div>
-              <div class="form-group">
-                <label class="form-label">ผลต่าง (Difference)</label>
-                <input type="number" step="0.01" class="form-input" id="s1-difference" placeholder="0.00" oninput="Screens.s1RecalcTotal()">
-              </div>
-              <div class="form-group">
-                <label class="form-label">Cancel Description</label>
-                <input type="text" class="form-input" id="s1-cancel-desc" placeholder="รายละเอียด">
+                <label class="form-label">📝 เหตุผล / หมายเหตุ</label>
+                <input type="text" class="form-input" id="s1-cancel-reason" placeholder="เช่น ลูกค้าจ่ายไม่ตรง, ยอดบัตรเกิน/ขาด">
               </div>
             </div>
           </details>
@@ -670,9 +662,7 @@ const Screens = (() => {
       s1RecalcTotal();
 
       if (data.sale) {
-        setVal('s1-difference', data.sale.difference);
         setVal('s1-cancel-amount', data.sale.cancel_amount);
-        setVal('s1-cancel-desc', data.sale.cancel_desc);
         setVal('s1-cancel-reason', data.sale.cancel_reason);
       }
 
@@ -910,8 +900,8 @@ const Screens = (() => {
         photo_card_url: s1.photoCardUrl,
         photo_cash_url: null,
         extra_photos: s1.extraPhotos.length > 0 ? s1.extraPhotos : null,
-        difference: getVal('s1-difference'),
-        cancel_desc: getVal('s1-cancel-desc'),
+        difference: null,
+        cancel_desc: null,
         cancel_amount: getVal('s1-cancel-amount'),
         cancel_reason: getVal('s1-cancel-reason'),
       });
