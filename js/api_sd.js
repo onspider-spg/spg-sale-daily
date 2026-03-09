@@ -1,4 +1,4 @@
-// Version 2.4.4 | 8 MAR 2026 | Siam Palette Group
+// Version 2.4.5 | 9 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -166,7 +166,9 @@ const API = (() => {
     const sessionData = {
       token: data.session_id || data.token,
       account_id: data.account_id,
+      user_id: data.user_id,
       display_name: data.display_name,
+      full_name: data.full_name,
       tier_id: data.tier_id,
       tier_level: data.tier_level,
       store_id: data.store_id,
