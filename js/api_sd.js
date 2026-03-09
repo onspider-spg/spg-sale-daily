@@ -1,4 +1,4 @@
-// Version 2.4.3 | 8 MAR 2026 | Siam Palette Group
+// Version 2.4.4 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -428,6 +428,9 @@ const API = (() => {
     // EP-24: Admin Update Channel
     adminUpdateChannel: (data) =>
       post('sd_admin_update_channel', tokenBody(data)),
+
+    reorderChannel: (channel_id, direction) =>
+      post('sd_reorder_channel', tokenBody({ channel_id, direction })),
 
     // EP-25: Admin Get Suppliers
     adminGetSuppliers: () =>

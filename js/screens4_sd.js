@@ -1,4 +1,4 @@
-// Version 2.7.2 | 8 MAR 2026 | Siam Palette Group
+// Version 2.7.3 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -118,6 +118,10 @@ const Screens4 = (() => {
               <code>${App.esc(ch.channel_key)}</code> → ${App.esc(ch.finance_sub_category)} · ${App.esc(ch.dashboard_group)}
             </div>
           </div>
+          <div style="display:flex;flex-direction:column;gap:2px">
+            <button class="btn btn-sm btn-outline" style="padding:1px 6px;font-size:10px;line-height:1" onclick="Screens4.reorderChannel('${ch.id}','up')" ${i === 0 ? 'disabled style="padding:1px 6px;font-size:10px;line-height:1;opacity:0.3"' : ''}>▲</button>
+            <button class="btn btn-sm btn-outline" style="padding:1px 6px;font-size:10px;line-height:1" onclick="Screens4.reorderChannel('${ch.id}','down')" ${i === _channels.length - 1 ? 'disabled style="padding:1px 6px;font-size:10px;line-height:1;opacity:0.3"' : ''}>▼</button>
+          </div>
           <div style="font-size:11px;color:var(--tm)">#${ch.sort_order}</div>
           <button class="btn btn-sm ${ch.is_enabled ? 'btn-gold' : 'btn-outline'}"
                   onclick="Screens4.toggleChannel('${ch.id}', ${!ch.is_enabled})"
@@ -130,6 +134,15 @@ const Screens4 = (() => {
       <div style="margin-top:12px;font-size:11px;color:var(--tm)">
         ${_channels.length} channels · ${_channels.filter(c => c.is_enabled).length} enabled
       </div>`;
+  }
+
+  async function reorderChannel(channelId, direction) {
+    try {
+      App.showLoader();
+      await API.reorderChannel(channelId, direction);
+      await loadTabContent('channels');
+    } catch (err) { App.toast(err.message, 'error'); }
+    finally { App.hideLoader(); }
   }
 
   async function toggleChannel(channelId, newState) {
@@ -1040,7 +1053,7 @@ const Screens4 = (() => {
   return {
     renderSettings, loadSettings, setTab,
     // Channels
-    toggleChannel, editChannel, saveChannelEdit,
+    reorderChannel, toggleChannel, editChannel, saveChannelEdit,
     showAddChannel, saveNewChannel,
     // Vendors (read-only list + add)
     filterVendors, showAddVendorPopup, doAddVendor,
