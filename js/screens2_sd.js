@@ -1,4 +1,4 @@
-// Version 2.7.5 | 8 MAR 2026 | Siam Palette Group
+// Version 2.7.6 | 9 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -810,6 +810,17 @@ const Screens2 = (() => {
     App.go('invoice-form', { edit_id: id });
   }
 
+  async function s3Delete(id) {
+    if (!confirm('ลบ Invoice นี้?')) return;
+    try {
+      App.showLoader();
+      await API.deleteInvoice(id);
+      App.toast('ลบสำเร็จ ✓', 'success');
+      await s3ReloadList();
+    } catch (err) { App.toast('ลบไม่สำเร็จ: ' + err.message, 'error'); }
+    finally { App.hideLoader(); }
+  }
+
   async function s3FetchList() {
     const dateFrom = document.getElementById('s3-date-from')?.value || null;
     const dateTo = document.getElementById('s3-date-to')?.value || null;
@@ -926,7 +937,7 @@ const Screens2 = (() => {
 
       const editHtml = isSynced
         ? `<div style="font-size:var(--fs-xs);color:var(--tm);margin-top:var(--sp-xs)">🔒 Synced — locked</div>`
-        : `<div style="display:flex;gap:var(--sp-xs);margin-top:var(--sp-sm)"><button class="btn btn-sm btn-outline" style="padding:3px 10px;font-size:var(--fs-xs)" onclick="Screens2.s3GoEdit('${inv.id}')">✏️ Edit</button></div>`;
+        : `<div style="display:flex;gap:var(--sp-xs);margin-top:var(--sp-sm)"><button class="btn btn-sm btn-outline" style="padding:3px 10px;font-size:var(--fs-xs)" onclick="Screens2.s3GoEdit('${inv.id}')">✏️ Edit</button><button class="btn btn-sm btn-outline" style="padding:3px 10px;font-size:var(--fs-xs);color:var(--red);border-color:var(--red)" onclick="Screens2.s3Delete('${inv.id}')">🗑️ ลบ</button></div>`;
 
       return `
         <div style="padding:12px;background:var(--bg);border:1px solid var(--bd2);border-left:4px solid ${borderColor};border-radius:0 var(--radius-sm) var(--radius-sm) 0;margin-bottom:var(--sp-xs);${rowOpacity}">
@@ -1215,7 +1226,7 @@ const Screens2 = (() => {
     renderInvoice, loadInvoice,
     renderInvoiceForm, loadInvoiceForm,
     s3FilterTab, s3ReloadList, s3EditInvoice,
-    s3GoAdd, s3GoEdit,
+    s3GoAdd, s3GoEdit, s3Delete,
     s3SetStatus, s3SetPayMethod, s3CalcTotal, s3ToggleCR,
     s3PickPhoto, s3HandlePhoto, s3PickExtraPhoto, s3RemoveExtra, s3Save, s3ClearForm,
     s3MarkPaid,

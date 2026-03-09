@@ -1,4 +1,4 @@
-// Version 2.0.4 | 8 MAR 2026 | Siam Palette Group
+// Version 2.0.5 | 9 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -278,8 +278,8 @@ const Screens3 = (() => {
       const icon = result.is_matched ? '✅ เงินตรง' : `🔴 ไม่ตรง ($${result.difference.toFixed(2)})`;
       App.toast(`บันทึกสำเร็จ — ${icon}`, result.is_matched ? 'success' : 'warning');
 
-      // Reload
-      await loadCash();
+      // Redirect to dashboard
+      setTimeout(() => App.go('dashboard'), 500);
     } catch (err) {
       App.toast('บันทึกไม่สำเร็จ: ' + err.message, 'error');
     } finally {

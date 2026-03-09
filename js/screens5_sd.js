@@ -1,4 +1,4 @@
-// Version 2.6.4 | 9 MAR 2026 | Siam Palette Group
+// Version 2.6.5 | 9 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -74,7 +74,7 @@ const Screens5 = (() => {
       return;
     }
     const session = API.getSession();
-    const canEdit = session && session.tier_level <= 4;
+    const canEdit = !!session;
 
     el.innerHTML = _tasks.map(t => {
       const isDone = t.status === 'done';
@@ -106,7 +106,7 @@ const Screens5 = (() => {
       return;
     }
     const session = API.getSession();
-    const canEdit = session && session.tier_level <= 4;
+    const canEdit = !!session;
 
     el.innerHTML = tasks.map(t => {
       const isDone = t.status === 'done';
