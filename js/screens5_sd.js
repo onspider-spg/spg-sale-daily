@@ -1,4 +1,4 @@
-// Version 2.6.6 | 10 MAR 2026 | Siam Palette Group
+// Version 2.6.7 | 10 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -36,7 +36,7 @@ const Screens5 = (() => {
 
           <!-- Type chips -->
           <div class="chip-group">
-            <button class="filter-chip ${_taskFilter === 'pending' || _taskFilter === 'done' ? 'active' : ''}" onclick="Screens5.filterTasks(_taskFilter === 'done' ? 'done' : 'pending')">All</button>
+            <button class="filter-chip ${_taskFilter === 'pending' || _taskFilter === 'done' ? 'active' : ''}" onclick="Screens5.filterTasks('pending')">All</button>
             <button class="filter-chip ${_taskFilter === 'equipment' ? 'active' : ''}" onclick="Screens5.filterTasks('equipment')">🔧 Equipment</button>
             <button class="filter-chip ${_taskFilter === 'follow_up' ? 'active' : ''}" onclick="Screens5.filterTasks('follow_up')">📋 Tasks</button>
             <button class="filter-chip ${_taskFilter === 'suggestion' ? 'active' : ''}" onclick="Screens5.filterTasks('suggestion')">💡 Suggestion</button>
