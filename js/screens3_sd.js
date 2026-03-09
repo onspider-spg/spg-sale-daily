@@ -1,4 +1,4 @@
-// Version 2.0.1 | 8 MAR 2026 | Siam Palette Group
+// Version 2.0.3 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -108,7 +108,7 @@ const Screens3 = (() => {
               <div class="photo-required">* บังคับ</div>
             </div>
           </div>
-          <input type="file" id="s4-file-input" accept="image/*" capture="environment"
+          <input type="file" id="s4-file-input" accept="image/*"
                  style="display:none" onchange="Screens3.s4HandlePhoto(event)">
 
           <!-- Handover Chain (shown when record exists) -->
@@ -376,6 +376,9 @@ const Screens3 = (() => {
             </div>
           </div>
 
+          <!-- Cash Mismatch Alert -->
+          <div id="s5-cash-alert"></div>
+
           <!-- Bar Chart -->
           <div class="section-label">📊 ยอดขายรายวัน</div>
           <div class="card">
@@ -432,6 +435,32 @@ const Screens3 = (() => {
               <div style="font-size:10px;color:var(--tm)">${c.pct}%</div>
             </div>
           </div>`).join('');
+      }
+
+      // Cash mismatch alert
+      const cashAlertEl = document.getElementById('s5-cash-alert');
+      const mismatches = data.cash_mismatches || [];
+      if (cashAlertEl && mismatches.length > 0) {
+        const totalDiff = mismatches.reduce(function(s, c) { return s + (c.diff || 0); }, 0);
+        cashAlertEl.innerHTML = `
+          <div style="background:var(--red-bg);border:1px solid var(--red);border-radius:var(--radius-sm);padding:14px;margin-bottom:16px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+              <span style="font-size:22px">🔴</span>
+              <div>
+                <div style="font-size:14px;font-weight:700;color:var(--red)">Cash Mismatch — ${mismatches.length} วัน</div>
+                <div style="font-size:12px;color:var(--td)">ผลต่างรวม: <strong style="color:var(--red)">$${totalDiff.toFixed(2)}</strong></div>
+              </div>
+            </div>
+            ${mismatches.map(function(c) {
+              return '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px;border-top:1px solid rgba(217,79,79,0.2)">'
+                + '<span>' + App.formatDateShort(c.date) + '</span>'
+                + '<span style="font-weight:600;color:var(--red)">$' + (c.diff || 0).toFixed(2) + '</span>'
+                + (c.reason ? '<span style="font-size:10px;color:var(--td);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + App.esc(c.reason) + '</span>' : '')
+                + '</div>';
+            }).join('')}
+          </div>`;
+      } else if (cashAlertEl) {
+        cashAlertEl.innerHTML = '';
       }
 
       // Render filtered daily table

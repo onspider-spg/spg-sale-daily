@@ -1,4 +1,4 @@
-// Version 2.6.3 | 8 MAR 2026 | Siam Palette Group
+// Version 2.6.4 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -630,7 +630,7 @@ const Screens = (() => {
           </div>
           <div id="s1-extra-photos" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"></div>
           <button type="button" class="btn btn-sm btn-outline" onclick="Screens.s1PickPhoto('extra')" style="margin-top:4px;font-size:var(--fs-xs)">+ เพิ่มรูป</button>
-          <input type="file" id="s1-file-input" accept="image/*" capture="environment" style="display:none"
+          <input type="file" id="s1-file-input" accept="image/*" style="display:none"
                  onchange="Screens.s1HandlePhoto(event)">
         </div>
 

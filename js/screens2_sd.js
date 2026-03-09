@@ -1,4 +1,4 @@
-// Version 2.7.4 | 8 MAR 2026 | Siam Palette Group
+// Version 2.7.5 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -365,7 +365,7 @@ const Screens2 = (() => {
 
         <div class="form-group">
           <label class="form-label">📸 ถ่ายใบเสร็จ <span class="req">*</span></label>
-          <input type="file" id="s2-file-input" accept="image/*" capture="environment" style="display:none" onchange="Screens2.s2HandlePhoto(event)">
+          <input type="file" id="s2-file-input" accept="image/*" style="display:none" onchange="Screens2.s2HandlePhoto(event)">
           <div class="photo-grid" style="display:flex">
             <div class="photo-box empty" id="s2-photo-box" onclick="Screens2.s2PickPhoto()" style="min-height:70px;width:70px">
               <div class="photo-icon">📸</div>
@@ -741,7 +741,7 @@ const Screens2 = (() => {
             </div>
             <div class="form-group" style="margin-top:12px">
               <label class="form-label">📸 ถ่ายหน้า Invoice <span class="req">*</span></label>
-              <input type="file" id="s3-file-input" accept="image/*" capture="environment" style="display:none" onchange="Screens2.s3HandlePhoto(event)">
+              <input type="file" id="s3-file-input" accept="image/*" style="display:none" onchange="Screens2.s3HandlePhoto(event)">
               <label for="s3-file-input" style="cursor:pointer">
                 <div style="display:flex">
                   <div class="photo-box" id="s3-photo-box" style="width:80px;height:80px;min-height:80px">
