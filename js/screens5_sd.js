@@ -1,4 +1,4 @@
-// Version 2.4.4 | 8 MAR 2026 | Siam Palette Group
+// Version 2.5 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -311,7 +311,7 @@ const Screens5 = (() => {
             </div>
             <div style="display:flex;gap:8px">
               <button class="btn btn-gold" style="flex:1" onclick="Screens5.s8Save(false)">บันทึก</button>
-              <button class="btn btn-outline" style="flex:1" onclick="Screens5.s8CopyReport()">📋 Copy Report</button>
+              <button class="btn btn-outline" style="flex:1" onclick="Screens5.s8CopyReport()">📋 Copy + Lock</button>
             </div>
           </div>
         </div>
@@ -528,6 +528,16 @@ const Screens5 = (() => {
       }));
 
       renderS8Tab(el);
+
+      // Lock check: if submitted → show banner + disable save
+      if (_reportData && _reportData.is_submitted) {
+        const lockBanner = document.createElement('div');
+        lockBanner.style.cssText = 'background:var(--green-bg);border:1px solid var(--green);border-radius:10px;padding:12px;margin-bottom:12px;text-align:center;font-size:13px;font-weight:600;color:var(--green)';
+        lockBanner.textContent = '🔒 Report นี้ถูก Lock แล้ว — ดูได้อย่างเดียว';
+        el.parentNode.insertBefore(lockBanner, el);
+        const saveBtn = el.parentNode.querySelector('.btn-gold');
+        if (saveBtn && saveBtn.textContent.includes('บันทึก')) { saveBtn.disabled = true; saveBtn.style.opacity = '0.4'; }
+      }
     } catch (err) {
       el.innerHTML = '<div style="color:var(--red);padding:16px">' + App.esc(err.message) + '</div>';
     } finally { App.hideLoader(); }
@@ -1107,46 +1117,78 @@ const Screens5 = (() => {
     finally { App.hideLoader(); }
   }
 
-  function s8CopyReport() {
+  async function s8CopyReport() {
     collectFormState();
     const r = _reportData || {};
     const session = API.getSession();
     const storeName = session?.store_name || '';
-    const displayName = session?.display_name || '';
+    const displayName = session?.display_name || session?.account_id || '';
     const s = _s8Summary || {};
-    const saleTotal = s.sale ? (s.sale.total_sales || 0) : 0;
-    const expTotal = s.expense_total || 0;
+    const channels = s.channels || [];
+    const channelSum = channels.reduce(function(sum, c) { return sum + (c.amount || 0); }, 0);
+    const saleTotal = s.sale ? (s.sale.total_sales || channelSum) : 0;
+    const expenses = s.expenses || [];
+    const expTotal = expenses.reduce(function(sum, e) { return sum + (e.total_amount || 0); }, 0);
+    const cash = s.cash;
 
     const wMap = { sunny: '☀️ แดด', cloudy: '🌤️ ครึ้ม', rain: '🌧️ ฝน', heavy_rain: '⛈️ ฝนหนัก' };
     const tMap = { above: '📈 ดีกว่าปกติ', normal: '➡️ ปกติ', below: '📉 ต่ำกว่าปกติ' };
     const pMap = { ok: '✅ ปกติ', issue: '⚠️ มีปัญหา' };
 
-    let text = `🗓️ Daily Report — ${storeName}\n`;
+    let text = `📋 Daily Report — ${storeName}\n`;
     text += `📅 ${App.formatDate(_reportDate)}\n`;
-    text += `🧑 คนเขียน: ${displayName}\n\n`;
+    text += `🧑 ผู้รายงาน: ${displayName}\n`;
+    text += `━━━━━━━━━━━━━━━\n\n`;
 
-    // S1/S2
-    if (saleTotal > 0 || expTotal > 0) {
-      text += `💰 ยอดขาย: $${saleTotal.toLocaleString()} | 🧾 ค่าใช้จ่าย: $${expTotal.toLocaleString()}\n\n`;
-    }
+    // S1 channels
+    text += `💰 ยอดขาย\n`;
+    if (channels.length > 0) {
+      channels.forEach(function(c) { text += `  ${c.name}: $${(c.amount || 0).toLocaleString(undefined, {minimumFractionDigits:2})}\n`; });
+      text += `  Total: $${saleTotal.toLocaleString(undefined, {minimumFractionDigits:2})}\n`;
+    } else { text += `  ยังไม่มีข้อมูล\n`; }
+    text += `\n`;
 
-    text += `🌤️ อากาศ: ${wMap[r.weather] || '—'} | Traffic: ${tMap[r.traffic] || '—'} | POS: ${pMap[r.pos_status] || '—'}\n\n`;
+    // S2 expenses
+    text += `🧾 ค่าใช้จ่าย\n`;
+    if (expenses.length > 0) {
+      expenses.forEach(function(e) { text += `  ${e.vendor_name || e.description || '—'}: -$${(e.total_amount || 0).toLocaleString(undefined, {minimumFractionDigits:2})}\n`; });
+      text += `  รวม ${expenses.length} รายการ: -$${expTotal.toLocaleString(undefined, {minimumFractionDigits:2})}\n`;
+    } else { text += `  ไม่มี\n`; }
+    text += `\n`;
 
-    if (r.overview_note) text += `📝 ภาพรวม: ${r.overview_note}\n\n`;
+    // Cash on Hand
+    text += `💵 Cash on Hand\n`;
+    if (cash) {
+      text += `  Expected: $${(cash.expected || 0).toLocaleString(undefined, {minimumFractionDigits:2})}\n`;
+      text += `  Actual: $${(cash.actual || 0).toLocaleString(undefined, {minimumFractionDigits:2})}\n`;
+      text += `  Diff: $${(cash.variance || 0).toFixed(2)}\n`;
+      text += cash.is_matched ? `  ✅ เงินตรง\n` : `  🔴 เงินไม่ตรง!${cash.reason ? ' — ' + cash.reason : ''}\n`;
+    } else { text += `  ยังไม่ได้นับเงิน\n`; }
+    text += `\n`;
+
+    // Weather/Traffic
+    text += `🌤️ อากาศ: ${wMap[r.weather] || '—'} | Traffic: ${tMap[r.traffic] || '—'} | POS: ${pMap[r.pos_status] || '—'}\n`;
+    if (r.overview_note) text += `📝 ภาพรวม: ${r.overview_note}\n`;
+    text += `\n`;
 
     // Customer insights
     const custs = [
-      ['🌅 เช้า', r.customer_morning],
-      ['☀️ กลางวัน', r.customer_midday],
-      ['🌤️ บ่าย', r.customer_afternoon],
-      ['🌆 เย็น', r.customer_evening],
+      ['🌅 เช้า', r.customer_morning], ['☀️ กลางวัน', r.customer_midday],
+      ['🌤️ บ่าย', r.customer_afternoon], ['🌆 เย็น', r.customer_evening],
       ['🌙 ค่ำ', r.customer_night],
     ].filter(c => c[1]);
     if (custs.length > 0) {
       text += '🧑‍🤝‍🧑 กลุ่มลูกค้า:\n';
-      custs.forEach(c => { text += `${c[0]}: ${c[1]}\n`; });
+      custs.forEach(c => { text += `  ${c[0]}: ${c[1]}\n`; });
       text += '\n';
     }
+
+    // Waste
+    const wasteYes = document.getElementById('s8-waste-yes');
+    const wasteNo = document.getElementById('s8-waste-no');
+    const hasWaste = wasteYes && wasteYes.className.includes('btn-gold');
+    const noWaste = wasteNo && wasteNo.className.includes('btn-gold');
+    text += `🍞 Waste: ${hasWaste ? '✅ มี waste' : noWaste ? '❌ ไม่มี waste' : '— ยังไม่ตอบ'}\n\n`;
 
     // Incidents
     const activeInc = INCIDENT_CATS.filter(c => (_incidentState[c.key]?.count || 0) > 0);
@@ -1155,9 +1197,7 @@ const Screens5 = (() => {
       text += `⚠️ เหตุการณ์ (${total} รายการ)\n`;
       activeInc.forEach(c => {
         const st = _incidentState[c.key];
-        text += `${c.icon} ${c.name} ×${st.count}`;
-        if (st.note) text += ` — ${st.note}`;
-        text += '\n';
+        text += `  ${c.icon} ${c.name} ×${st.count}${st.note ? ' — ' + st.note : ''}\n`;
       });
       text += '\n';
     }
@@ -1167,36 +1207,50 @@ const Screens5 = (() => {
     if (activeLft.length > 0) {
       const lvMap = { little: '🟢 นิดหน่อย', half: '🟡 ครึ่งนึง', almost_full: '🔴 เกือบหมด', full: '⚫ ทั้งจาน' };
       text += '🍚 อาหารเหลือ:\n';
-      activeLft.forEach(l => {
-        text += `${l.item_name} ×${l.quantity} (${lvMap[l.level] || l.level})\n`;
-      });
+      activeLft.forEach(l => { text += `  ${l.item_name} ×${l.quantity} (${lvMap[l.level] || l.level})\n`; });
       text += '\n';
     }
 
-    // Pending tasks
-    const pendingTasks = _s8Tasks.filter(t => t.status === 'pending');
-    if (pendingTasks.length > 0) {
-      text += `📋 งานค้าง (${pendingTasks.length})\n`;
-      pendingTasks.slice(0, 5).forEach(t => {
-        text += `${t.priority === 'urgent' ? '🚨' : '⏳'} ${t.title}`;
-        if (t.assigned_to) text += ` → ${t.assigned_to}`;
-        text += '\n';
-      });
+    // Equipment repairs
+    const equipTasks = _s8Tasks.filter(t => t.type === 'equipment');
+    if (equipTasks.length > 0) {
+      text += `🔧 แจ้งซ่อม (${equipTasks.length})\n`;
+      equipTasks.forEach(t => { text += `  ${t.title}${t.note ? ' — ' + t.note : ''}\n`; });
+      text += '\n';
+    }
+
+    // Follow-up tasks
+    const followTasks = _s8Tasks.filter(t => t.type === 'follow_up' && t.status === 'pending');
+    if (followTasks.length > 0) {
+      text += `📋 งานติดตาม (${followTasks.length})\n`;
+      followTasks.forEach(t => { text += `  ${t.priority === 'urgent' ? '🚨' : '⏳'} ${t.title}${t.assigned_to ? ' → ' + t.assigned_to : ''}\n`; });
+      text += '\n';
+    }
+
+    // Suggestions
+    const sugTasks = _s8Tasks.filter(t => t.type === 'suggestion' && t.status === 'pending');
+    if (sugTasks.length > 0) {
+      text += `💡 Suggestion (${sugTasks.length})\n`;
+      sugTasks.forEach(t => { text += `  ${t.title}\n`; });
+      text += '\n';
     }
 
     // Copy
     if (navigator.clipboard) {
-      navigator.clipboard.writeText(text).then(() => {
-        App.toast('📋 Copy แล้ว! วางใน LINE ได้เลย', 'success');
-      });
+      await navigator.clipboard.writeText(text);
     } else {
       const ta = document.createElement('textarea');
       ta.value = text; document.body.appendChild(ta); ta.select();
       document.execCommand('copy'); document.body.removeChild(ta);
-      App.toast('📋 Copy แล้ว!', 'success');
     }
 
-    // Copy only — no auto-save
+    // Auto-save as submitted (lock)
+    try {
+      await s8Save(true);
+      App.toast('📋 Copy + Lock แล้ว! วางใน LINE ได้เลย', 'success');
+    } catch (e) {
+      App.toast('📋 Copy แล้ว แต่ lock ไม่สำเร็จ', 'warning');
+    }
   }
 
 

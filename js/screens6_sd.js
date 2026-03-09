@@ -1,4 +1,4 @@
-// Version 2.0.1 | 8 MAR 2026 | Siam Palette Group
+// Version 2.0.2 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -151,8 +151,8 @@ const Screens6 = (() => {
   }
 
   function rhGoDate(dateStr) {
-    // Date click → Daily Detail (wireframe: กดวันที่ → Daily Detail)
-    App.go('daily-detail', { date: dateStr });
+    sessionStorage.setItem('sd_report_date', dateStr);
+    App.go('daily-report');
   }
 
   function rhGoReport(dateStr) {
