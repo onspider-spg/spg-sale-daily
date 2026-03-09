@@ -1,4 +1,4 @@
-// Version 2.0.3 | 8 MAR 2026 | Siam Palette Group
+// Version 2.0.4 | 8 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -385,9 +385,11 @@ const Screens3 = (() => {
             <div class="mini-chart" id="s5-chart" style="height:100px"></div>
           </div>
 
-          <!-- Channel Breakdown -->
-          <div class="section-label">💳 แยกตามช่องทาง</div>
-          <div id="s5-channels"></div>
+          <!-- Channel Breakdown (expandable) -->
+          <div class="section-label" style="cursor:pointer" onclick="Screens3.s5ToggleChannels()">
+            💳 แยกตามช่องทาง <span id="s5-ch-arrow" style="font-size:12px">▶</span>
+          </div>
+          <div id="s5-channels" style="display:none"></div>
 
           <!-- Daily Table -->
           <div class="section-label">📋 รายวัน <span style="font-size:11px;color:var(--tm);font-weight:400">— กดเพื่อแก้ไข</span></div>
@@ -469,6 +471,15 @@ const Screens3 = (() => {
     } catch (err) {
       App.toast('โหลดข้อมูลไม่สำเร็จ', 'error');
     } finally { App.hideLoader(); }
+  }
+
+  function s5ToggleChannels() {
+    const el = document.getElementById('s5-channels');
+    const arrow = document.getElementById('s5-ch-arrow');
+    if (!el) return;
+    const show = el.style.display === 'none';
+    el.style.display = show ? '' : 'none';
+    if (arrow) arrow.textContent = show ? '▼' : '▶';
   }
 
   function s5RenderDaily() {
@@ -817,7 +828,7 @@ const Screens3 = (() => {
 
     // S5 Sale History
     renderSaleHistory, loadSaleHistory,
-    s5ChangeMonth, s5DateRange, s5GoEdit,
+    s5ChangeMonth, s5DateRange, s5GoEdit, s5ToggleChannels,
 
     // S6 Expense History
     renderExpenseHistory, loadExpenseHistory,
