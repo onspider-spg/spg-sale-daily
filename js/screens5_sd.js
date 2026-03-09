@@ -1,4 +1,4 @@
-// Version 2.6.5 | 9 MAR 2026 | Siam Palette Group
+// Version 2.6.6 | 10 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -94,6 +94,7 @@ const Screens5 = (() => {
           <div style="display:flex;gap:var(--sp-xs);margin-top:var(--sp-sm);align-items:center">
             <span class="status-badge ${isDone ? 'sts-synced' : 'sts-pending'}">${isDone ? 'Done' : 'Open'}</span>
             ${canEdit && !isDone ? `<button class="cnt-btn" style="color:var(--green);border-color:var(--green);font-size:16px;width:32px;height:32px" onclick="Screens5.toggleTask('${t.id}','done')">✓</button>` : ''}
+            ${canEdit && isDone ? `<button class="cnt-btn" style="color:var(--orange);border-color:var(--orange);font-size:12px;width:auto;height:28px;padding:0 8px" onclick="Screens5.toggleTask('${t.id}','pending')">↩ เปิดใหม่</button>` : ''}
           </div>
         </div>`;
     }).join('');
