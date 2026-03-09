@@ -1,4 +1,4 @@
-// Version 2.6.7 | 10 MAR 2026 | Siam Palette Group
+// Version 2.6.8 | 10 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -236,6 +236,7 @@ const Screens5 = (() => {
 
   let _reportDate = null;
   let _reportData = null;
+  let _lastReportText = '';
   let _incidentState = {};
   let _leftoverItems = [];
   let _s8Summary = null;
@@ -312,6 +313,7 @@ const Screens5 = (() => {
             <div style="display:flex;gap:8px">
               <button class="btn btn-gold" style="flex:1" onclick="Screens5.s8Save(false)">บันทึก</button>
               <button class="btn btn-outline" style="flex:1" onclick="Screens5.s8CopyReport()">📋 Copy</button>
+              <button class="btn btn-outline" style="flex:0 0 44px;display:none" id="s8-share-btn" onclick="Screens5.s8ShareReport()">📤</button>
             </div>
           </div>
         </div>
@@ -544,6 +546,12 @@ const Screens5 = (() => {
       }));
 
       renderS8Tab(el);
+
+      // Show share button if supported
+      if (navigator.share) {
+        const shareBtn = document.getElementById('s8-share-btn');
+        if (shareBtn) shareBtn.style.display = '';
+      }
 
       // Restore waste answer from saved report
       if (_reportData && _reportData.has_waste != null) {
@@ -1334,6 +1342,7 @@ const Screens5 = (() => {
     }
 
     // Copy
+    _lastReportText = text;
     if (navigator.clipboard) {
       await navigator.clipboard.writeText(text);
     } else {
@@ -1348,6 +1357,19 @@ const Screens5 = (() => {
       App.toast('📋 Copy แล้ว! วางใน LINE ได้เลย', 'success');
     } catch (e) {
       App.toast('📋 Copy แล้ว แต่บันทึกไม่สำเร็จ', 'warning');
+    }
+  }
+
+  async function s8ShareReport() {
+    // Build text by calling copy flow (stores in _lastReportText)
+    await s8CopyReport();
+    if (!_lastReportText) return;
+    try {
+      await navigator.share({ text: _lastReportText });
+    } catch (e) {
+      if (e.name !== 'AbortError') {
+        App.toast('Share ไม่ได้ — Copy ไว้แล้ว วางได้เลย', 'info');
+      }
     }
   }
 
@@ -1377,7 +1399,7 @@ const Screens5 = (() => {
     dashMonthNav,
     s8ChangeDate, s8Tab, s8Pill,
     incAdj, incNote,
-    s8Save, s8CopyReport,
+    s8Save, s8CopyReport, s8ShareReport,
     s8WasteAnswer, s8OpenWaste,
     s8AddEquipment, s8AddTask, s8CompleteTask,
     // Leftover
