@@ -1,4 +1,4 @@
-// Version 2.7.7 | 9 MAR 2026 | Siam Palette Group
+// Version 2.7.8 | 10 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -856,7 +856,7 @@ const Screens2 = (() => {
     // Load into form
     const setVal = (elId, val) => { const el = document.getElementById(elId); if (el) el.value = val || ''; };
     const setDate = (elId, val) => { const el = document.getElementById(elId); if (el) el.value = (val || '').substring(0, 10); };
-    setDate('s3-issue-date', inv.issue_date);
+    setDate('s3-issue-date', inv.invoice_date || inv.issue_date);
     setVal('s3-invoice-no', inv.invoice_no);
     setVal('s3-vendor', inv.vendor_name);
 
@@ -944,7 +944,7 @@ const Screens2 = (() => {
           <div style="display:flex;justify-content:space-between;align-items:flex-start">
             <div>
               <div style="font-size:var(--fs-body);font-weight:700">${App.esc(inv.invoice_no)} — ${App.esc(inv.vendor_name)}${cnBadge}</div>
-              <div style="font-size:var(--fs-xs);color:var(--tm);margin-top:2px">${App.formatDateShort(inv.issue_date || '')}${dueText ? ` · ${dueText}` : ''}</div>
+              <div style="font-size:var(--fs-xs);color:var(--tm);margin-top:2px">${App.formatDateShort(inv.invoice_date || inv.issue_date || '')}${dueText ? ` · ${dueText}` : ''}</div>
               ${crDetail}
             </div>
             <div style="text-align:right">
