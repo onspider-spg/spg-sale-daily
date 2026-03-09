@@ -1,4 +1,4 @@
-// Version 2.7.9 | 10 MAR 2026 | Siam Palette Group
+// Version 2.8 | 10 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -856,7 +856,7 @@ const Screens2 = (() => {
     // Load into form
     const setVal = (elId, val) => { const el = document.getElementById(elId); if (el) el.value = val || ''; };
     const setDate = (elId, val) => { const el = document.getElementById(elId); if (el) el.value = (val || '').substring(0, 10); };
-    setDate('s3-issue-date', inv.invoice_date || inv.issue_date);
+    setDate('s3-issue-date', inv.invoice_date);
     setVal('s3-invoice-no', inv.invoice_no);
     setVal('s3-vendor', inv.vendor_name);
 
@@ -944,7 +944,7 @@ const Screens2 = (() => {
           <div style="display:flex;justify-content:space-between;align-items:flex-start">
             <div>
               <div style="font-size:var(--fs-body);font-weight:700">${App.esc(inv.invoice_no)} — ${App.esc(inv.vendor_name)}${cnBadge}</div>
-              <div style="font-size:var(--fs-xs);color:var(--tm);margin-top:2px">${App.formatDateShort(inv.invoice_date || inv.issue_date || '')}${dueText ? ` · ${dueText}` : ''}</div>
+              <div style="font-size:var(--fs-xs);color:var(--tm);margin-top:2px">${App.formatDateShort(inv.invoice_date || '')}${dueText ? ` · ${dueText}` : ''}</div>
               ${crDetail}
             </div>
             <div style="text-align:right">
@@ -1087,7 +1087,7 @@ const Screens2 = (() => {
   }
 
   async function s3Save() {
-    const issue_date = document.getElementById('s3-issue-date')?.value || null;
+    const invoice_date = document.getElementById('s3-issue-date')?.value || null;
     const invoice_no = document.getElementById('s3-invoice-no')?.value?.trim();
     const vendor_name = document.getElementById('s3-vendor')?.value;
     const description = document.getElementById('s3-desc')?.value?.trim();
@@ -1096,7 +1096,7 @@ const Screens2 = (() => {
     const due_date = document.getElementById('s3-due-date')?.value || null;
     const payment_date = document.getElementById('s3-payment-date')?.value || null;
 
-    if (!issue_date) return App.toast('กรุณาเลือก Issue Date', 'error');
+    if (!invoice_date) return App.toast('กรุณาเลือก Issue Date', 'error');
     if (!invoice_no) return App.toast('กรุณาใส่ Invoice No', 'error');
     if (!vendor_name) return App.toast('กรุณาเลือก Vendor', 'error');
     if (!description) return App.toast('กรุณาใส่ Description', 'error');
@@ -1104,7 +1104,7 @@ const Screens2 = (() => {
     if (!s3.photoUrl) return App.toast('กรุณาถ่ายรูป Invoice', 'error');
 
     if (!due_date) return App.toast('กรุณาใส่ Due Date', 'error');
-    if (due_date < issue_date) return App.toast('Due Date ต้องไม่ก่อน Issue Date', 'error');
+    if (due_date < invoice_date) return App.toast('Due Date ต้องไม่ก่อน Issue Date', 'error');
 
     // Credit Note — must answer Yes or No
     if (!_s3CRAnswered) return App.toast('กรุณาเลือก Credit Note (Yes / No)', 'error');
@@ -1125,7 +1125,7 @@ const Screens2 = (() => {
       if (btn) { btn.disabled = true; btn.textContent = '⏳ กำลังบันทึก...'; }
 
       const result = await API.saveInvoice({
-        issue_date, invoice_no, vendor_name,
+        invoice_date, invoice_no, vendor_name,
         description, amount_ex_gst, gst,
         payment_status: 'unpaid',
         payment_method: null,
