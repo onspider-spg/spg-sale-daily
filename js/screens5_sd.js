@@ -1,4 +1,4 @@
-// Version 2.6 | 9 MAR 2026 | Siam Palette Group
+// Version 2.6.1 | 9 MAR 2026 | Siam Palette Group
 /**
  * ═══════════════════════════════════════════════════
  * SPG Sale Daily Module — Frontend
@@ -515,9 +515,14 @@ const Screens5 = (() => {
 
       // Init incidents
       _incidentState = {};
-      INCIDENT_CATS.forEach(c => { _incidentState[c.key] = { count: 0, note: '' }; });
+      INCIDENT_CATS.forEach(c => { _incidentState[c.key] = { count: 0, notes: [] }; });
       (reportData.incidents || []).forEach(i => {
-        _incidentState[i.category] = { count: i.count || 0, note: i.note || '' };
+        const cnt = i.count || 0;
+        let notes = [];
+        if (Array.isArray(i.notes)) { notes = i.notes; }
+        else if (i.note) { notes = [i.note]; }
+        while (notes.length < cnt) notes.push('');
+        _incidentState[i.category] = { count: cnt, notes: notes.slice(0, cnt) };
       });
 
       // Init leftovers
@@ -715,9 +720,18 @@ const Screens5 = (() => {
   function renderIncidentsTab(el) {
     let totalCount = 0;
     const catHtml = INCIDENT_CATS.map(c => {
-      const st = _incidentState[c.key] || { count: 0, note: '' };
+      const st = _incidentState[c.key] || { count: 0, notes: [] };
       const isActive = st.count > 0;
       totalCount += st.count;
+      let notesHtml = '';
+      if (isActive) {
+        for (let i = 0; i < st.count; i++) {
+          const val = App.esc((st.notes && st.notes[i]) || '');
+          notesHtml += `<input class="form-input" style="font-size:12px;padding:6px 10px;margin-bottom:4px"
+                   placeholder="รายการที่ ${i + 1}: รายละเอียด..." value="${val}"
+                   oninput="Screens5.incNote('${c.key}',${i},this.value)">`;
+        }
+      }
       return `
         <div class="card" style="padding:12px;margin-bottom:8px;border-left:3px solid ${isActive ? 'var(--gold)' : 'var(--b1)'}">
           <div style="display:flex;align-items:center;gap:10px">
@@ -733,9 +747,7 @@ const Screens5 = (() => {
             </div>
           </div>
           <div style="margin-top:8px;${isActive ? '' : 'display:none'}" id="inc-note-wrap-${c.key}">
-            <input class="form-input" style="font-size:12px;padding:6px 10px" id="inc-note-${c.key}"
-                   placeholder="note: รายละเอียด..." value="${App.esc(st.note)}"
-                   oninput="Screens5.incNote('${c.key}',this.value)">
+            ${notesHtml}
           </div>
         </div>`;
     }).join('');
@@ -1040,18 +1052,39 @@ const Screens5 = (() => {
   }
 
   function incAdj(key, delta) {
-    if (!_incidentState[key]) _incidentState[key] = { count: 0, note: '' };
-    _incidentState[key].count = Math.max(0, _incidentState[key].count + delta);
-    const cntEl = document.getElementById('inc-cnt-' + key);
-    if (cntEl) cntEl.textContent = _incidentState[key].count;
+    if (!_incidentState[key]) _incidentState[key] = { count: 0, notes: [] };
+    const st = _incidentState[key];
+    // Collect current values from DOM before re-render
     const noteWrap = document.getElementById('inc-note-wrap-' + key);
-    if (noteWrap) noteWrap.style.display = _incidentState[key].count > 0 ? '' : 'none';
+    if (noteWrap) {
+      const inputs = noteWrap.querySelectorAll('input');
+      inputs.forEach((inp, i) => { if (i < st.notes.length) st.notes[i] = inp.value; });
+    }
+    const newCount = Math.max(0, st.count + delta);
+    while (st.notes.length < newCount) st.notes.push('');
+    if (newCount < st.notes.length) st.notes.length = newCount;
+    st.count = newCount;
+    // Update count display
+    const cntEl = document.getElementById('inc-cnt-' + key);
+    if (cntEl) cntEl.textContent = st.count;
+    // Re-render note boxes
+    if (noteWrap) {
+      noteWrap.style.display = st.count > 0 ? '' : 'none';
+      let html = '';
+      for (let i = 0; i < st.count; i++) {
+        html += `<input class="form-input" style="font-size:12px;padding:6px 10px;margin-bottom:4px"
+                   placeholder="รายการที่ ${i + 1}: รายละเอียด..." value="${App.esc(st.notes[i] || '')}"
+                   oninput="Screens5.incNote('${key}',${i},this.value)">`;
+      }
+      noteWrap.innerHTML = html;
+    }
     updateIncSummary();
   }
 
-  function incNote(key, val) {
-    if (!_incidentState[key]) _incidentState[key] = { count: 0, note: '' };
-    _incidentState[key].note = val;
+  function incNote(key, idx, val) {
+    if (!_incidentState[key]) _incidentState[key] = { count: 0, notes: [] };
+    if (!_incidentState[key].notes) _incidentState[key].notes = [];
+    _incidentState[key].notes[idx] = val;
   }
 
   function updateIncSummary() {
@@ -1077,8 +1110,13 @@ const Screens5 = (() => {
       if (el) _reportData['customer_' + f] = el.value;
     });
     INCIDENT_CATS.forEach(c => {
-      const noteEl = document.getElementById('inc-note-' + c.key);
-      if (noteEl && _incidentState[c.key]) _incidentState[c.key].note = noteEl.value;
+      const noteWrap = document.getElementById('inc-note-wrap-' + c.key);
+      if (noteWrap && _incidentState[c.key]) {
+        const inputs = noteWrap.querySelectorAll('input');
+        const notes = [];
+        inputs.forEach(inp => notes.push(inp.value));
+        _incidentState[c.key].notes = notes;
+      }
     });
   }
 
@@ -1086,23 +1124,28 @@ const Screens5 = (() => {
     collectFormState();
     const r = _reportData || {};
 
-    // Validate: ถ้า incident count > 0 ต้องมี note
+    // Validate: ถ้า incident count > 0 ต้องมี note ทุกช่อง
     for (const c of INCIDENT_CATS) {
       const st = _incidentState[c.key];
       if (st && st.count > 0) {
-        const note = (st.note || '').trim();
-        if (!note) {
-          App.toast(`⚠️ กรุณาใส่รายละเอียด "${c.name}" (มี ${st.count} รายการ)`, 'error');
-          return;
+        for (let i = 0; i < st.count; i++) {
+          if (!(st.notes[i] || '').trim()) {
+            App.toast(`⚠️ กรุณาใส่รายละเอียด "${c.name}" รายการที่ ${i + 1}`, 'error');
+            return;
+          }
         }
       }
     }
 
-    const incidents = INCIDENT_CATS.map(c => ({
-      category: c.key,
-      count: _incidentState[c.key]?.count || 0,
-      note: _incidentState[c.key]?.note || '',
-    })).filter(i => i.count > 0);
+    const incidents = INCIDENT_CATS.map(c => {
+      const st = _incidentState[c.key] || { count: 0, notes: [] };
+      return {
+        category: c.key,
+        count: st.count || 0,
+        note: (st.notes || []).filter(n => n).join(' | '),
+        notes: st.notes || [],
+      };
+    }).filter(i => i.count > 0);
 
     try {
       App.showLoader();
@@ -1212,7 +1255,8 @@ const Screens5 = (() => {
       text += `⚠️ เหตุการณ์ (${total} รายการ)\n`;
       activeInc.forEach(c => {
         const st = _incidentState[c.key];
-        text += `  ${c.icon} ${c.name} ×${st.count}${st.note ? ' — ' + st.note : ''}\n`;
+        text += `  ${c.icon} ${c.name} ×${st.count}\n`;
+        (st.notes || []).forEach((n, i) => { if (n) text += `    ${i + 1}. ${n}\n`; });
       });
       text += '\n';
     }
